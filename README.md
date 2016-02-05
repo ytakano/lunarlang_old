@@ -17,5 +17,5 @@
     FindSphinx.cmake           LLVMProcessSources.cmake
     GetSVN.cmake               TableGen.cmake
     HandleLLVMOptions.cmake
-    $ cmake -DLLVM_DIR=/path/to/llvm/cmake
+    $ cmake -DLLVM_DIR=/path/to/llvm/cmake .
     $ make
