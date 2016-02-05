@@ -5,10 +5,14 @@
 #include <vector>
 #include <memory>
 
+#include <llvm/Analysis/Passes.h>
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Module.h>
 #include <llvm/IR/Function.h>
+#include <llvm/IR/LegacyPassManager.h>
+#include <llvm/Transforms/Scalar.h>
 #include <llvm/ExecutionEngine/MCJIT.h>
+#include <llvm/ExecutionEngine/SectionMemoryManager.h>
 
 class MCJITHelper
 {
@@ -16,16 +20,16 @@ public:
     MCJITHelper(llvm::LLVMContext& C) : Context(C), OpenModule(NULL) {}
     ~MCJITHelper();
 
-    Function *getFunction(const std::string FnName);
-    Module *getModuleForNewFunction();
+    llvm::Function *getFunction(const std::string FnName);
+    llvm::Module *getModuleForNewFunction(std::string &FnName);
     void *getPointerToFunction(llvm::Function *F);
     void *getPointerToNamedFunction(const std::string &Name);
-    llvm::ExecutionEngine *compileModule(Module *M);
+    llvm::ExecutionEngine *compileModule(llvm::Module *M);
     void closeCurrentModule();
     void dump();
 
 private:
-    typedef std::vector<Module*> ModuleVector;
+    typedef std::vector<llvm::Module*> ModuleVector;
 
     llvm::LLVMContext  &Context;
     llvm::Module       *OpenModule;
@@ -33,7 +37,7 @@ private:
     std::map<llvm::Module*, llvm::ExecutionEngine*> EngineMap;
 };
 
-class HelpingMemoryManager : public SectionMemoryManager
+class HelpingMemoryManager : public llvm::SectionMemoryManager
 {
     HelpingMemoryManager(const HelpingMemoryManager&) = delete;
     void operator=(const HelpingMemoryManager&) = delete;
@@ -66,8 +70,8 @@ void *HelpingMemoryManager::getPointerToNamedFunction(const std::string &Name,
 
     pfn = MasterHelper->getPointerToNamedFunction(Name);
     if (!pfn && AbortOnFailure)
-        report_fatal_error("Program used external function '" + Name +
-                           "' which could not be resolved!");
+        llvm::report_fatal_error("Program used external function '" + Name +
+                                 "' which could not be resolved!");
     return pfn;
 }
 
@@ -77,7 +81,7 @@ MCJITHelper::~MCJITHelper()
     ModuleVector::iterator it, end;
     for (it = Modules.begin(), end = Modules.end(); it != end; ++it) {
         // See if we have an execution engine for this module.
-        std::map<llvm::Module*, llvm::ExecutionEngine*>::iterator mapIt = EngineMap.find(*it);
+        auto mapIt = EngineMap.find(*it);
         // If we have an EE, the EE owns the module so just delete the EE.
         if (mapIt != EngineMap.end()) {
             delete mapIt->second;
@@ -106,14 +110,14 @@ MCJITHelper::getFunction(const std::string FnName)
             // We need to generate a new prototype for external linkage.
             llvm::Function *PF = OpenModule->getFunction(FnName);
             if (PF && !PF->empty()) {
-                ErrorF("redefinition of function across modules");
+                PRINTERR("redefinition of function across modules");
                 return 0;
             }
 
             // If we don't have a prototype yet, create one.
             if (!PF)
                 PF = llvm::Function::Create(F->getFunctionType(),
-                                            Function::ExternalLinkage,
+                                            llvm::Function::ExternalLinkage,
                                             FnName,
                                             OpenModule);
             return PF;
@@ -123,14 +127,14 @@ MCJITHelper::getFunction(const std::string FnName)
 }
 
 llvm::Module*
-MCJITHelper::getModuleForNewFunction()
+MCJITHelper::getModuleForNewFunction(std::string &FnName)
 {
     // If we have a Module that hasn't been JITed, use that.
     if (OpenModule)
         return OpenModule;
 
     // Otherwise create a new Module.
-    std::string ModName = GenerateUniqueName("mcjit_module_");
+    std::string ModName("module_" + FnName);
     llvm::Module *M = new llvm::Module(ModName, Context);
     Modules.push_back(M);
     OpenModule = M;
@@ -170,28 +174,30 @@ MCJITHelper::closeCurrentModule()
     OpenModule = NULL;
 }
 
-ExecutionEngine*
+llvm::ExecutionEngine*
 MCJITHelper::compileModule(llvm::Module *M)
 {
     if (M == OpenModule)
         closeCurrentModule();
 
     std::string ErrStr;
-    llvm::ExecutionEngine *NewEngine = EngineBuilder(M)
-                                       .setErrorStr(&ErrStr)
-                                       .setMCJITMemoryManager(new HelpingMemoryManager(this))
-                                       .create();
+    llvm::ExecutionEngine *NewEngine =
+        llvm::EngineBuilder(std::unique_ptr<llvm::Module>(M))
+            .setErrorStr(&ErrStr)
+            .setMCJITMemoryManager(llvm::make_unique<HelpingMemoryManager>(this))
+            .create();
     if (!NewEngine) {
-        fprintf(stderr, "Could not create ExecutionEngine: %s\n", ErrStr.c_str());
+        PRINTERR("Could not create ExecutionEngine: %s\n", ErrStr.c_str());
         exit(1);
     }
 
     // Create a function pass manager for this engine
-    llvm::FunctionPassManager *FPM = new llvm::FunctionPassManager(M);
+    llvm::legacy::FunctionPassManager *FPM = new llvm::legacy::FunctionPassManager(M);
 
     // Set up the optimizer pipeline.  Start with registering info about how the
     // target lays out data structures.
-    FPM->add(new DataLayout(*NewEngine->getDataLayout()));
+    M->setDataLayout(NewEngine->getDataLayout());
+    //FPM->add(new llvm::DataLayout(*NewEngine->getDataLayout()));
     // Provide basic AliasAnalysis support for GVN.
     FPM->add(llvm::createBasicAliasAnalysisPass());
     // Promote allocas to registers.
@@ -199,7 +205,7 @@ MCJITHelper::compileModule(llvm::Module *M)
     // Do simple "peephole" optimizations and bit-twiddling optzns.
     FPM->add(llvm::createInstructionCombiningPass());
     // Reassociate expressions.
-    FPM->add(llvm:createReassociatePass());
+    FPM->add(llvm::createReassociatePass());
     // Eliminate Common SubExpressions.
     FPM->add(llvm::createGVNPass());
     // Simplify the control flow graph (deleting unreachable blocks, etc).
@@ -232,7 +238,7 @@ void
     ModuleVector::iterator end   = Modules.end();
     ModuleVector::iterator it;
     for (it = begin; it != end; ++it) {
-        Function *F = (*it)->getFunction(Name);
+        llvm::Function *F = (*it)->getFunction(Name);
         if (F && !F->empty()) {
             auto eeIt = EngineMap.find(*it);
             if (eeIt != EngineMap.end()) {

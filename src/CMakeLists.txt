@@ -1,21 +1,52 @@
+cmake_minimum_required(VERSION 3.4)
+
 IF(POLICY CMP0042)
   cmake_policy(SET CMP0042 NEW)
 ENDIF(POLICY CMP0042)
 
+# for LLVM
+find_package(LLVM REQUIRED CONFIG)
+add_definitions(${LLVM_DEFINITIONS})
+include_directories(${LLVM_INCLUDE_DIRS})
+
+execute_process(
+    COMMAND ${LLVM_TOOLS_BINARY_DIR}/llvm-config --cxxflags
+    COMMAND tr -d \n
+    OUTPUT_VARIABLE LLVM_CXXFLAGS
+)
+
+execute_process(
+    COMMAND ${LLVM_TOOLS_BINARY_DIR}/llvm-config --ldflags
+    COMMAND tr -d \n
+    OUTPUT_VARIABLE LLVM_LDFLAGS
+)
+
+# build options
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE "release")
 endif()
 
-# build options
-set(CMAKE_CXX_FLAGS "-Wall -fPIC -std=c++14")
+set(CMAKE_CXX_FLAGS "-Wno-gnu-zero-variadic-macro-arguments -fno-rtti ${LLVM_CXXFLAGS}")
 set(CMAKE_CXX_FLAGS_DEBUG "-g -O0")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3")
+set(CMAKE_EXE_LINKER_FLAGS ${LLVM_LDFLAGS})
 
+# print status
+message(STATUS "Build type: -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}")
+message(STATUS "Using LLVMConfig.cmake in: -DLLVM_DIR=${LLVM_DIR}")
+message(STATUS "LLVM version: ${LLVM_PACKAGE_VERSION}")
+message(STATUS "LLVM C++ compiler flags: ${LLVM_CXXFLAGS}")
+message(STATUS "LLVM linker flags: ${LLVM_LDFLAGS}")
+
+# build targets
 FILE(GLOB CPPSources *.cpp)
 FILE(GLOB CPPHeaders *.hpp)
 FILE(GLOB CPPMain lunar_main.cpp)
 
-message(STATUS "CMAKE_BUILD_TYPE=" ${CMAKE_BUILD_TYPE})
-
 add_library(lunarlang SHARED ${CPPSources})
 add_executable(lunar ${CPPMain})
+
+set(LIBS ${LLVM_AVAILABLE_LIBS})
+
+target_link_libraries(lunarlang ${LIBS})
+target_link_libraries(lunar ${LIBS})

@@ -1,0 +1,4 @@
+#ifndef LUNAR_LISP_HPP
+#define LUNAR_LISP_HPP
+
+#endif // LUNAR_LISP_HPP
