@@ -1,12 +1,17 @@
+{-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+
+import           Control.Applicative
+import           Control.Monad.Identity (Identity)
 import           System.Environment
-import           Text.Parsec
-import           Text.Parsec.String
+import           Text.Parsec            ((<?>))
+import qualified Text.Parsec            as Parsec
 
 {- BNF of Lunar Lisp
-list   ::= '\'(' sp args sp ')'
-
 exprs  ::= expr exprs | ε
 expr   ::= '(' sp term sp args ')' | '(' sp expr sp args sp ')'
+
+list   ::= '\'(' sp args sp ')'
 
 args   ::= arg sp args | ε
 arg    ::= expr | list | num | term
@@ -25,34 +30,39 @@ sp     ::= space sp | ε
 space  ::= ' ' | '\r' | '\n' | '\t'
 alpha  ::= [a-zA-Z]
 digit  ::= [0-9]
-op     ::= '+' | '/' | '~' | '!' | '@' | '#' | '$' | '%' |
+op     ::= '+' | '/' | '~' | '!' | '@' | '#' | '$' | '%' | ':' |
            '^' | '^' | '*' | '-' | '=' | '_' | '<' | '>' | '|'
-utf8   ::= alphabet | digit | op | multibyte character
-nonum  ::= alphabet | op | multibyte character
+utf8   ::= alpha | digit | op | multibyte character
+nonum  ::= alpha | op | multibyte character
 -}
 
+parse :: Parsec.Stream s Identity t => Parsec.Parsec s () a -> s -> Either Parsec.ParseError a
+parse rule text = Parsec.parse rule "(source)" text
 
-parseLunarLisps :: [IO String] -> IO ()
-parseLunarLisps (x:xs) =
+parseLunarLisps :: [String] -> [IO String] -> IO ()
+parseLunarLisps (x:xs) (y:ys) =
     do
-        parseLunarLisp x
-        parseLunarLisps(xs)
-parseLunarLisps [] = do return ()
+        parseLunarLisp x y
+        parseLunarLisps xs ys
+parseLunarLisps [] _ = do return ()
 
-parseLunarLisp :: IO String -> IO ()
-parseLunarLisp content =
+parseLunarLisp :: String -> IO String -> IO ()
+parseLunarLisp file content =
     do
         str <- content
+        putStrLn file
         putStrLn str
 
-readFiles :: IO [IO String]
+readFiles :: IO ([FilePath], [IO String])
 readFiles =
     do
         files <- getArgs
-        return $ map readFile files
+        let contents = map readFile files
+        return (files, contents)
 
 main =
     do
-        contents <- readFiles
-        parseLunarLisps contents
+        ret <- readFiles
+        let (files, contents) = ret
+        parseLunarLisps files contents
         putStr ""
