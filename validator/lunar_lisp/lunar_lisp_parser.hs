@@ -40,13 +40,87 @@ binnum  ::= '0' | '1'
 octnum  ::= [0-7]
 hexnum  ::= [0-9a-fA-F] 
 op      ::= '+' | '/' | '~' | '!' | '@' | '#' | '$' | '%' | ':' |
-            '^' | '^' | '*' | '-' | '=' | '_' | '<' | '>' | '|'
+            '^' | '*' | '-' | '=' | '_' | '<' | '>' | '|'
 utf8    ::= alpha | digit | op | multibyte character
 nonum   ::= alpha | op | multibyte character
 -}
 
 parse :: Parsec.Stream s Identity t => Parsec.Parsec s () a -> s -> Either Parsec.ParseError a
 parse rule text = Parsec.parse rule "(source)" text
+
+-- sp      ::= space sp | ε
+-- space   ::= ' ' | '\r' | '\n' | '\t'
+parseSp :: Parsec.Parsec String () ()
+parseSp =
+    do
+        Parsec.many1 $ Parsec.oneOf " \r\n\t"
+        return ()
+
+-- num     ::= hex | oct | bin | float | natural
+parseNum :: Parsec.Parsec String () String
+parseNum =
+    do
+        result <- Parsec.try (parseHex)   <|>
+                  Parsec.try (parseOct)   <|>
+                  Parsec.try (parseBin)   <|>
+                  Parsec.try (parseFloat) <|>
+                  parseNatural
+        return result
+
+-- float   ::= natural '.' digits
+parseFloat :: Parsec.Parsec String () String
+parseFloat =
+    do
+        n <- parseNatural
+        d <- Parsec.char '.'
+        f <- parseDigits
+        return $ n ++ d:f
+
+-- natural ::= nonzero digits
+parseNatural :: Parsec.Parsec String () String
+parseNatural =
+    do
+        h <- Parsec.oneOf ['1'..'9']
+        t <- parseDigits
+        return $ h:t
+
+-- digits  ::= digit digits | ε
+-- digit   ::= [0-9]
+parseDigits :: Parsec.Parsec String () String
+parseDigits =
+    do
+        digits <- Parsec.many Parsec.digit
+        return digits
+
+-- hex     ::= '0x' hexnunm hexs
+-- hexs    ::= hexnum hexs | ε
+-- hexnum  ::= [0-9a-fA-F]
+parseHex :: Parsec.Parsec String () String
+parseHex =
+    do
+        h <- Parsec.string "0x"
+        t <- Parsec.many1 Parsec.hexDigit
+        return $ h ++ t
+
+-- oct     ::= '0o' octnum octs
+-- octs    ::= octnum octs | ε
+-- octnum  ::= [0-7]
+parseOct :: Parsec.Parsec String () String
+parseOct =
+    do
+        h <- Parsec.string "0o"
+        t <- Parsec.many1 Parsec.octDigit
+        return $ h ++ t
+
+-- bin     ::= '0b' binum bins
+-- bins    ::= binnum bins | ε
+-- binnum  ::= '0' | '1'
+parseBin :: Parsec.Parsec String () String
+parseBin =
+    do
+        h <- Parsec.string "0b"
+        t <- Parsec.many1 $ Parsec.oneOf "01"
+        return $ h ++ t
 
 parseLunarLisps :: [String] -> [IO String] -> IO ()
 parseLunarLisps (x:xs) (y:ys) =
