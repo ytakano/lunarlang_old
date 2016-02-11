@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <memory>
+#include <llvm/ADT/STLExtras.h>
 
 #define PRINTERR(M, ...) fprintf(stderr, "DEBUG %s:%d: " M "\n", __FILE__, __LINE__, ##__VA_ARGS__)
 

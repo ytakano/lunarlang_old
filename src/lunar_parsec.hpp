@@ -6,39 +6,163 @@
 
 #include <string>
 #include <set>
+#include <vector>
 
 namespace lunar {
 
 template <typename T>
 class parsec {
-    typedef stream<T> stream_t;
-    typedef std::set<T> char_set_t;
+public:
+    typedef stream<T>            stream_t;
+    typedef std::set<T>          chars_t;
     typedef std::basic_string<T> string_t;
 
-public:
-    parsec(std::unique_ptr<stream_t> stream)
-        : m_stream(std::move(stream)), m_col(1), m_line(1) { }
+    parsec(stream_t &stream)
+        : m_stream(stream),
+          m_col(1),
+          m_line(1),
+          m_num(0),
+          m_result(false),
+          m_is_look_ahead(false),
+          m_is_try(false) { }
     virtual ~parsec() { }
-
-    static std::shared_ptr<char_set_t> make_char_set(const string_t &str)
+    
+    static void make_chars(chars_t &chars, const string_t &str)
     {
-        std::shared_ptr<char_set_t> chars(new std::set<T>);
-        for (auto &c: str) {
-            chars->insert(c);
+        for (auto &c: str)
+            chars.insert(c);
+    }
+    
+    class parser_pair;
+    
+    class parser {
+    public:
+        parser(parsec &p) : m_parsec(p) { }
+        virtual ~parser() { }
+
+        virtual void operator() () { };
+
+        parsec::parser_pair operator>> (parsec::parser &p)
+        {
+            return parsec::parser_pair(this, &p);
+        }
+    
+    public:
+        parsec &m_parsec;
+    };
+    
+    class parser_pair : public parser {
+    public:
+        parser_pair(parser *lhs, parser *rhs)
+            : parser(lhs->m_parsec), m_lhs(lhs), m_rhs(rhs) { }
+        virtual ~parser_pair() { }
+        
+        virtual void operator() ()
+        {
+            (*m_lhs)();
+            if (parser::m_parsec.m_result) {
+                (*m_rhs)();
+            }
         }
         
-        return chars;
-    }
+    private:
+        parser *m_lhs, *m_rhs;
+    };
+    
+    class parser_one_of : public parser {
+    public:
+        parser_one_of(parsec &p, const chars_t &chars) : parser(p), m_chars(chars) { }
+        virtual ~parser_one_of() { }
+        
+        virtual void operator() ()
+        {
+            if (parser::m_parsec.m_stream.empty()) {
+                parser::m_parsec.m_result = false;
+                // TODO: print error
+            } else {
+                auto c = parser::m_parsec.m_stream.front();
+                if (m_chars.find(c) == m_chars.end()) {
+                    parser::m_parsec.m_result = false;
+                    // TODO: print error
+                } else {
+                    parser::m_parsec.m_result = true;
+                    parser::m_parsec.m_num++;
+                    parser::m_parsec.m_str.push_back(c);
 
-    T one_of(std::shared_ptr<char_set_t> chars, bool is_look_ahead = false, bool is_try = false)
+                    if (c == U'\n' || c == '\n') {
+                        parser::m_parsec.m_line++;
+                        parser::m_parsec.m_col = 0;
+                    } else {
+                        parser::m_parsec.m_col++;
+                    }
+                    
+                    if (parser::m_parsec.m_is_look_ahead || parser::m_parsec.m_is_try) {
+                        parser::m_parsec.m_stream.move(1);
+                    } else {
+                        parser::m_parsec.m_stream.consume(1);
+                    }
+                }
+            }
+        }
+    
+    private:
+        const chars_t &m_chars;
+    };
+    
+    class parser_many : public parser {
+    public:
+        parser_many(parsec &pc, parser &pr) : parser(pc), m_parser(pr) { }
+        virtual ~parser_many() { }
+        
+        virtual void operator() ()
+        {
+            for (;;) {
+                m_parser();
+                if (! parser::m_parsec.m_result)
+                    break;
+            }
+            
+            parser::m_parsec.m_result = true;
+        }
+    
+    private:
+        parser &m_parser;
+    };
+    
+    parser_one_of one_of(const chars_t &chars)
     {
-        T c = m_stream.front();
+        return parser_one_of(*this, chars);
+    }
+    
+    parser_many many(parser &p)
+    {
+        return parser_many(*this, p);
+    }
+    
+    string_t get_string()
+    {
+        return m_str;
+    }
+    
+    void clear_string()
+    {
+        m_str.clear();
+    }
+    
+    static void parse(parser &p)
+    {
+        
     }
 
 private:
-    std::unique_ptr<stream_t> m_stream;
-    int m_col;
-    int m_line;
+    stream_t &m_stream;
+    string_t  m_str;
+    int       m_col;
+    int       m_line;
+    int       m_num;
+    bool      m_result;
+    bool      m_is_look_ahead;
+    bool      m_is_try;
 };
 
 }
