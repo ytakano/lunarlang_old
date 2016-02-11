@@ -32,7 +32,7 @@ main(int argc, char *argv[])
     lunar::parsec<char32_t>::chars_t  chars1, chars2, chars3;
     lunar::parsec<char32_t> parsec(stream);
     
-    auto text = llvm::make_unique<std::u32string>(U"a1db2e, c3d4e6");
+    auto text = llvm::make_unique<std::u32string>(U"a1b2cda, c3d4e6");
     
     stream.push_back(std::move(text));
     
@@ -42,10 +42,12 @@ main(int argc, char *argv[])
     auto p1 = parsec.one_of(chars1);
     auto p2 = parsec.one_of(chars2);
     auto p3 = parsec.one_of(chars3);
-    auto p4 = p1 >> p2 >> p3;
-    auto p5 = parsec.many(p4);
+    auto p4 = p1 >> p2;
+    auto p5 = p1 >> p3;
+    auto p6 = p4 || p5;
+    auto p7 = parsec.many(p6);
     
-    p5();
+    p7();
     
     std::wstring_convert<std::codecvt_utf8<char32_t>, char32_t> converter;
     auto str = converter.to_bytes(parsec.get_string());

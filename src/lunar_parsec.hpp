@@ -33,7 +33,8 @@ public:
             chars.insert(c);
     }
     
-    class parser_pair;
+    class parser_chain;
+    class parser_or;
     
     class parser {
     public:
@@ -42,25 +43,54 @@ public:
 
         virtual void operator() () { };
 
-        parsec::parser_pair operator>> (parsec::parser &p)
+        parsec::parser_chain operator>> (parsec::parser &p)
         {
-            return parsec::parser_pair(this, &p);
+            return parsec::parser_chain(this, &p);
+        }
+
+        parsec::parser_or operator|| (parsec::parser &p)
+        {
+            return parsec::parser_or(this, &p);
         }
     
     public:
         parsec &m_parsec;
     };
     
-    class parser_pair : public parser {
+    class parser_chain : public parser {
     public:
-        parser_pair(parser *lhs, parser *rhs)
-            : parser(lhs->m_parsec), m_lhs(lhs), m_rhs(rhs) { }
-        virtual ~parser_pair() { }
+        parser_chain(parser *lhs, parser *rhs)
+            : parser(lhs->m_parsec), m_lhs(lhs), m_rhs(rhs)
+        {
+            assert(&lhs->m_parsec == &rhs->m_parsec);
+        }
+        virtual ~parser_chain() { }
         
         virtual void operator() ()
         {
             (*m_lhs)();
             if (parser::m_parsec.m_result) {
+                (*m_rhs)();
+            }
+        }
+        
+    private:
+        parser *m_lhs, *m_rhs;
+    };
+    
+    class parser_or : public parser {
+    public:
+        parser_or(parser *lhs, parser *rhs)
+            : parser(lhs->m_parsec), m_lhs(lhs), m_rhs(rhs)
+        {
+            assert(&lhs->m_parsec == &rhs->m_parsec);
+        }
+        virtual ~parser_or() { }
+        
+        virtual void operator() ()
+        {
+            (*m_lhs)();
+            if (! parser::m_parsec.m_result) {
                 (*m_rhs)();
             }
         }
@@ -89,7 +119,7 @@ public:
                     parser::m_parsec.m_num++;
                     parser::m_parsec.m_str.push_back(c);
 
-                    if (c == U'\n' || c == '\n') {
+                    if ((char)c == '\n') {
                         parser::m_parsec.m_line++;
                         parser::m_parsec.m_col = 0;
                     } else {
