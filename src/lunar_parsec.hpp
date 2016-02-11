@@ -106,31 +106,37 @@ public:
         
         virtual void operator() ()
         {
-            if (parser::m_parsec.m_stream.empty()) {
+            T c;
+            auto result = parser::m_parsec.m_stream.front(c); 
+
+            if (result == NO_MORE_DATA) {
+                parser::m_parsec.m_result = false;
+                // TODO: print warning
+                return;
+            } else if (result == END_OF_STREAM) {
+                parser::m_parsec.m_result = false;
+                // TODO: print error
+                return;
+            }
+
+            if (m_chars.find(c) == m_chars.end()) {
                 parser::m_parsec.m_result = false;
                 // TODO: print error
             } else {
-                auto c = parser::m_parsec.m_stream.front();
-                if (m_chars.find(c) == m_chars.end()) {
-                    parser::m_parsec.m_result = false;
-                    // TODO: print error
+                parser::m_parsec.m_result = true;
+                parser::m_parsec.m_num++;
+                parser::m_parsec.m_str.push_back(c);
+                if (c == (T)'\n') {
+                    parser::m_parsec.m_line++;
+                    parser::m_parsec.m_col = 0;
                 } else {
-                    parser::m_parsec.m_result = true;
-                    parser::m_parsec.m_num++;
-                    parser::m_parsec.m_str.push_back(c);
-
-                    if ((char)c == '\n') {
-                        parser::m_parsec.m_line++;
-                        parser::m_parsec.m_col = 0;
-                    } else {
-                        parser::m_parsec.m_col++;
-                    }
-                    
-                    if (parser::m_parsec.m_is_look_ahead || parser::m_parsec.m_is_try) {
-                        parser::m_parsec.m_stream.move(1);
-                    } else {
-                        parser::m_parsec.m_stream.consume(1);
-                    }
+                    parser::m_parsec.m_col++;
+                }
+                
+                if (parser::m_parsec.m_is_look_ahead || parser::m_parsec.m_is_try) {
+                    parser::m_parsec.m_stream.tmp_pos_move(1);
+                } else {
+                    parser::m_parsec.m_stream.consume(1);
                 }
             }
         }
