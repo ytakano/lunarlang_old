@@ -23,12 +23,8 @@ public:
     read_result front(T &c)
     {
         assert(m_tmp_pos.x < (int)m_deque.size());
-        if (m_deque.front()->front(c, m_tmp_pos.y) == NO_MORE_DATA) {
-            if (m_is_eof) {
-                return END_OF_STREAM;
-            } else {
-                return NO_MORE_DATA;
-            }
+        if (m_deque[m_tmp_pos.x]->front(c, m_tmp_pos.y) == NO_MORE_DATA) {
+            return m_is_eof ? END_OF_STREAM : NO_MORE_DATA;
         } else {
             return SUCCESS;
         }
@@ -36,12 +32,29 @@ public:
     
     const point2i & get_tmp_pos() const { return m_tmp_pos; }
     
-    void tmp_pos_move(int num)
+    void move_tmp_pos(int num)
     {
-        // TODO
+        assert(num > 0);
+        assert((size_t)m_tmp_pos.x < m_deque.size());
+        
+        while ((size_t)m_tmp_pos.x < m_deque.size()) {
+            int size = m_deque[m_tmp_pos.x]->size() - m_tmp_pos.y;
+            if (size > num) {
+                m_tmp_pos.y += num;
+                break;
+            } else {
+                m_tmp_pos.x++;
+                m_tmp_pos.y = 0;
+                if (m_tmp_pos.y < (int)m_deque.size()) {
+                    num -= size;
+                    if (num <= 0)
+                        break;
+                }
+            }
+        }
     }
     
-    void tmp_pos_restore(const point2i &pos)
+    void restore_tmp_pos(const point2i &pos)
     {
         assert(pos.x >= 0 && pos.y >= 0);
         m_tmp_pos = pos;
@@ -80,12 +93,12 @@ private:
             if (pos >= (int)m_data->size()) {
                 return NO_MORE_DATA;
             } else {
-                c = (*m_data)[m_pos];
+                c = (*m_data)[pos];
                 return SUCCESS; 
             }
         }
         
-        int size()
+        size_t size()
         {
             return m_data->size() - m_pos;
         }

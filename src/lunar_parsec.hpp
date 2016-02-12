@@ -134,7 +134,7 @@ public:
                 }
                 
                 if (parser::m_parsec.m_is_look_ahead || parser::m_parsec.m_is_try) {
-                    parser::m_parsec.m_stream.tmp_pos_move(1);
+                    parser::m_parsec.m_stream.move_tmp_pos(1);
                 } else {
                     parser::m_parsec.m_stream.consume(1);
                 }
@@ -165,6 +165,46 @@ public:
         parser &m_parser;
     };
     
+    class parser_try : public parser {
+    public:
+        parser_try(parsec &pc, parser &pr) : parser(pc), m_parser(pr) { }
+        virtual ~parser_try() { }
+        
+        virtual void operator() ()
+        {
+            auto col    = parser::m_parsec.m_col;
+            auto line   = parser::m_parsec.m_line;
+            auto num    = parser::m_parsec.m_num;
+            auto pos    = parser::m_parsec.m_stream.get_tmp_pos();
+            auto is_try = parser::m_parsec.m_is_try;
+            auto str    = parser::m_parsec.m_str;
+            
+            parser::m_parsec.m_is_try = true;
+            
+            m_parser();
+            
+            if (parser::m_parsec.m_result) {
+                if (! is_try && ! parser::m_parsec.m_is_look_ahead) {
+                   	int n = parser::m_parsec.m_num - num;
+                    parser::m_parsec.m_stream.restore_tmp_pos(pos);
+                    parser::m_parsec.m_stream.consume(n);
+                }
+                
+                parser::m_parsec.m_is_try = is_try;
+            } else {
+                parser::m_parsec.m_col    = col;
+                parser::m_parsec.m_line   = line;
+                parser::m_parsec.m_num    = num;
+                parser::m_parsec.m_is_try = is_try;
+                parser::m_parsec.m_str    = str;
+                parser::m_parsec.m_stream.restore_tmp_pos(pos);
+            }
+        }
+    
+    private:
+        parser &m_parser;
+    };
+    
     parser_one_of one_of(const chars_t &chars)
     {
         return parser_one_of(*this, chars);
@@ -173,6 +213,11 @@ public:
     parser_many many(parser &p)
     {
         return parser_many(*this, p);
+    }
+    
+    parser_try try_parse(parser &p)
+    {
+        return parser_try(*this, p);
     }
     
     string_t get_string()
