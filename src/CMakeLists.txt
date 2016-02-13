@@ -44,7 +44,7 @@ FILE(GLOB CPPHeaders *.hpp)
 FILE(GLOB CPPMain lunar_main.cpp)
 
 add_library(lunarlang SHARED ${CPPSources})
-add_executable(lunar ${CPPMain})
+add_executable(lunar ${CPPMain} ${CPPSources})
 
 set(LIBS ${LLVM_AVAILABLE_LIBS})
 

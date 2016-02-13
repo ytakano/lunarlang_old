@@ -3,6 +3,7 @@
 
 #include "lunar_common.hpp"
 #include "lunar_stream.hpp"
+#include "lunar_string.hpp"
 
 #include <string>
 #include <set>
@@ -32,6 +33,12 @@ public:
         for (auto &c: str)
             chars.insert(c);
     }
+    
+    struct message {
+        string_t str;
+        int      line;
+        int      col;
+    };
     
     class parser_chain;
     class parser_or;
@@ -111,17 +118,40 @@ public:
 
             if (result == NO_MORE_DATA) {
                 parser::m_parsec.m_result = false;
-                // TODO: print warning
+                
+                generate_msg();
+                
+                if (sizeof(T) == sizeof(char32_t)) {
+                    parser::m_parsec.m_msg.str = to_u32string("error: no more data " + m_msg);
+                    parser::m_parsec.m_msg.line = parser::m_parsec.m_line;
+                    parser::m_parsec.m_msg.col  = parser::m_parsec.m_col;
+                }
+
                 return;
             } else if (result == END_OF_STREAM) {
                 parser::m_parsec.m_result = false;
-                // TODO: print error
+                
+                generate_msg();
+
+                if (sizeof(T) == sizeof(char32_t)) {
+                    parser::m_parsec.m_msg.str = to_u32string("error: reached the end of stream " + m_msg);
+                    parser::m_parsec.m_msg.line = parser::m_parsec.m_line;
+                    parser::m_parsec.m_msg.col  = parser::m_parsec.m_col;
+                }
+
                 return;
             }
 
             if (m_chars.find(c) == m_chars.end()) {
                 parser::m_parsec.m_result = false;
-                // TODO: print error
+                
+                generate_msg();
+
+                if (sizeof(T) == sizeof(char32_t)) {
+                    parser::m_parsec.m_msg.str = to_u32string("error: not expected char " + m_msg);
+                    parser::m_parsec.m_msg.line = parser::m_parsec.m_line;
+                    parser::m_parsec.m_msg.col  = parser::m_parsec.m_col;
+                }
             } else {
                 parser::m_parsec.m_result = true;
                 parser::m_parsec.m_num++;
@@ -143,6 +173,24 @@ public:
     
     private:
         const chars_t &m_chars;
+        std::string    m_msg;
+        
+        void generate_msg()
+        {
+            m_msg =
+                "(line: " +
+                std::to_string(parser::m_parsec.m_line) +
+                ", col: " +
+                std::to_string(parser::m_parsec.m_col) +
+                ")\n       expecting ";
+                
+            size_t i = 0;
+            for (auto c: m_chars) {
+                m_msg += to_string(c);
+                if (++i != m_chars.size())
+                    m_msg += ", ";
+            }
+        }
     };
     
     class parser_many : public parser {
@@ -159,6 +207,24 @@ public:
             }
             
             parser::m_parsec.m_result = true;
+        }
+    
+    private:
+        parser &m_parser;
+    };
+    
+    class parser_many1 : public parser {
+    public:
+        parser_many1(parsec &pc, parser &pr) : parser(pc), m_parser(pr) { }
+        virtual ~parser_many1() { }
+        
+        virtual void operator() ()
+        {
+            for (;;) {
+                m_parser();
+                if (! parser::m_parsec.m_result)
+                    break;
+            }
         }
     
     private:
@@ -205,6 +271,38 @@ public:
         parser &m_parser;
     };
     
+    class parser_look_ahead : public parser {
+    public:
+        parser_look_ahead(parsec &pc, parser &pr) : parser(pc), m_parser(pr) { }
+        virtual ~parser_look_ahead() { }
+        
+        virtual void operator() ()
+        {
+            auto col    = parser::m_parsec.m_col;
+            auto line   = parser::m_parsec.m_line;
+            auto num    = parser::m_parsec.m_num;
+            auto pos    = parser::m_parsec.m_stream.get_tmp_pos();
+            auto is_lah = parser::m_parsec.m_is_look_ahead;
+            auto str    = parser::m_parsec.m_str;
+            
+            parser::m_parsec.m_is_look_ahead = true;
+            
+            m_parser();
+            
+            parser::m_parsec.m_col    = col;
+            parser::m_parsec.m_line   = line;
+            parser::m_parsec.m_num    = num;
+            parser::m_parsec.m_is_look_ahead = is_lah;
+            parser::m_parsec.m_stream.restore_tmp_pos(pos);
+            
+            if (! parser::m_parsec.m_result)
+                parser::m_parsec.m_str = str;
+        }
+    
+    private:
+        parser &m_parser;
+    };
+    
     parser_one_of one_of(const chars_t &chars)
     {
         return parser_one_of(*this, chars);
@@ -220,9 +318,24 @@ public:
         return parser_try(*this, p);
     }
     
-    string_t get_string()
+    parser_look_ahead look_ahead(parser &p)
+    {
+        return parser_look_ahead(*this, p);
+    }
+    
+    const string_t & get_string()
     {
         return m_str;
+    }
+    
+    const message & get_msg()
+    {
+        return m_msg;
+    }
+    
+    void set_string(string_t &str)
+    {
+        m_str = str;
     }
     
     void clear_string()
@@ -238,6 +351,7 @@ public:
 private:
     stream_t &m_stream;
     string_t  m_str;
+    message   m_msg;
     int       m_col;
     int       m_line;
     int       m_num;

@@ -6,13 +6,13 @@
 
 class foo {
 public:
-    virtual ~foo() {}
+    virtual ~foo() { }
     virtual void say() { };
 };
 
 class bar : public foo {
 public:
-    virtual ~bar() {}
+    virtual ~bar() { }
 
     virtual void say() { printf("hello!\n"); }
 };
@@ -52,8 +52,12 @@ main(int argc, char *argv[])
     
     std::wstring_convert<std::codecvt_utf8<char32_t>, char32_t> converter;
     auto str = converter.to_bytes(parsec.get_string());
+    auto &msg = parsec.get_msg();
+    
+    auto msgstr = converter.to_bytes(msg.str);
     
     printf("%s\n", str.c_str());
+    printf("%s\n", msgstr.c_str());
 
     return 0;
 }
