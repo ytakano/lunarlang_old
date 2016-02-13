@@ -9,6 +9,7 @@ namespace lunar {
 
 enum read_result {
     SUCCESS,
+    FAIL,
     NO_MORE_DATA,
     END_OF_STREAM,
 };
@@ -87,10 +88,10 @@ private:
     public:
         data_t(std::unique_ptr<string_t> data) : m_data(std::move(data)), m_pos(0) { }
         
-        read_result front(T &c, int offset)
+        read_result front(T &c, size_t offset)
         {
-            int pos = m_pos + offset;
-            if (pos >= (int)m_data->size()) {
+            auto pos = m_pos + offset;
+            if (pos >= m_data->size()) {
                 return NO_MORE_DATA;
             } else {
                 c = (*m_data)[pos];
