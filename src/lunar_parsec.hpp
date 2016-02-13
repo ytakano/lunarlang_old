@@ -136,7 +136,7 @@ public:
                 
                 if (c == (T)'\n') {
                     parser::m_parsec.m_line++;
-                    parser::m_parsec.m_col = 0;
+                    parser::m_parsec.m_col = 1;
                 } else {
                     parser::m_parsec.m_col++;
                 }
@@ -171,7 +171,7 @@ public:
             
             parser::m_parsec.set_msg(str, parser::m_parsec.m_line, parser::m_parsec.m_col);
         }
-    };	
+    };
     
     class parser_char : public parser {
     public:
@@ -203,7 +203,7 @@ public:
 
                 if (c == (T)'\n') {
                     parser::m_parsec.m_line++;
-                    parser::m_parsec.m_col = 0;
+                    parser::m_parsec.m_col = 1;
                 } else {
                     parser::m_parsec.m_col++;
                 }
@@ -272,6 +272,28 @@ public:
         parser &m_parser;
     };
     
+    class parser_string : public parser {
+    public:
+        parser_string(parsec &p, const string_t &str) : parsec(p), m_str(str) { }
+        virtual ~parser_string() { }
+        
+        virtual void operator() ()
+        {
+            for (auto &s: m_str) {
+                parser::m_parsec.character(s)();
+                
+                if (! parser::m_parsec.m_result) {
+                    return;
+                }
+            }
+            
+            parser::m_parsec.m_result = true;
+        }
+    
+    private:
+        const string_t &m_str;
+    };
+    
     class parser_try : public parser {
     public:
         parser_try(parsec &pc, parser &pr) : parser(pc), m_parser(pr) { }
@@ -330,9 +352,9 @@ public:
             
             m_parser();
             
-            parser::m_parsec.m_col    = col;
-            parser::m_parsec.m_line   = line;
-            parser::m_parsec.m_num    = num;
+            parser::m_parsec.m_col  = col;
+            parser::m_parsec.m_line = line;
+            parser::m_parsec.m_num  = num;
             parser::m_parsec.m_is_look_ahead = is_lah;
             parser::m_parsec.m_stream.restore_tmp_pos(pos);
             

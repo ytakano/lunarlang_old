@@ -9,7 +9,6 @@ namespace lunar {
 
 enum read_result {
     SUCCESS,
-    FAIL,
     NO_MORE_DATA,
     END_OF_STREAM,
 };
@@ -23,8 +22,9 @@ public:
     
     read_result front(T &c)
     {
-        assert(m_tmp_pos.x < (int)m_deque.size());
-        if (m_deque[m_tmp_pos.x]->front(c, m_tmp_pos.y) == NO_MORE_DATA) {
+        assert(m_tmp_pos.x <= (int)m_deque.size());
+        if (m_tmp_pos.x >= (int)m_deque.size() ||
+            m_deque[m_tmp_pos.x]->front(c, m_tmp_pos.y) == NO_MORE_DATA) {
             return m_is_eof ? END_OF_STREAM : NO_MORE_DATA;
         } else {
             return SUCCESS;
@@ -46,10 +46,10 @@ public:
             } else {
                 m_tmp_pos.x++;
                 m_tmp_pos.y = 0;
-                if (m_tmp_pos.y < (int)m_deque.size()) {
-                    num -= size;
-                    if (num <= 0)
-                        break;
+
+                num -= size;
+                if (num == 0) {
+                    break;
                 }
             }
         }

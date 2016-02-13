@@ -50,6 +50,20 @@ to_string(char c)
 
 inline
 std::string
+to_string(const std::u32string &str)
+{
+    return string_converter.to_bytes(str);
+}
+
+inline
+std::string &
+to_string(std::string &str)
+{
+    return str;
+}
+
+inline
+std::string
 str_convert(const std::u32string &str)
 {
     return string_converter.to_bytes(str);
