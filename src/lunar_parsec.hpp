@@ -23,7 +23,7 @@ public:
           m_col(1),
           m_line(1),
           m_num(0),
-          m_result(false),
+          m_result(true),
           m_is_look_ahead(false),
           m_is_try(false) { }
     virtual ~parsec() { }
@@ -35,11 +35,12 @@ public:
     }
     
     struct message {
-        string_t str;
-        int      line;
-        int      col;
+        read_result result;
+        string_t    str;
+        int         line;
+        int         col;
     };
-    
+
     class parser_chain;
     class parser_or;
     
@@ -62,6 +63,18 @@ public:
     
     public:
         parsec &m_parsec;
+    };
+    
+    class parser_func : public parser {
+    public:
+        parser_func(parsec &p, std::function<void(parsec&)> func)
+            : parser(p), m_func(func) { }
+        virtual ~parser_func() { }
+        
+        virtual void operator() () { m_func(parser::m_parsec); }
+    
+    private:
+        std::function<void(parsec&)> m_func;
     };
     
     class parser_chain : public parser {
@@ -106,10 +119,10 @@ public:
         parser *m_lhs, *m_rhs;
     };
     
-    class parser_one_of : public parser {
+    class parser_satisfy : public parser {
     public:
-        parser_one_of(parsec &p, const chars_t &chars) : parser(p), m_chars(chars) { }
-        virtual ~parser_one_of() { }
+        parser_satisfy(parsec &p, std::function<bool(T)> func) : parser(p), m_func(func) { }
+        virtual ~parser_satisfy() { }
         
         virtual void operator() ()
         {
@@ -118,18 +131,25 @@ public:
 
             if (result == NO_MORE_DATA) {
                 parser::m_parsec.m_result = false;
-                generate_msg("error: no more data ");
+
+                string_t s;
+                s.push_back(c);
+                parser::m_parsec.set_msg(s, result,
+                                         parser::m_parsec.m_line, parser::m_parsec.m_col);
+
                 return;
             } else if (result == END_OF_STREAM) {
                 parser::m_parsec.m_result = false;
-                generate_msg("error: reached the end of stream ");
+
+                string_t s;
+                s.push_back(c);
+                parser::m_parsec.set_msg(s, result,
+                                         parser::m_parsec.m_line, parser::m_parsec.m_col);
+
                 return;
             }
 
-            if (m_chars.find(c) == m_chars.end()) {
-                parser::m_parsec.m_result = false;
-                generate_msg("error: not expected char ");
-            } else {
+            if (m_func(c)) {
                 parser::m_parsec.m_result = true;
                 parser::m_parsec.m_num++;
                 parser::m_parsec.m_str.push_back(c);
@@ -146,94 +166,59 @@ public:
                 } else {
                     parser::m_parsec.m_stream.consume(1);
                 }
-            }
-        }
-    
-    private:
-        const chars_t &m_chars;
-        
-        void generate_msg(const std::string &msg)
-        {
-            auto str =
-                msg +
-                "(line: " +
-                std::to_string(parser::m_parsec.m_line) +
-                ", col: " +
-                std::to_string(parser::m_parsec.m_col) +
-                ")\n       expecting ";
-
-            size_t i = 0;
-            for (auto c: m_chars) {
-                str += to_string(c);
-                if (++i != m_chars.size())
-                    str += ", ";
-            }
-            
-            parser::m_parsec.set_msg(str, parser::m_parsec.m_line, parser::m_parsec.m_col);
-        }
-    };
-    
-    class parser_char : public parser {
-    public:
-        parser_char(parsec &p, T c) : parser(p), m_char(c) { }
-        virtual ~parser_char() { }
-
-        virtual void operator() ()
-        {
-            T c;
-            auto result = parser::m_parsec.m_stream.front(c); 
-
-            if (result == NO_MORE_DATA) {
-                parser::m_parsec.m_result = false;
-                generate_msg("error: no more data ");
-                return;
-            } else if (result == END_OF_STREAM) {
-                parser::m_parsec.m_result = false;
-                generate_msg("error: reached the end of stream ");
-                return;
-            }
-
-            if (c != m_char) {
-                parser::m_parsec.m_result = false;
-                generate_msg("error: not expected char ");
             } else {
-                parser::m_parsec.m_result = true;
-                parser::m_parsec.m_num++;
-                parser::m_parsec.m_str.push_back(c);
+                parser::m_parsec.m_result = false;
 
-                if (c == (T)'\n') {
-                    parser::m_parsec.m_line++;
-                    parser::m_parsec.m_col = 1;
-                } else {
-                    parser::m_parsec.m_col++;
-                }
-                
-                if (parser::m_parsec.m_is_look_ahead || parser::m_parsec.m_is_try) {
-                    parser::m_parsec.m_stream.move_tmp_pos(1);
-                } else {
-                    parser::m_parsec.m_stream.consume(1);
-                }
+                string_t s;
+                s.push_back(c);
+                parser::m_parsec.set_msg(s, result,
+                                         parser::m_parsec.m_line, parser::m_parsec.m_col);
             }
         }
-
+    
     private:
-        T           m_char;
-        std::string m_msg;
-        
-        void generate_msg(const std::string &msg)
-        {
-            auto str =
-                msg +
-                "(line: " +
-                std::to_string(parser::m_parsec.m_line) +
-                ", col: " +
-                std::to_string(parser::m_parsec.m_col) +
-                ")\n       expecting ";
-            
-            parser::m_parsec.set_msg(str, parser::m_parsec.m_line, parser::m_parsec.m_col);
-        }
+        std::function<bool(T)> m_func;
     };
     
+    class parser_one_of {
+    public:
+        parser_one_of(const chars_t &chars) : m_chars(chars) { }
+    
+        bool operator() (T c)
+        {
+            return m_chars.find(c) != m_chars.end();
+        }
+    
+    private:
+        chars_t m_chars;
+    };
+    
+    class parser_char {
+    public:
+        parser_char(T c) : m_char(c) { }
+        
+        bool operator() (T c)
+        {
+            return c == m_char;
+        }
+    
+    private:
+        T m_char;
+    };
+    
+    class parser_none_of {
+    public:
+        parser_none_of(const chars_t &chars) : m_chars(chars) { }
+    
+        bool operator() (T c)
+        {
+            return m_chars.find(c) == m_chars.end();
+        }
+    
+    private:
+        chars_t m_chars;
+    };
+
     class parser_many : public parser {
     public:
         parser_many(parsec &pc, parser &pr) : parser(pc), m_parser(pr) { }
@@ -366,14 +351,19 @@ public:
         parser &m_parser;
     };
     
-    parser_one_of one_of(const chars_t &chars)
+    parser_satisfy one_of(const chars_t &chars)
     {
-        return parser_one_of(*this, chars);
+        return parser_satisfy(*this, parser_one_of(chars));
     }
-    
-    parser_char character(T c)
+
+    parser_satisfy character(T c)
     {
-        return parser_char(*this, c);
+        return parser_satisfy(*this, parser_char(c));
+    }
+
+    parser_satisfy none_of(const chars_t &chars)
+    {
+        return parser_satisfy(*this, chars);
     }
     
     parser_many many(parser &p)
@@ -389,6 +379,11 @@ public:
     parser_look_ahead look_ahead(parser &p)
     {
         return parser_look_ahead(*this, p);
+    }
+    
+    parser_func func(std::function<void(parsec&)> f)
+    {
+        return parser_func(*this, f);
     }
     
     const string_t & get_string()
@@ -411,16 +406,12 @@ public:
         m_str.clear();
     }
     
-    void set_msg(const std::string &msg, int line, int col)
+    void set_msg(const string_t &msg, read_result result, int line, int col)
     {
-        m_msg.str  = str_convert(msg);
-        m_msg.line = line;
-        m_msg.col  = col;
-    }
-    
-    static void parse(parser &p)
-    {
-        
+        m_msg.result = result;
+        m_msg.str    = msg;
+        m_msg.line   = line;
+        m_msg.col    = col;
     }
 
 private:
