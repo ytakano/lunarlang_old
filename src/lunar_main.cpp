@@ -25,9 +25,7 @@ parse_int(lunar::parsec<char32_t> &parsec)
 {
     auto p = parsec.satisfy(one2nine) >> parsec.many(parsec.digit()) || parsec.character(U'0');
     
-    p();
-    
-    if (parsec.get_result()) {
+    if (p()) {
         auto str = lunar::to_string(parsec.get_string());
         return lunar::to_int(str);
     } else {

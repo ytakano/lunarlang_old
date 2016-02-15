@@ -54,7 +54,7 @@ public:
         parser(parsec &p) : m_parsec(p) { }
         virtual ~parser() { }
 
-        virtual void operator() () { };
+        virtual bool operator() () { return m_parsec.m_result; };
 
         parsec::parser_chain operator>> (parsec::parser &&p)
         {
@@ -82,14 +82,14 @@ public:
     
     class parser_func : public parser {
     public:
-        parser_func(parsec &p, std::function<void(parsec&)> func)
+        parser_func(parsec &p, std::function<bool(parsec&)> func)
             : parser(p), m_func(func) { }
         virtual ~parser_func() { }
         
-        virtual void operator() () { m_func(parser::m_parsec); }
+        virtual bool operator() () { return m_func(parser::m_parsec); }
     
     private:
-        std::function<void(parsec&)> m_func;
+        std::function<bool(parsec&)> m_func;
     };
     
     class parser_chain : public parser {
@@ -101,12 +101,14 @@ public:
         }
         virtual ~parser_chain() { }
         
-        virtual void operator() ()
+        virtual bool operator() ()
         {
             (*m_lhs)();
             if (parser::m_parsec.m_result) {
                 (*m_rhs)();
             }
+            
+            return parser::m_parsec.m_result;
         }
         
     private:
@@ -122,12 +124,14 @@ public:
         }
         virtual ~parser_or() { }
         
-        virtual void operator() ()
+        virtual bool operator() ()
         {
             (*m_lhs)();
             if (! parser::m_parsec.m_result) {
                 (*m_rhs)();
             }
+            
+            return parser::m_parsec.m_result;
         }
         
     private:
@@ -139,7 +143,7 @@ public:
         parser_satisfy(parsec &p, std::function<bool(T)> func) : parser(p), m_func(func) { }
         virtual ~parser_satisfy() { }
         
-        virtual void operator() ()
+        virtual bool operator() ()
         {
             T c;
             auto result = parser::m_parsec.m_stream.front(c); 
@@ -147,11 +151,11 @@ public:
             if (result == NO_MORE_DATA) {
                 parser::m_parsec.m_result = false;
                 parser::m_parsec.set_err(result, parser::m_parsec.m_line, parser::m_parsec.m_col);
-                return;
+                return false;
             } else if (result == END_OF_STREAM) {
                 parser::m_parsec.m_result = false;
                 parser::m_parsec.set_err(result, parser::m_parsec.m_line, parser::m_parsec.m_col);
-                return;
+                return false;
             }
 
             if (m_func(c)) {
@@ -171,10 +175,14 @@ public:
                 } else {
                     parser::m_parsec.m_stream.consume(1);
                 }
-            } else {
-                parser::m_parsec.m_result = false;
-                parser::m_parsec.set_err(result, parser::m_parsec.m_line, parser::m_parsec.m_col);
+                
+                return true;
             }
+
+            parser::m_parsec.m_result = false;
+            parser::m_parsec.set_err(result, parser::m_parsec.m_line, parser::m_parsec.m_col);
+            
+            return false;
         }
     
     private:
@@ -233,7 +241,7 @@ public:
         parser_many(parsec &pc, parser &pr) : parser(pc), m_parser(pr) { }
         virtual ~parser_many() { }
         
-        virtual void operator() ()
+        virtual bool operator() ()
         {
             for (;;) {
                 m_parser();
@@ -242,6 +250,7 @@ public:
             }
             
             parser::m_parsec.m_result = true;
+            return true;
         }
     
     private:
@@ -253,13 +262,20 @@ public:
         parser_many1(parsec &pc, parser &pr) : parser(pc), m_parser(pr) { }
         virtual ~parser_many1() { }
         
-        virtual void operator() ()
+        virtual bool operator() ()
         {
+            m_parser();
+            if (! parser::m_parsec.m_result)
+                return false;
+
             for (;;) {
                 m_parser();
                 if (! parser::m_parsec.m_result)
                     break;
             }
+            
+            parser::m_parsec.m_result = true;
+            return true;
         }
     
     private:
@@ -271,17 +287,17 @@ public:
         parser_string(parsec &p, const string_t &str) : parsec(p), m_str(str) { }
         virtual ~parser_string() { }
         
-        virtual void operator() ()
+        virtual bool operator() ()
         {
             for (auto &s: m_str) {
                 parser::m_parsec.character(s)();
-                
                 if (! parser::m_parsec.m_result) {
-                    return;
+                    return false;
                 }
             }
             
             parser::m_parsec.m_result = true;
+            return true;
         }
     
     private:
@@ -293,7 +309,7 @@ public:
         parser_try(parsec &pc, parser &pr) : parser(pc), m_parser(pr) { }
         virtual ~parser_try() { }
         
-        virtual void operator() ()
+        virtual bool operator() ()
         {
             auto col    = parser::m_parsec.m_col;
             auto line   = parser::m_parsec.m_line;
@@ -322,6 +338,8 @@ public:
                 parser::m_parsec.m_str    = str;
                 parser::m_parsec.m_stream.restore_tmp_pos(pos);
             }
+            
+            return parser::m_parsec.m_result;
         }
     
     private:
@@ -333,7 +351,7 @@ public:
         parser_look_ahead(parsec &pc, parser &pr) : parser(pc), m_parser(pr) { }
         virtual ~parser_look_ahead() { }
         
-        virtual void operator() ()
+        virtual bool operator() ()
         {
             auto col    = parser::m_parsec.m_col;
             auto line   = parser::m_parsec.m_line;
@@ -354,6 +372,8 @@ public:
             
             if (! parser::m_parsec.m_result)
                 parser::m_parsec.m_str = str;
+            
+            return parser::m_parsec.m_result;
         }
     
     private:
