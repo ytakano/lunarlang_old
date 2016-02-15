@@ -56,9 +56,19 @@ public:
 
         virtual void operator() () { };
 
+        parsec::parser_chain operator>> (parsec::parser &&p)
+        {
+            return parsec::parser_chain(this, &p);
+        }
+
         parsec::parser_chain operator>> (parsec::parser &p)
         {
             return parsec::parser_chain(this, &p);
+        }
+
+        parsec::parser_or operator|| (parsec::parser &&p)
+        {
+            return parsec::parser_or(this, &p);
         }
 
         parsec::parser_or operator|| (parsec::parser &p)
@@ -209,6 +219,14 @@ public:
     private:
         chars_t m_chars;
     };
+    
+    class parser_digit {
+    public:
+        bool operator() (T c)
+        {
+            return (T)'0' <= c && c <= (T)'9';
+        }
+    };
 
     class parser_many : public parser {
     public:
@@ -342,6 +360,11 @@ public:
         parser &m_parser;
     };
     
+    parser_satisfy satisfy(std::function<bool(T)> f)
+    {
+        return parser_satisfy(*this, f);
+    }
+    
     parser_satisfy one_of(const chars_t &chars)
     {
         return parser_satisfy(*this, parser_one_of(chars));
@@ -357,14 +380,34 @@ public:
         return parser_satisfy(*this, chars);
     }
     
+    parser_satisfy digit()
+    {
+        return parser_satisfy(*this, parser_digit());
+    }
+    
+    parser_many many(parser &&p)
+    {
+        return parser_many(*this, p);
+    }
+    
     parser_many many(parser &p)
     {
         return parser_many(*this, p);
     }
     
+    parser_try try_parse(parser &&p)
+    {
+        return parser_try(*this, p);
+    }
+    
     parser_try try_parse(parser &p)
     {
         return parser_try(*this, p);
+    }
+    
+    parser_look_ahead look_ahead(parser &&p)
+    {
+        return parser_look_ahead(*this, p);
     }
     
     parser_look_ahead look_ahead(parser &p)
@@ -377,30 +420,15 @@ public:
         return parser_func(*this, f);
     }
     
-    const string_t & get_string()
-    {
-        return m_str;
-    }
-    
-    const message & get_err()
-    {
-        return m_err;
-    }
-    
-    void set_string(string_t &str)
-    {
-        m_str = str;
-    }
-    
-    bool get_result()
-    {
-        return m_result;
-    }
-    
-    void clear_string()
-    {
-        m_str.clear();
-    }
+    const message & get_err() { return m_err; }
+
+    const string_t & get_string() { return m_str; }
+    void set_string(string_t &str) { m_str = str; }
+    void clear_string() { m_str.clear(); }
+
+    bool get_result() { return m_result;}
+    int  get_line() { return m_line; }
+    int  get_col() {return m_col; }
     
     void set_err(read_result result, int line, int col)
     {

@@ -76,6 +76,21 @@ str_convert(const std::string &str)
     return string_converter.from_bytes(str);
 }
 
+inline
+int
+to_int(const std::string &str)
+{
+    int n = 0;
+    int i = 1;
+    
+    for (auto it = str.rbegin(); it != str.rend(); ++it) {
+        n += i * (*it - U'0');
+        i *= 10;
+    }
+    
+    return n;
+}
+
 }
 
 #endif // LUNAR_STRING_HPP

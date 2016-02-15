@@ -4,58 +4,56 @@
 #include <locale>
 #include <codecvt>
 
-class foo {
-public:
-    virtual ~foo() { }
-    virtual void say() { };
-};
-
-class bar : public foo {
-public:
-    virtual ~bar() { }
-
-    virtual void say() { printf("hello!\n"); }
-};
-
-void func(foo &f)
+class parse_error
 {
-    f.say();
+public:
+    parse_error(std::string msg, int line, int col) : m_msg(msg), m_line(line), m_col(col) { }
+
+    std::string m_msg;
+    int m_line;
+    int m_col;
+};
+
+bool
+one2nine(char32_t c)
+{
+    return U'1' <= c && c <= U'9';
+}
+
+int
+parse_int(lunar::parsec<char32_t> &parsec)
+{
+    auto p = parsec.satisfy(one2nine) >> parsec.many(parsec.digit()) || parsec.character(U'0');
+    
+    p();
+    
+    if (parsec.get_result()) {
+        auto str = lunar::to_string(parsec.get_string());
+        return lunar::to_int(str);
+    } else {
+        throw parse_error("not integer!", parsec.get_line(), parsec.get_col());
+    }
+    
+    return 0;
 }
 
 int
 main(int argc, char *argv[])
 {
-    bar b;
-    func(b);
-
     lunar::parsec<char32_t>::stream_t stream;
     lunar::parsec<char32_t>::chars_t  chars1, chars2, chars3;
     lunar::parsec<char32_t> parsec(stream);
     
-    auto text = llvm::make_unique<std::u32string>(U"aeb2cda, c3d4e6");
+    auto text = llvm::make_unique<std::u32string>(U"12345abc");
     
     stream.push_back(std::move(text));
     
-    parsec.make_chars(chars1, U"abc");
-    parsec.make_chars(chars2, U"123");
-    parsec.make_chars(chars3, U"def");
-    auto p1 = parsec.one_of(chars1);
-    auto p2 = parsec.one_of(chars2);
-    auto p3 = parsec.one_of(chars3);
-    auto p4 = p1 >> p2;
-    auto p5 = p1 >> p3;
-    auto p6 = parsec.try_parse(p4);
-    auto p7 = p6 || p5;
-    auto p8 = parsec.many(p7);
-    
-    p8();
-    std::wstring_convert<std::codecvt_utf8<char32_t>, char32_t> converter;
-    auto str = converter.to_bytes(parsec.get_string());
-    
-    printf("%s\n", str.c_str());
-
-    auto &msg = parsec.get_err();
-    printf("error: line = %d, col = %d\n", msg.line, msg.col);
+    try {
+        int num = parse_int(parsec);
+        printf("num = %d\n", num);
+    } catch (parse_error err) {
+        printf("error: %s (line = %d, col = %d)\n", err.m_msg.c_str(), err.m_line, err.m_col);
+    }
 
     return 0;
 }
