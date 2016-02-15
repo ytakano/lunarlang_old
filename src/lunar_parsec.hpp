@@ -25,7 +25,13 @@ public:
           m_num(0),
           m_result(true),
           m_is_look_ahead(false),
-          m_is_try(false) { }
+          m_is_try(false)
+    {
+        m_err.result = SUCCESS;
+        m_err.line   = 1;
+        m_err.col    = 1;
+    }
+
     virtual ~parsec() { }
     
     static void make_chars(chars_t &chars, const string_t &str)
@@ -36,7 +42,6 @@ public:
     
     struct message {
         read_result result;
-        string_t    str;
         int         line;
         int         col;
     };
@@ -131,21 +136,11 @@ public:
 
             if (result == NO_MORE_DATA) {
                 parser::m_parsec.m_result = false;
-
-                string_t s;
-                s.push_back(c);
-                parser::m_parsec.set_msg(s, result,
-                                         parser::m_parsec.m_line, parser::m_parsec.m_col);
-
+                parser::m_parsec.set_err(result, parser::m_parsec.m_line, parser::m_parsec.m_col);
                 return;
             } else if (result == END_OF_STREAM) {
                 parser::m_parsec.m_result = false;
-
-                string_t s;
-                s.push_back(c);
-                parser::m_parsec.set_msg(s, result,
-                                         parser::m_parsec.m_line, parser::m_parsec.m_col);
-
+                parser::m_parsec.set_err(result, parser::m_parsec.m_line, parser::m_parsec.m_col);
                 return;
             }
 
@@ -168,11 +163,7 @@ public:
                 }
             } else {
                 parser::m_parsec.m_result = false;
-
-                string_t s;
-                s.push_back(c);
-                parser::m_parsec.set_msg(s, result,
-                                         parser::m_parsec.m_line, parser::m_parsec.m_col);
+                parser::m_parsec.set_err(result, parser::m_parsec.m_line, parser::m_parsec.m_col);
             }
         }
     
@@ -391,9 +382,9 @@ public:
         return m_str;
     }
     
-    const message & get_msg()
+    const message & get_err()
     {
-        return m_msg;
+        return m_err;
     }
     
     void set_string(string_t &str)
@@ -401,23 +392,27 @@ public:
         m_str = str;
     }
     
+    bool get_result()
+    {
+        return m_result;
+    }
+    
     void clear_string()
     {
         m_str.clear();
     }
     
-    void set_msg(const string_t &msg, read_result result, int line, int col)
+    void set_err(read_result result, int line, int col)
     {
-        m_msg.result = result;
-        m_msg.str    = msg;
-        m_msg.line   = line;
-        m_msg.col    = col;
+        m_err.result = result;
+        m_err.line   = line;
+        m_err.col    = col;
     }
 
 private:
     stream_t &m_stream;
     string_t  m_str;
-    message   m_msg;
+    message   m_err;
     int       m_col;
     int       m_line;
     int       m_num;

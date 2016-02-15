@@ -49,15 +49,13 @@ main(int argc, char *argv[])
     auto p8 = parsec.many(p7);
     
     p8();
-    
     std::wstring_convert<std::codecvt_utf8<char32_t>, char32_t> converter;
     auto str = converter.to_bytes(parsec.get_string());
-    auto &msg = parsec.get_msg();
-    
-    auto msgstr = converter.to_bytes(msg.str);
     
     printf("%s\n", str.c_str());
-    printf("%s\n", msgstr.c_str());
+
+    auto &msg = parsec.get_err();
+    printf("error: line = %d, col = %d\n", msg.line, msg.col);
 
     return 0;
 }
