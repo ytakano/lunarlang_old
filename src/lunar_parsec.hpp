@@ -6,7 +6,7 @@
 #include "lunar_string.hpp"
 
 #include <string>
-#include <set>
+#include <unordered_set>
 #include <vector>
 
 namespace lunar {
@@ -14,9 +14,9 @@ namespace lunar {
 template <typename T>
 class parsec {
 public:
-    typedef stream<T>            stream_t;
-    typedef std::set<T>          chars_t;
-    typedef std::basic_string<T> string_t;
+    typedef stream<T>             stream_t;
+    typedef std::unordered_set<T> chars_t;
+    typedef std::basic_string<T>  string_t;
 
     parsec(stream_t &stream)
         : m_stream(stream),
@@ -30,6 +30,15 @@ public:
         m_err.result = SUCCESS;
         m_err.line   = 1;
         m_err.col    = 1;
+        
+        if (p_space == nullptr) {
+            if (__sync_lock_test_and_set(&lock, 1)) {
+                while (lock);
+            } else {
+                init_space();
+                __sync_lock_release(&lock);
+            }
+        }
     }
 
     virtual ~parsec() { }
@@ -40,6 +49,51 @@ public:
             chars.insert(c);
     }
     
+    static void init_space()
+    {
+        p_space = new chars_t;
+        
+        p_space->insert((T)U'\u0009');
+        p_space->insert((T)U'\u000A');
+        p_space->insert((T)U'\u000B');
+        p_space->insert((T)U'\u000C');
+        p_space->insert((T)U'\u000D');
+        p_space->insert((T)U'\u001C');
+        p_space->insert((T)U'\u001D');
+        p_space->insert((T)U'\u001E');
+        p_space->insert((T)U'\u001F');
+        p_space->insert((T)U'\u0020');
+        p_space->insert((T)U'\u00A0');
+        
+        if (sizeof(T) == 1)
+            return;
+        
+        p_space->insert((T)U'\u11A3');
+        p_space->insert((T)U'\u11A4');
+        p_space->insert((T)U'\u11A5');
+        p_space->insert((T)U'\u11A6');
+        p_space->insert((T)U'\u11A7');
+        p_space->insert((T)U'\u1689');
+        p_space->insert((T)U'\u2000');
+        p_space->insert((T)U'\u2001');
+        p_space->insert((T)U'\u2002');
+        p_space->insert((T)U'\u2003');
+        p_space->insert((T)U'\u2004');
+        p_space->insert((T)U'\u2005');
+        p_space->insert((T)U'\u2006');
+        p_space->insert((T)U'\u2007');
+        p_space->insert((T)U'\u2008');
+        p_space->insert((T)U'\u2009');
+        p_space->insert((T)U'\u200A');
+        p_space->insert((T)U'\u200B');
+        p_space->insert((T)U'\u202F');
+        p_space->insert((T)U'\u205F');
+        p_space->insert((T)U'\u2060');
+        p_space->insert((T)U'\u3000');
+        p_space->insert((T)U'\u3164');
+        p_space->insert((T)U'\uFEFF');
+    }
+
     struct message {
         read_result result;
         int         line;
@@ -235,6 +289,24 @@ public:
             return (T)'0' <= c && c <= (T)'9';
         }
     };
+    
+    class parser_hex_digit {
+    public:
+        bool operator() (T c)
+        {
+            return ((T)'0' <= c && c <= (T)'9') ||
+                   ((T)'a' <= c && c <= (T)'f') ||
+                   ((T)'A' <= c && c <= (T)'F');
+        }
+    };
+    
+    class parser_oct_digit {
+    public:
+        bool operator() (T c)
+        {
+            return (T)'0' <= c && c <= (T)'7';
+        }
+    };
 
     class parser_many : public parser {
     public:
@@ -405,6 +477,21 @@ public:
         return parser_satisfy(*this, parser_digit());
     }
     
+    parser_satisfy hex_digit()
+    {
+        return parser_satisfy(*this, parser_hex_digit());
+    }
+    
+    parser_satisfy oct_digit()
+    {
+        return parser_satisfy(*this, parser_oct_digit());
+    }
+
+    parser_satisfy space()
+    {
+        return one_of(*p_space);
+    }
+    
     parser_many many(parser &&p)
     {
         return parser_many(*this, p);
@@ -458,6 +545,9 @@ public:
     }
 
 private:
+    static chars_t *p_space;
+    volatile static int lock;
+
     stream_t &m_stream;
     string_t  m_str;
     message   m_err;
@@ -468,6 +558,9 @@ private:
     bool      m_is_look_ahead;
     bool      m_is_try;
 };
+
+template<typename T> typename parsec<T>::chars_t *parsec<T>::p_space = nullptr;
+template<typename T> volatile int parsec<T>::lock = 0;
 
 }
 
