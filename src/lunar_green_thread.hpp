@@ -11,6 +11,12 @@
 
 namespace lunar {
 
+extern "C" {
+    void init_green_thread();
+    void yeild_green_thread();
+    void spawn_green_thread(void (*func)());
+}
+
 class green_thread {
     struct context {
         enum {
@@ -29,10 +35,8 @@ public:
     green_thread() : m_count(0), m_current_ctx(nullptr) { }
 
     void yield();
-    int  spawn(void (*func)(void *), int stack_size);
+    int  spawn(void (*func)(), int stack_size = 0x80000);
     void run();
-    
-    //static void invoke(void (*func)(void *));
 
 private:
     jmp_buf  m_jmp_buf;

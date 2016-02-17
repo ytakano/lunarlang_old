@@ -4,33 +4,41 @@
 
 namespace lunar {
 
+__thread green_thread *lunar_gt = nullptr;
+
 // stack layout:
-//     pointer of the context
-//     this pointer of the green_thread
-//     pointer of the call back function
+//     context
+//     func
 asm (
     ".global ___INVOKE;"
     "___INVOKE:"
-    "popq %rax;"       // pop function
-    "popq %rdi;"       // pop this
-    "pushq %rdi;"      // push this
-    "callq *%rax;"     // call function(this)
-    "popq %rdi;"       // pop this
-    "popq %rax;"       // pop context
-    "movl $3, (%rax);" // m_state = STOP
-    "jmp ___YIELD;"    // jump to __YIELD
+    "popq %rax;"               // pop func
+    "callq *%rax;"             // call func()
+    "popq %rax;"               // pop context
+    "movl $3, (%rax);"         // m_state = STOP
+    "jmp _yeild_green_thread;" // jump to _yeild_green_thread
 );
 
 extern "C" void __INVOKE();
 
-extern "C" void __YIELD(void *p)
+extern "C" void init_green_thread()
 {
-    green_thread *gt = (green_thread*)p;
-    gt->yield();
+    if (lunar_gt == nullptr)
+        lunar_gt = new green_thread;
+}
+
+extern "C" void yeild_green_thread()
+{
+    lunar_gt->yield();
+}
+
+extern "C" void spawn_green_thread(void (*func)())
+{
+    lunar_gt->spawn(func);
 }
 
 int
-green_thread::spawn(void (*func)(void *), int stack_size = 0x80000)
+green_thread::spawn(void (*func)(), int stack_size)
 {
     auto ctx = llvm::make_unique<context>();
     
@@ -47,8 +55,7 @@ green_thread::spawn(void (*func)(void *), int stack_size = 0x80000)
     
     auto s = ctx->m_stack.size();
     ctx->m_stack[s - 0] = (uint64_t)ctx.get(); // push context
-    ctx->m_stack[s - 1] = (uint64_t)this;      // push this
-    ctx->m_stack[s - 2] = (uint64_t)func;      // push func
+    ctx->m_stack[s - 1] = (uint64_t)func;      // push func
     
     return 0;
 }
@@ -67,7 +74,11 @@ green_thread::yield()
     for (auto it = m_contexts.begin(); it != m_contexts.end(); ) {
         if ((*it)->m_state == context::SUSPENDING) {
             if (m_current_ctx != nullptr && m_current_ctx->m_state == context::RUNNING) {
+                // suspend current context
+                m_current_ctx->m_state = context::SUSPENDING;
+
                 if (setjmp(m_current_ctx->m_jmp_buf) == 0) {
+                    // wake up new context
                     (*it)->m_state = context::RUNNING;
                     m_current_ctx = it->get();
                     m_contexts.splice(m_contexts.end(), m_contexts, it);
@@ -76,6 +87,7 @@ green_thread::yield()
                     return;
                 }
             } else {
+                // wake up new context
                 (*it)->m_state = context::RUNNING;
                 m_current_ctx = it->get();
                 m_contexts.splice(m_contexts.end(), m_contexts, it);
@@ -83,7 +95,11 @@ green_thread::yield()
             }
         } else if ((*it)->m_state == context::READY) {
             if (m_current_ctx != nullptr && m_current_ctx->m_state == context::RUNNING) {
+                // suspend current context
+                m_current_ctx->m_state = context::SUSPENDING;
+
                 if (setjmp(m_current_ctx->m_jmp_buf) == 0) {
+                    // invoke new context
                     (*it)->m_state = context::RUNNING;
                     m_current_ctx = it->get();
                     m_contexts.splice(m_contexts.end(), m_contexts, it);
@@ -100,6 +116,7 @@ green_thread::yield()
                     return;
                 }
             } else {
+                // invoke new context
                 (*it)->m_state = context::RUNNING;
                 m_current_ctx = it->get();
                 m_contexts.splice(m_contexts.end(), m_contexts, it);
@@ -114,6 +131,7 @@ green_thread::yield()
                 );
             }
         } else if ((*it)->m_state == context::STOP) {
+            // remove context
             m_id2context.erase((*it)->m_id);
             
             if (it->get() == m_current_ctx) {
