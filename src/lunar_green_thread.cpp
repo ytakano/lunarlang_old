@@ -18,7 +18,7 @@ asm (
     "popq %rdi;"       // pop this
     "popq %rax;"       // pop context
     "movl $3, (%rax);" // m_state = STOP
-    "jmp ___YIELD;"    // yield(this)
+    "jmp ___YIELD;"    // jump to __YIELD
 );
 
 extern "C" void __INVOKE();
@@ -93,7 +93,8 @@ green_thread::yield()
                         "movq %0, %%rsp;" // set stack pointer
                         "movq %0, %%rbp;" // set frame pointer
                         "jmp ___INVOKE;"
-                        : "=r" (p)
+                        :
+                        : "r" (p)
                     );
                 } else {
                     return;
@@ -108,7 +109,8 @@ green_thread::yield()
                     "movq %0, %%rsp;" // set stack pointer
                     "movq %0, %%rbp;" // set frame pointer
                     "jmp ___INVOKE;"
-                    : "=r" (p)
+                    :
+                    : "r" (p)
                 );
             }
         } else if ((*it)->m_state == context::STOP) {
