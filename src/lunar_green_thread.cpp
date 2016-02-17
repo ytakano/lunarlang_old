@@ -64,13 +64,13 @@ green_thread::run()
 void
 green_thread::yield()
 {
-    // TODO: move the current context to the end of list
     for (auto it = m_contexts.begin(); it != m_contexts.end(); ) {
         if ((*it)->m_state == context::SUSPENDING) {
             if (m_current_ctx != nullptr && m_current_ctx->m_state == context::RUNNING) {
                 if (setjmp(m_current_ctx->m_jmp_buf) == 0) {
                     (*it)->m_state = context::RUNNING;
                     m_current_ctx = it->get();
+                    m_contexts.splice(m_contexts.end(), m_contexts, it);
                     longjmp((*it)->m_jmp_buf, 1);
                 } else {
                     return;
@@ -78,6 +78,7 @@ green_thread::yield()
             } else {
                 (*it)->m_state = context::RUNNING;
                 m_current_ctx = it->get();
+                m_contexts.splice(m_contexts.end(), m_contexts, it);
                 longjmp((*it)->m_jmp_buf, 1);
             }
         } else if ((*it)->m_state == context::READY) {
@@ -85,6 +86,7 @@ green_thread::yield()
                 if (setjmp(m_current_ctx->m_jmp_buf) == 0) {
                     (*it)->m_state = context::RUNNING;
                     m_current_ctx = it->get();
+                    m_contexts.splice(m_contexts.end(), m_contexts, it);
                     
                     auto p = &(*it)->m_stack[(*it)->m_stack.size() - 2];
                     asm (
@@ -99,6 +101,7 @@ green_thread::yield()
             } else {
                 (*it)->m_state = context::RUNNING;
                 m_current_ctx = it->get();
+                m_contexts.splice(m_contexts.end(), m_contexts, it);
 
                 auto p = &(*it)->m_stack[(*it)->m_stack.size() - 2];
                 asm (
