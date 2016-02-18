@@ -13,8 +13,9 @@ namespace lunar {
 
 extern "C" {
     void init_green_thread();
-    void yeild_green_thread();
+    void yield_green_thread();
     void spawn_green_thread(void (*func)());
+    void run_green_thread();
 }
 
 class green_thread {

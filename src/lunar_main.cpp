@@ -1,5 +1,6 @@
 #include "lunar_common.hpp"
 #include "lunar_parsec.hpp"
+#include "lunar_green_thread.hpp"
 
 #include <locale>
 #include <codecvt>
@@ -35,8 +36,8 @@ parse_int(lunar::parsec<char32_t> &parsec)
     return 0;
 }
 
-int
-main(int argc, char *argv[])
+void
+test_parsec()
 {
     lunar::parsec<char32_t>::stream_t stream;
     lunar::parsec<char32_t>::chars_t  chars1, chars2, chars3;
@@ -52,6 +53,49 @@ main(int argc, char *argv[])
     } catch (parse_error err) {
         printf("error: %s (line = %d, col = %d)\n", err.m_msg.c_str(), err.m_line, err.m_col);
     }
+}
+
+void
+thread1()
+{
+    for (;;) {
+        printf("thread1\n");
+        lunar::yield_green_thread();
+    }
+}
+
+void
+thread2()
+{
+    for (;;) {
+        printf("thread2\n");
+        lunar::yield_green_thread();
+    }
+}
+
+void
+thread3()
+{
+    for (;;) {
+        printf("thread3\n");
+        lunar::yield_green_thread();
+    }
+}
+
+void
+test_green_thread()
+{
+    lunar::init_green_thread();
+    lunar::spawn_green_thread(thread1);
+    lunar::spawn_green_thread(thread2);
+    lunar::spawn_green_thread(thread3);
+    lunar::run_green_thread();
+}
+
+int
+main(int argc, char *argv[])
+{
+    test_green_thread();
 
     return 0;
 }
