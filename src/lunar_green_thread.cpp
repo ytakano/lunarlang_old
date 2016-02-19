@@ -18,7 +18,7 @@ asm (
     "callq *%rax;"             // call func()
     "addq $8, %rsp;"           // align 16 bytes
     "popq %rax;"               // pop context
-    "movl $3, (%rax);"         // context.m_state = STOP
+    "movl $4, (%rax);"         // context.m_state = STOP
     "jmp _yield_green_thread;" // jump to _yeild_green_thread
 );
 
@@ -30,8 +30,11 @@ extern "C" void init_green_thread()
         lunar_gt = new green_thread;
 }
 
-extern "C" void yield_green_thread()
+extern "C" void yield_green_thread(bool is_wait)
 {
+    if (is_wait)
+        lunar_gt->wait(lunar_gt_id);
+
     lunar_gt->yield();
 }
 
@@ -43,6 +46,7 @@ extern "C" void spawn_green_thread(void (*func)())
 extern "C" void run_green_thread()
 {
     lunar_gt->run();
+    delete lunar_gt;
 }
 
 int
@@ -72,6 +76,12 @@ green_thread::run()
     if (setjmp(m_jmp_buf) == 0) {
         yield();
     }
+}
+
+void
+green_thread::wait(int id)
+{
+    m_current_ctx->m_state = context::WAIT;
 }
 
 void
@@ -149,8 +159,6 @@ green_thread::yield()
             }
             
             it = m_contexts.erase(it);
-        } else {
-            break;
         }
     }
     

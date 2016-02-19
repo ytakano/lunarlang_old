@@ -13,7 +13,7 @@ namespace lunar {
 
 extern "C" {
     void init_green_thread();
-    void yield_green_thread();
+    void yield_green_thread(bool is_wait = false);
     void spawn_green_thread(void (*func)());
     void run_green_thread();
 }
@@ -23,8 +23,9 @@ class green_thread {
         enum {
             READY      = 0,
             RUNNING    = 1,
-            SUSPENDING = 2,
-            STOP       = 3,
+            SUSPENDING = 2, // runnable, but not running
+            WAIT       = 3, // waiting data, thus not runnable
+            STOP       = 4,
         } m_state;
 
         jmp_buf m_jmp_buf;
@@ -38,6 +39,7 @@ public:
     void yield();
     int  spawn(void (*func)(), int stack_size = 0x80000);
     void run();
+    void wait(int id);
 
 private:
     jmp_buf  m_jmp_buf;
