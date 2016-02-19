@@ -59,7 +59,7 @@ void
 thread1()
 {
     for (;;) {
-        printf("thread1\n");
+        printf("thread 1\n");
         lunar::yield_green_thread();
     }
 }
@@ -68,7 +68,7 @@ void
 thread2()
 {
     for (;;) {
-        printf("thread2\n");
+        printf("thread 2\n");
         lunar::yield_green_thread();
     }
 }
@@ -77,7 +77,7 @@ void
 thread3()
 {
     for (;;) {
-        printf("thread3\n");
+        printf("thread 3\n");
         lunar::yield_green_thread();
     }
 }

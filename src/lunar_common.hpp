@@ -25,6 +25,6 @@ struct point3i {
 
 }
 
-#define PRINTERR(M, ...) fprintf(stderr, "DEBUG %s:%d: " M "\n", __FILE__, __LINE__, ##__VA_ARGS__)
+#define PRINTERR(M, ...) fprintf(stderr, "ERROR (%s:%d): " M "\n", __FILE__, __LINE__, ##__VA_ARGS__)
 
 #endif // LUNAR_COMMON_HPP

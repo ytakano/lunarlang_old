@@ -1,11 +1,16 @@
 #include "lunar_green_thread.hpp"
+#include "lunar_rtm_lock.hpp"
+
+#include <thread>
 
 // currentry, this code can run on X86_64 System V ABI
 
 namespace lunar {
 
 __thread green_thread *lunar_gt = nullptr;
-__thread int lunar_gt_id = 0;
+
+rtm_lock lock_thread2gt;
+std::unordered_map<std::thread::id, green_thread*> thread2gt;
 
 // stack layout:
 //     context
@@ -22,31 +27,96 @@ asm (
     "jmp _yield_green_thread;" // jump to _yeild_green_thread
 );
 
-extern "C" void __INVOKE();
+extern "C" {
 
-extern "C" void init_green_thread()
+void __INVOKE();
+
+void
+init_green_thread()
 {
-    if (lunar_gt == nullptr)
+    if (lunar_gt == nullptr) {
         lunar_gt = new green_thread;
+        rtm_transaction tr(lock_thread2gt);
+        thread2gt[std::this_thread::get_id()] = lunar_gt;
+    }
 }
 
-extern "C" void yield_green_thread(bool is_wait)
+void
+yield_green_thread()
 {
-    if (is_wait)
-        lunar_gt->wait(lunar_gt_id);
-
     lunar_gt->yield();
 }
 
-extern "C" void spawn_green_thread(void (*func)())
+void
+spawn_green_thread(void (*func)())
 {
     lunar_gt->spawn(func);
 }
 
-extern "C" void run_green_thread()
+void
+run_green_thread()
 {
     lunar_gt->run();
+
+    {
+        rtm_transaction tr(lock_thread2gt);
+        thread2gt.erase(std::this_thread::get_id());
+    }
+
     delete lunar_gt;
+}
+
+void
+wait_fd_read_green_thread(int fd)
+{
+    lunar_gt->wait_fd_read(fd);
+}
+
+void
+wait_fd_write_green_thread(int fd)
+{
+    lunar_gt->wait_fd_write(fd);
+}
+
+} // extern "C"
+
+void
+green_thread::wait_fd_read(int fd)
+{
+    m_running->m_state = context::WAITING;
+    m_running->m_fd    = fd;
+
+#ifdef KQUEUE
+    EV_SET(&m_kev, fd, EVFILT_READ, EV_ADD, 0, 0, NULL);
+#endif // KQUEUE
+
+    yield();
+}
+
+void
+green_thread::wait_fd_write(int fd)
+{
+    m_running->m_state = context::WAITING;
+    m_running->m_fd    = fd;
+
+#ifdef KQUEUE
+    EV_SET(&m_kev, fd, EVFILT_WRITE, EV_ADD, 0, 0, NULL);
+#endif // KQUEUE
+
+    yield();
+}
+
+void
+green_thread::schedule()
+{
+    if (m_wait.empty()) {
+        std::unique_lock<std::mutex> lock(m_mutex);
+        m_cond.wait(lock);
+    } else {
+#ifdef KQUEUE
+        // TODO:
+#endif // KQUEUE
+    }
 }
 
 int
@@ -56,16 +126,16 @@ green_thread::spawn(void (*func)(), int stack_size)
     
     while (++m_count == 0);
     
+    ctx->m_state = context::READY;
     ctx->m_stack.resize(stack_size);
     ctx->m_id    = m_count;
-    ctx->m_state = context::READY; 
     
     auto s = ctx->m_stack.size();
     ctx->m_stack[s - 1] = (uint64_t)ctx.get(); // push context
     ctx->m_stack[s - 2] = (uint64_t)func;      // push func
     
     m_id2context[m_count] = ctx.get();
-    m_contexts.push_back(std::move(ctx));
+    m_ready.push_back(std::move(ctx));
     
     return 0;
 }
@@ -79,69 +149,31 @@ green_thread::run()
 }
 
 void
-green_thread::wait(int id)
-{
-    m_current_ctx->m_state = context::WAIT;
-}
-
-void
 green_thread::yield()
 {
-    for (auto it = m_contexts.begin(); it != m_contexts.end(); ) {
-        if ((*it)->m_state == context::SUSPENDING) {
-            if (m_current_ctx != nullptr && m_current_ctx->m_state == context::RUNNING) {
-                // suspend current context
-                m_current_ctx->m_state = context::SUSPENDING;
+    context *ctx = nullptr;
+    
+    if (m_running) {
+        if (m_running->m_state == context::STOP) {
+            m_running.reset();
+        } else if (m_running->m_state == context::WAITING) {
+            ctx = m_running.get();
+            m_wait[m_running->m_fd] = std::move(m_running);
+        } else if (m_running->m_state == context::RUNNING) {
+            ctx = m_running.get();
+            m_running->m_state = context::SUSPENDING;
+            m_suspend.push_back(std::move(m_running));
+        }
+    }
 
-                if (setjmp(m_current_ctx->m_jmp_buf) == 0) {
-                    // wake up new context
-                    lunar_gt_id = (*it)->m_id;
-                    (*it)->m_state = context::RUNNING;
-                    m_current_ctx = it->get();
-                    m_contexts.splice(m_contexts.end(), m_contexts, it);
-                    longjmp((*it)->m_jmp_buf, 1);
-                } else {
-                    return;
-                }
-            } else {
-                // wake up new context
-                lunar_gt_id = (*it)->m_id;
-                (*it)->m_state = context::RUNNING;
-                m_current_ctx = it->get();
-                m_contexts.splice(m_contexts.end(), m_contexts, it);
-                longjmp((*it)->m_jmp_buf, 1);
-            }
-        } else if ((*it)->m_state == context::READY) {
-            if (m_current_ctx != nullptr && m_current_ctx->m_state == context::RUNNING) {
-                // suspend current context
-                m_current_ctx->m_state = context::SUSPENDING;
-
-                if (setjmp(m_current_ctx->m_jmp_buf) == 0) {
-                    // invoke new context
-                    lunar_gt_id = (*it)->m_id;
-                    (*it)->m_state = context::RUNNING;
-                    m_current_ctx = it->get();
-                    m_contexts.splice(m_contexts.end(), m_contexts, it);
-                    
-                    auto p = &(*it)->m_stack[(*it)->m_stack.size() - 2];
-                    asm (
-                        "movq %0, %%rsp;" // set stack pointer
-                        "movq %0, %%rbp;" // set frame pointer
-                        "jmp ___INVOKE;"
-                        :
-                        : "r" (p)
-                    );
-                } else {
-                    return;
-                }
-            } else {
-                // invoke new context
-                lunar_gt_id = (*it)->m_id;
-                (*it)->m_state = context::RUNNING;
-                m_current_ctx = it->get();
-                m_contexts.splice(m_contexts.end(), m_contexts, it);
-
-                auto p = &(*it)->m_stack[(*it)->m_stack.size() - 2];
+    // invoke READY state
+    if (! m_ready.empty()) {
+        m_running = std::move(m_ready.front());
+        m_running->m_state = context::RUNNING;
+        m_ready.pop_front();
+        if (ctx != nullptr) {
+            if (setjmp(ctx->m_jmp_buf) == 0) {
+                auto p = &m_running->m_stack[m_running->m_stack.size() - 2];
                 asm (
                     "movq %0, %%rsp;" // set stack pointer
                     "movq %0, %%rbp;" // set frame pointer
@@ -149,17 +181,40 @@ green_thread::yield()
                     :
                     : "r" (p)
                 );
+            } else {
+                return;
             }
-        } else if ((*it)->m_state == context::STOP) {
-            // remove context
-            m_id2context.erase((*it)->m_id);
-            
-            if (it->get() == m_current_ctx) {
-                m_current_ctx = nullptr;
-            }
-            
-            it = m_contexts.erase(it);
+        } else {
+            auto p = &m_running->m_stack[m_running->m_stack.size() - 2];
+            asm (
+                "movq %0, %%rsp;" // set stack pointer
+                "movq %0, %%rbp;" // set frame pointer
+                "jmp ___INVOKE;"
+                :
+                : "r" (p)
+            );
         }
+    }
+
+    // invoke SUSPEND state
+    if (! m_suspend.empty()) {
+        m_running = std::move(m_suspend.front());
+        m_running->m_state = context::RUNNING;
+        m_suspend.pop_front();
+        if (ctx != nullptr) {
+            if (setjmp(ctx->m_jmp_buf) == 0) {
+                longjmp(m_running->m_jmp_buf, 1);
+            } else {
+                return;
+            }
+        } else {
+            longjmp(m_running->m_jmp_buf, 1);
+        }
+    }
+    
+    if (! m_wait.empty()) {
+        schedule();
+        return;
     }
     
     longjmp(m_jmp_buf, 1);
