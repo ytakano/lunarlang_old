@@ -2,7 +2,7 @@
 #define LUNAR_PARSEC_HPP
 
 #include "lunar_common.hpp"
-#include "lunar_stream.hpp"
+#include "lunar_bytestream.hpp"
 #include "lunar_string.hpp"
 
 #include <string>
@@ -14,7 +14,7 @@ namespace lunar {
 template <typename T>
 class parsec {
 public:
-    typedef stream<T>             stream_t;
+    typedef bytestream<T>         stream_t;
     typedef std::unordered_set<T> chars_t;
     typedef std::basic_string<T>  string_t;
 

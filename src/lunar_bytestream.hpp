@@ -1,5 +1,5 @@
-#ifndef LUNAR_STREAM_HPP
-#define LUNAR_STREAM_HPP
+#ifndef LUNAR_BYTESTREAM_HPP
+#define LUNAR_BYTESTREAM_HPP
 
 #include "lunar_common.hpp"
 
@@ -14,11 +14,11 @@ enum read_result {
 };
 
 template <typename T>
-class stream {
+class bytestream {
     typedef std::basic_string<T> string_t;
 
 public:
-    stream() : m_is_eof(false) { }
+    bytestream() : m_is_eof(false) { }
     
     read_result front(T &c)
     {
@@ -122,4 +122,4 @@ private:
 
 };
 
-#endif // LUNAR_STREAM_HPP
+#endif // LUNAR_BYTESTREAM_HPP

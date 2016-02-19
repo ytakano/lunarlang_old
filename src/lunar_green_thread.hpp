@@ -28,21 +28,25 @@ extern "C" {
     void run_green_thread();
     void wait_fd_read_green_thread(int fd);
     void wait_fd_write_green_thread(int fd);
+    void wait_stream_green_thread();
+    void wake_up_stream_green_thread(void *);
 }
 
-class green_thread {    
+class green_thread {
 public:
     struct context {
         enum {
-            READY      = 0,
-            RUNNING    = 1,
-            SUSPENDING = 2,
-            WAITING    = 3,
-            STOP       = 4,
+            READY          = 0,
+            RUNNING        = 1,
+            SUSPENDING     = 2,
+            WAITING_FD     = 3,
+            WAITING_STREAM = 4,
+            STOP           = 5,
         } m_state;
         jmp_buf m_jmp_buf;
         int     m_id; // m_id must not be 0
         int     m_fd;
+        void   *m_stream;
         std::vector<uint64_t> m_stack;
     };
 
@@ -70,6 +74,8 @@ public:
     void wait(int id);
     void wait_fd_read(int fd);
     void wait_fd_write(int fd);
+    void wait_stream();
+    void wake_up_stream(void *ptr);
 
 private:
     jmp_buf     m_jmp_buf;
@@ -77,11 +83,12 @@ private:
     context    *m_current_ctx;
     std::mutex  m_mutex;
     std::condition_variable m_cond;
+    std::unordered_map<int, context*>    m_id2context;
     std::deque<std::unique_ptr<context>> m_ready;
     std::unique_ptr<context>             m_running;
     std::deque<std::unique_ptr<context>> m_suspend;
-    std::unordered_map<int, std::unique_ptr<context>> m_wait;
-    std::unordered_map<int, context*>    m_id2context;
+    std::unordered_map<int, std::unique_ptr<context>>   m_wait_fd;
+    std::unordered_map<void*, std::unique_ptr<context>> m_wait_stream;
 
 #ifdef KQUEUE
     int           m_kq;

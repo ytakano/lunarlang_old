@@ -23,7 +23,7 @@ asm (
     "callq *%rax;"             // call func()
     "addq $8, %rsp;"           // align 16 bytes
     "popq %rax;"               // pop context
-    "movl $4, (%rax);"         // context.m_state = STOP
+    "movl $5, (%rax);"         // context.m_state = STOP
     "jmp _yield_green_thread;" // jump to _yeild_green_thread
 );
 
@@ -78,12 +78,24 @@ wait_fd_write_green_thread(int fd)
     lunar_gt->wait_fd_write(fd);
 }
 
+void
+wait_stream_green_thread()
+{
+    lunar_gt->wait_stream();
+}
+
+void
+wake_up_stream_green_thread(void *ptr)
+{
+    lunar_gt->wake_up_stream(ptr);
+}
+
 } // extern "C"
 
 void
 green_thread::wait_fd_read(int fd)
 {
-    m_running->m_state = context::WAITING;
+    m_running->m_state = context::WAITING_FD;
     m_running->m_fd    = fd;
 
 #ifdef KQUEUE
@@ -96,7 +108,7 @@ green_thread::wait_fd_read(int fd)
 void
 green_thread::wait_fd_write(int fd)
 {
-    m_running->m_state = context::WAITING;
+    m_running->m_state = context::WAITING_FD;
     m_running->m_fd    = fd;
 
 #ifdef KQUEUE
@@ -107,9 +119,31 @@ green_thread::wait_fd_write(int fd)
 }
 
 void
+green_thread::wait_stream()
+{
+    m_running->m_state = context::WAITING_STREAM;
+
+    yield();
+}
+
+void
+green_thread::wake_up_stream(void *ptr)
+{
+    auto it = m_wait_stream.find(ptr); 
+    if (it == m_wait_stream.end())
+        return;
+    
+    it->second->m_state = context::SUSPENDING;
+    m_suspend.push_back(std::move(it->second));
+    m_wait_stream.erase(it);
+    
+    yield();
+}
+
+void
 green_thread::schedule()
 {
-    if (m_wait.empty()) {
+    if (m_wait_fd.empty()) {
         std::unique_lock<std::mutex> lock(m_mutex);
         m_cond.wait(lock);
     } else {
@@ -155,10 +189,14 @@ green_thread::yield()
     
     if (m_running) {
         if (m_running->m_state == context::STOP) {
+            m_id2context.erase(m_running->m_id);
             m_running.reset();
-        } else if (m_running->m_state == context::WAITING) {
+        } else if (m_running->m_state == context::WAITING_FD) {
             ctx = m_running.get();
-            m_wait[m_running->m_fd] = std::move(m_running);
+            m_wait_fd[m_running->m_fd] = std::move(m_running);
+        } else if (m_running->m_state == context::WAITING_STREAM) {
+            ctx = m_running.get();
+            m_wait_stream[m_running->m_stream] = std::move(m_running);
         } else if (m_running->m_state == context::RUNNING) {
             ctx = m_running.get();
             m_running->m_state = context::SUSPENDING;
@@ -212,7 +250,7 @@ green_thread::yield()
         }
     }
     
-    if (! m_wait.empty()) {
+    if (! m_wait_fd.empty()) {
         schedule();
         return;
     }
