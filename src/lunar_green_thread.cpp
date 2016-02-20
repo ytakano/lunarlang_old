@@ -148,7 +148,27 @@ green_thread::schedule()
         m_cond.wait(lock);
     } else {
 #ifdef KQUEUE
-        // TODO:
+        auto size = m_wait_fd.size();
+        struct kevent *kev = new struct kevent[size];
+        
+        int ret = kevent(m_kq, kev, size, kev, size, NULL);
+        if (ret == -1) {
+            PRINTERR("ERROR: failed kevent");
+            exit(-1);
+        }
+        
+        for (int i = 0; i < ret; i++) {
+            int fd = kev[i].ident;
+            auto it = m_wait_fd.find(fd);
+            
+            it->second->m_state = context::SUSPENDING;
+            m_suspend.push_back(std::move(it->second));
+            
+            m_wait_fd.erase(it);
+        }
+
+        delete kev;
+        
 #endif // KQUEUE
     }
 }
@@ -185,32 +205,45 @@ green_thread::run()
 void
 green_thread::yield()
 {
-    context *ctx = nullptr;
-    
-    if (m_running) {
-        if (m_running->m_state == context::STOP) {
-            m_id2context.erase(m_running->m_id);
-            m_running.reset();
-        } else if (m_running->m_state == context::WAITING_FD) {
-            ctx = m_running.get();
-            m_wait_fd[m_running->m_fd] = std::move(m_running);
-        } else if (m_running->m_state == context::WAITING_STREAM) {
-            ctx = m_running.get();
-            m_wait_stream[m_running->m_stream] = std::move(m_running);
-        } else if (m_running->m_state == context::RUNNING) {
-            ctx = m_running.get();
-            m_running->m_state = context::SUSPENDING;
-            m_suspend.push_back(std::move(m_running));
+    for (;;) {
+        context *ctx = nullptr;
+        
+        if (m_running) {
+            if (m_running->m_state == context::STOP) {
+                m_id2context.erase(m_running->m_id);
+                m_running.reset();
+            } else if (m_running->m_state == context::WAITING_FD) {
+                ctx = m_running.get();
+                m_wait_fd[m_running->m_fd] = std::move(m_running);
+            } else if (m_running->m_state == context::WAITING_STREAM) {
+                ctx = m_running.get();
+                m_wait_stream[m_running->m_stream] = std::move(m_running);
+            } else if (m_running->m_state == context::RUNNING) {
+                ctx = m_running.get();
+                m_running->m_state = context::SUSPENDING;
+                m_suspend.push_back(std::move(m_running));
+            }
         }
-    }
-
-    // invoke READY state
-    if (! m_ready.empty()) {
-        m_running = std::move(m_ready.front());
-        m_running->m_state = context::RUNNING;
-        m_ready.pop_front();
-        if (ctx != nullptr) {
-            if (setjmp(ctx->m_jmp_buf) == 0) {
+    
+        // invoke READY state
+        if (! m_ready.empty()) {
+            m_running = std::move(m_ready.front());
+            m_running->m_state = context::RUNNING;
+            m_ready.pop_front();
+            if (ctx != nullptr) {
+                if (setjmp(ctx->m_jmp_buf) == 0) {
+                    auto p = &m_running->m_stack[m_running->m_stack.size() - 2];
+                    asm (
+                        "movq %0, %%rsp;" // set stack pointer
+                        "movq %0, %%rbp;" // set frame pointer
+                        "jmp ___INVOKE;"
+                        :
+                        : "r" (p)
+                    );
+                } else {
+                    return;
+                }
+            } else {
                 auto p = &m_running->m_stack[m_running->m_stack.size() - 2];
                 asm (
                     "movq %0, %%rsp;" // set stack pointer
@@ -219,40 +252,30 @@ green_thread::yield()
                     :
                     : "r" (p)
                 );
-            } else {
-                return;
             }
-        } else {
-            auto p = &m_running->m_stack[m_running->m_stack.size() - 2];
-            asm (
-                "movq %0, %%rsp;" // set stack pointer
-                "movq %0, %%rbp;" // set frame pointer
-                "jmp ___INVOKE;"
-                :
-                : "r" (p)
-            );
         }
-    }
-
-    // invoke SUSPEND state
-    if (! m_suspend.empty()) {
-        m_running = std::move(m_suspend.front());
-        m_running->m_state = context::RUNNING;
-        m_suspend.pop_front();
-        if (ctx != nullptr) {
-            if (setjmp(ctx->m_jmp_buf) == 0) {
-                longjmp(m_running->m_jmp_buf, 1);
-            } else {
-                return;
-            }
-        } else {
-            longjmp(m_running->m_jmp_buf, 1);
-        }
-    }
     
-    if (! m_wait_fd.empty()) {
+        // invoke SUSPEND state
+        if (! m_suspend.empty()) {
+            m_running = std::move(m_suspend.front());
+            m_running->m_state = context::RUNNING;
+            m_suspend.pop_front();
+            if (ctx != nullptr) {
+                if (setjmp(ctx->m_jmp_buf) == 0) {
+                    longjmp(m_running->m_jmp_buf, 1);
+                } else {
+                    return;
+                }
+            } else {
+                longjmp(m_running->m_jmp_buf, 1);
+            }
+        }
+        
+        // TODO:
+        if (m_wait_fd.empty())
+            break;
+
         schedule();
-        return;
     }
     
     longjmp(m_jmp_buf, 1);

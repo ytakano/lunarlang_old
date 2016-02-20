@@ -5,24 +5,30 @@ namespace lunar {
 extern "C" {
 
 void
-make_shared_stream(shared_stream *p, stream_t srm)
+make_shared_stream(shared_stream *p, stream_t srm, bool is_enable_mt)
 {
     p->stream = srm;
     p->flag   = shared_stream::READ | shared_stream::WRITE;
     
     p->shared_data = new shared_stream::shared_data_t;
     
-    p->shared_data->flag_shared = 0;
     p->shared_data->refcnt = 1;
+    
+    if (is_enable_mt)
+        p->shared_data->flag_shared = shared_stream::ENABLE_MT;
+    else
+        p->shared_data->flag_shared = 0;
 }
 
 // if shared_stream will be transfered to another thread,
-// is_mt must be set true
+// is_shared_mt must be set true
 void
 make_shared_write_only_stream(shared_stream *dst,
-                              shared_stream *src, bool is_mt)
+                              shared_stream *src, bool is_shared_mt)
 {
-    if (src->shared_data->flag_shared & shared_stream::MT) {
+    assert(src->shared_data->flag_shared & shared_stream::ENABLE_MT);
+    
+    if (src->shared_data->flag_shared & shared_stream::SHARED_MT) {
         spin_lock_acquire lock(src->shared_data->lock);
         
         dst->stream      = src->stream;
@@ -35,8 +41,8 @@ make_shared_write_only_stream(shared_stream *dst,
         dst->shared_data = src->shared_data;
         dst->shared_data->refcnt++;
         
-        if (is_mt) {
-            dst->shared_data->flag_shared |= shared_stream::MT;
+        if (is_shared_mt) {
+            dst->shared_data->flag_shared |= shared_stream::SHARED_MT;
         }
     }
 }
@@ -44,7 +50,7 @@ make_shared_write_only_stream(shared_stream *dst,
 bool
 deref_shared_stream(shared_stream *ptr)
 {
-    if (ptr->shared_data->flag_shared & shared_stream::MT) {
+    if (ptr->shared_data->flag_shared & shared_stream::SHARED_MT) {
         spin_lock_acquire lock(ptr->shared_data->lock);
         
         ptr->shared_data->refcnt--;
