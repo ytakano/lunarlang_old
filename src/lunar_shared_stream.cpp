@@ -7,12 +7,12 @@ extern "C" {
 void
 make_shared_stream(shared_stream *p, stream_t srm, bool is_enable_mt)
 {
-    p->stream = srm;
     p->flag   = shared_stream::READ | shared_stream::WRITE;
     
     p->shared_data = new shared_stream::shared_data_t;
     
     p->shared_data->refcnt = 1;
+    p->shared_data->stream = srm;
     
     if (is_enable_mt)
         p->shared_data->flag_shared = shared_stream::ENABLE_MT;
@@ -31,12 +31,10 @@ make_shared_write_only_stream(shared_stream *dst,
     if (src->shared_data->flag_shared & shared_stream::SHARED_MT) {
         spin_lock_acquire lock(src->shared_data->lock);
         
-        dst->stream      = src->stream;
         dst->flag        = shared_stream::WRITE;
         dst->shared_data = src->shared_data;
         dst->shared_data->refcnt++;
     } else {
-        dst->stream      = src->stream;
         dst->flag        = shared_stream::WRITE;
         dst->shared_data = src->shared_data;
         dst->shared_data->refcnt++;

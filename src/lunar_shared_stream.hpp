@@ -22,13 +22,13 @@ struct shared_stream {
     static const uint32_t ENABLE_MT    = 0x0010; // stream can be shared among multipe threads
     static const uint32_t SHARED_MT    = 0x0020; // stream is beeing shared among multiple threads
 
-    stream_t stream;
     uint32_t flag;  // READ, WRITE
     
     struct shared_data_t {
         uint32_t  flag_shared; // CLOSED_READ, CLOSED_WRITE, ENABLE_MT, SHARED_MT
         uint32_t  refcnt;
         spin_lock lock;
+        stream_t  stream;
     } *shared_data;
 };
 

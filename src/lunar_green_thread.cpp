@@ -172,7 +172,7 @@ green_thread::popq()
 void
 green_thread::pushq(void *ptr)
 {
-    while (m_qlen == m_max_qlen);
+    while (m_qlen == m_max_qlen); // how to handle?
 
     spin_lock_acquire_unsafe lock(m_qlock);
 
