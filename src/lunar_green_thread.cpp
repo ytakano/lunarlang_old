@@ -23,7 +23,7 @@ asm (
     "callq *%rax;"             // call func()
     "addq $8, %rsp;"           // align 16 bytes
     "popq %rax;"               // pop context
-    "movl $5, (%rax);"         // context.m_state = STOP
+    "movl $6, (%rax);"         // context.m_state = STOP
     "jmp _yield_green_thread;" // jump to _yeild_green_thread
 );
 
@@ -140,6 +140,69 @@ green_thread::wake_up_stream(void *ptr)
     yield();
 }
 
+void*
+green_thread::popq()
+{
+    int i = 0;
+    while (m_qlen == 0) {
+        i++;
+        if (i > 100) {
+            m_running->m_state = context::WAITING_THQ;
+            yield();
+            i = 0;
+        }
+    }
+
+    void* retval = *m_qhead;
+
+    {
+        spin_lock_acquire lock(m_qlock);
+        m_qlen--;
+    }
+
+    m_qhead++;
+
+    if (m_qhead == m_qend) {
+        m_qhead = m_q;
+    }
+
+    return retval;
+}
+
+void
+green_thread::pushq(void *ptr)
+{
+    while (m_qlen == m_max_qlen);
+
+    spin_lock_acquire_unsafe lock(m_qlock);
+
+    *m_qtail = ptr;
+    m_qlen++;
+    m_qtail++;
+
+    if (m_qtail == m_qend) {
+        m_qtail = m_q;
+    }
+   
+    if (! m_is_qnotified) {
+        m_is_qnotified = true;
+        lock.unlock();
+        if (m_qwait_type == QWAIT_COND) {
+            std::unique_lock<std::mutex> mlock(m_qmutex);
+            m_qcond.notify_one();
+        } else {
+            char c = '\0';
+            write(m_qpipe[1], &c, sizeof(c));
+        }
+        
+        return;
+    }
+    
+    lock.unlock();
+    
+    return;
+}
+
 void
 green_thread::schedule()
 {
@@ -212,6 +275,9 @@ green_thread::yield()
             } else if (m_running->m_state == context::WAITING_STREAM) {
                 ctx = m_running;
                 m_wait_stream[m_running->m_stream] = m_running;
+            } else if (m_running->m_state == context::WAITING_THQ) {
+                ctx = m_running;
+                m_threadq = m_running;
             } else if (m_running->m_state == context::RUNNING) {
                 ctx = m_running;
                 m_running->m_state = context::SUSPENDING;
@@ -265,7 +331,64 @@ green_thread::yield()
             }
         }
         
-        // TODO:
+        if (m_threadq) {
+            spin_lock_acquire_unsafe lock(m_qlock);
+            if (m_qlen > 0) {
+                // invoke WAITING_THQ state thread
+                lock.unlock();
+                m_running = m_threadq;
+                m_running->m_state = context::RUNNING;
+                m_threadq = nullptr;
+                if (ctx != nullptr) {
+                    if (setjmp(ctx->m_jmp_buf) == 0) {
+                        longjmp(m_running->m_jmp_buf, 1);
+                    } else {
+                        return;
+                    }
+                } else {
+                    longjmp(m_running->m_jmp_buf, 1);
+                }
+            } else {
+                // suspend
+                m_is_qnotified = false;
+                if (m_wait_fd.empty()) {
+                    m_qwait_type = QWAIT_COND;
+                    lock.unlock();
+                    // condition wait
+                    {
+                        std::unique_lock<std::mutex> mlock(m_qmutex);
+                        if (m_qlen == 0)
+                            m_qcond.wait(mlock);
+                    }
+
+                    m_running = m_threadq;
+                    m_running->m_state = context::RUNNING;
+                    m_threadq = nullptr;
+                    if (ctx != nullptr) {
+                        if (setjmp(ctx->m_jmp_buf) == 0) {
+                            longjmp(m_running->m_jmp_buf, 1);
+                        } else {
+                            return;
+                        }
+                    } else {
+                        longjmp(m_running->m_jmp_buf, 1);
+                    }
+                } else {
+                    m_qwait_type = QWAIT_PIPE;
+                    lock.unlock();
+
+                    m_threadq->m_state = context::WAITING_FD;
+                    m_threadq->m_fd    = m_qpipe[0];
+
+#ifdef KQUEUE
+                    EV_SET(&m_kev, m_qpipe[0], EVFILT_READ, EV_ADD, 0, 0, NULL);
+#endif // KQUEUE
+                    m_wait_fd[m_qpipe[0]] = m_threadq;
+                    m_threadq = nullptr;
+                }
+            }
+        }
+        
         if (m_wait_fd.empty())
             break;
 
