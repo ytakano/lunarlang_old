@@ -2,6 +2,7 @@
 #define LUNAR_GREEN_THREAD_HPP
 
 #include "lunar_common.hpp"
+#include "lunar_spin_lock.hpp"
 
 #include <setjmp.h>
 
@@ -50,7 +51,14 @@ public:
         std::vector<uint64_t> m_stack;
     };
 
-    green_thread() : m_count(0), m_current_ctx(nullptr)
+    green_thread(int qsize = 4096)
+        : m_count(0),
+          m_max_qlen(qsize),
+          m_qlen(0),
+          m_q(new void*[qsize]),
+          m_qend(m_q + qsize),
+          m_qhead(m_q),
+          m_qtail(m_q)
     {
 #ifdef KQUEUE
         m_kq = kqueue();
@@ -63,6 +71,7 @@ public:
     
     ~green_thread()
     {
+        delete[] m_q;
 #ifdef KQUEUE
         close(m_kq);
 #endif // KQUEUE
@@ -80,16 +89,23 @@ public:
 private:
     jmp_buf     m_jmp_buf;
     int         m_count;
-    context    *m_current_ctx;
-    std::mutex  m_mutex;
-    std::condition_variable m_cond;
-    std::unordered_map<int, context*>    m_id2context;
-    std::deque<std::unique_ptr<context>> m_ready;
-    std::unique_ptr<context>             m_running;
-    std::deque<std::unique_ptr<context>> m_suspend;
-    std::unordered_map<int, std::unique_ptr<context>>   m_wait_fd;
-    std::unordered_map<void*, std::unique_ptr<context>> m_wait_stream;
+    std::unordered_map<int, std::unique_ptr<context>> m_id2context;
+    std::deque<context*> m_ready;
+    context*             m_running;
+    std::deque<context*> m_suspend;
+    std::unordered_map<int, context*>   m_wait_fd;
+    std::unordered_map<void*, context*> m_wait_stream;
 
+    int m_max_qlen;
+    int m_qlen;
+    void **m_q;
+    void **m_qend;
+    void **m_qhead;
+    void **m_qtail;
+    spin_lock   m_qlock;
+    std::mutex  m_qmutex;
+    std::condition_variable m_qcond;
+    
 #ifdef KQUEUE
     int           m_kq;
     struct kevent m_kev;

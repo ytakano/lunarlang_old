@@ -95,7 +95,7 @@ private:
                 return NO_MORE_DATA;
             } else {
                 c = (*m_data)[pos];
-                return SUCCESS; 
+                return SUCCESS;
             }
         }
         

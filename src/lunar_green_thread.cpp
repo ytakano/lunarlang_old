@@ -143,34 +143,28 @@ green_thread::wake_up_stream(void *ptr)
 void
 green_thread::schedule()
 {
-    if (m_wait_fd.empty()) {
-        std::unique_lock<std::mutex> lock(m_mutex);
-        m_cond.wait(lock);
-    } else {
 #ifdef KQUEUE
-        auto size = m_wait_fd.size();
-        struct kevent *kev = new struct kevent[size];
-        
-        int ret = kevent(m_kq, kev, size, kev, size, NULL);
-        if (ret == -1) {
-            PRINTERR("ERROR: failed kevent");
-            exit(-1);
-        }
-        
-        for (int i = 0; i < ret; i++) {
-            int fd = kev[i].ident;
-            auto it = m_wait_fd.find(fd);
-            
-            it->second->m_state = context::SUSPENDING;
-            m_suspend.push_back(std::move(it->second));
-            
-            m_wait_fd.erase(it);
-        }
-
-        delete kev;
-        
-#endif // KQUEUE
+    auto size = m_wait_fd.size();
+    struct kevent *kev = new struct kevent[size];
+    
+    int ret = kevent(m_kq, kev, size, kev, size, NULL);
+    if (ret == -1) {
+        PRINTERR("ERROR: failed kevent");
+        exit(-1);
     }
+    
+    for (int i = 0; i < ret; i++) {
+        int fd = kev[i].ident;
+        auto it = m_wait_fd.find(fd);
+        
+        it->second->m_state = context::SUSPENDING;
+        m_suspend.push_back(std::move(it->second));
+        
+        m_wait_fd.erase(it);
+    }
+
+    delete kev;
+#endif // KQUEUE
 }
 
 int
@@ -188,8 +182,8 @@ green_thread::spawn(void (*func)(), int stack_size)
     ctx->m_stack[s - 1] = (uint64_t)ctx.get(); // push context
     ctx->m_stack[s - 2] = (uint64_t)func;      // push func
     
-    m_id2context[m_count] = ctx.get();
-    m_ready.push_back(std::move(ctx));
+    m_ready.push_back(ctx.get());
+    m_id2context[m_count] = std::move(ctx);
     
     return 0;
 }
@@ -210,24 +204,24 @@ green_thread::yield()
         
         if (m_running) {
             if (m_running->m_state == context::STOP) {
+                m_running = nullptr;
                 m_id2context.erase(m_running->m_id);
-                m_running.reset();
             } else if (m_running->m_state == context::WAITING_FD) {
-                ctx = m_running.get();
-                m_wait_fd[m_running->m_fd] = std::move(m_running);
+                ctx = m_running;
+                m_wait_fd[m_running->m_fd] = m_running;
             } else if (m_running->m_state == context::WAITING_STREAM) {
-                ctx = m_running.get();
-                m_wait_stream[m_running->m_stream] = std::move(m_running);
+                ctx = m_running;
+                m_wait_stream[m_running->m_stream] = m_running;
             } else if (m_running->m_state == context::RUNNING) {
-                ctx = m_running.get();
+                ctx = m_running;
                 m_running->m_state = context::SUSPENDING;
-                m_suspend.push_back(std::move(m_running));
+                m_suspend.push_back(m_running);
             }
         }
     
-        // invoke READY state
+        // invoke READY state thread
         if (! m_ready.empty()) {
-            m_running = std::move(m_ready.front());
+            m_running = m_ready.front();
             m_running->m_state = context::RUNNING;
             m_ready.pop_front();
             if (ctx != nullptr) {
@@ -255,9 +249,9 @@ green_thread::yield()
             }
         }
     
-        // invoke SUSPEND state
+        // invoke SUSPEND state thread
         if (! m_suspend.empty()) {
-            m_running = std::move(m_suspend.front());
+            m_running = m_suspend.front();
             m_running->m_state = context::RUNNING;
             m_suspend.pop_front();
             if (ctx != nullptr) {
