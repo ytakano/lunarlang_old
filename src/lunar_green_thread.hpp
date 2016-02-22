@@ -100,7 +100,7 @@ public:
     void  push_threadq(void *ptr);
     
     template<typename T> read_result pop_stream(shared_stream *p, T &ret);
-    template<typename T> void push_stream(shared_stream *p, T ptr);
+    template<typename T> read_result push_stream(shared_stream *p, T ptr);
 
 private:
     jmp_buf     m_jmp_buf;

@@ -201,12 +201,15 @@ green_thread::pop_stream(shared_stream *p, T &ret)
 }
 
 template<typename T>
-void
+read_result
 green_thread::push_stream(shared_stream *p, T data)
 {
     assert(p->flag & shared_stream::WRITE);
     
     voidq_t *q = (voidq_t*)p->shared_data->stream.ptr;
+    
+    if (p->shared_data->flag_shared & shared_stream::CLOSED_READ || q->is_eof())
+        return END_OF_STREAM;
     
     for (;;) {
         if (q->push(data)) {
@@ -217,7 +220,7 @@ green_thread::push_stream(shared_stream *p, T data)
                 m_suspend.push_back(it->second);
                 m_wait_stream.erase(it);
             }
-            return;
+            return SUCCESS;
         } else {
             yield();
         }

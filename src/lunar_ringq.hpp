@@ -18,6 +18,7 @@ public:
     read_result pop(T &retval);
     bool push(const T &val);
     void push_eof() { m_is_eof = true; }
+    bool is_eof() { return m_is_eof; }
     int  get_len() { return m_len; }
 
 private:
