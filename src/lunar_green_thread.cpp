@@ -183,7 +183,7 @@ green_thread::pushq(void *ptr)
     if (m_qtail == m_qend) {
         m_qtail = m_q;
     }
-   
+    
     if (! m_is_qnotified) {
         m_is_qnotified = true;
         lock.unlock();
