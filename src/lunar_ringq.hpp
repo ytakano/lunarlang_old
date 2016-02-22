@@ -14,7 +14,7 @@ public:
                   m_tail(m_buf) { }
     virtual ~ringq() { delete[] m_buf; }
 
-    T    pop();
+    bool pop(T &retval);
     void push(const T &val);
     int  get_len() { return m_len; }
 

@@ -1,66 +1,107 @@
 #include "lunar_shared_stream.hpp"
+#include "lunar_ringq.hpp"
 
 namespace lunar {
+
+typedef ringq<void*> voidq_t;
+typedef ringq<int>   intq_t;
 
 extern "C" {
 
 void
-make_shared_stream(shared_stream *p, stream_t srm, bool is_enable_mt)
+make_ptr_stream(shared_stream *rw, shared_stream *wonly, int bufsize)
 {
-    p->flag   = shared_stream::READ | shared_stream::WRITE;
+    auto p = new shared_stream::shared_data_t;
     
-    p->shared_data = new shared_stream::shared_data_t;
+    p->flag_shared = 0;
+    p->refcnt      = 2;
+    p->stream.ptr  = new voidq_t(bufsize);
     
-    p->shared_data->refcnt = 1;
-    p->shared_data->stream = srm;
-    
-    if (is_enable_mt)
-        p->shared_data->flag_shared = shared_stream::ENABLE_MT;
-    else
-        p->shared_data->flag_shared = 0;
+    rw->flag        = shared_stream::READ | shared_stream::WRITE;
+    rw->shared_data = p;
+
+    wonly->flag        = shared_stream::WRITE;
+    wonly->shared_data = p;
 }
 
-// if shared_stream will be transfered to another thread,
-// is_shared_mt must be set true
+// before shared_stream is transfered to another thread,
+// SHARED_MT flag must be set true
 void
-make_shared_write_only_stream(shared_stream *dst,
-                              shared_stream *src, bool is_shared_mt)
+make_fd_stream(shared_stream *rw, shared_stream *wonly, int fd, int bufsize)
 {
-    assert(src->shared_data->flag_shared & shared_stream::ENABLE_MT);
+    auto p = new shared_stream::shared_data_t;
     
-    if (src->shared_data->flag_shared & shared_stream::SHARED_MT) {
-        spin_lock_acquire lock(src->shared_data->lock);
+    p->flag_shared = shared_stream::ENABLE_MT;
+    p->stream.fd   = fd;
+
+    assert(rw || wonly);
+    
+    if (rw == nullptr) {
+        p->refcnt = 1;
+        p->flag_shared |= shared_stream::CLOSED_READ;
         
-        dst->flag        = shared_stream::WRITE;
-        dst->shared_data = src->shared_data;
-        dst->shared_data->refcnt++;
+        wonly->flag        = shared_stream::WRITE;
+        wonly->shared_data = p;
+    } else if (wonly == nullptr) {
+        p->refcnt = 1;
+        p->flag_shared |= shared_stream::CLOSED_WRITE;
+        
+        rw->flag        = shared_stream::READ;
+        rw->shared_data = p;
     } else {
-        dst->flag        = shared_stream::WRITE;
-        dst->shared_data = src->shared_data;
-        dst->shared_data->refcnt++;
+        p->refcnt = 2;
         
-        if (is_shared_mt) {
-            dst->shared_data->flag_shared |= shared_stream::SHARED_MT;
+        rw->flag        = shared_stream::READ | shared_stream::WRITE;
+        rw->shared_data = p;
+        
+        wonly->flag        = shared_stream::WRITE;
+        wonly->shared_data = p;
+    }
+}
+
+void
+deref_ptr_stream(shared_stream *ptr)
+{
+    ptr->shared_data--;
+    if (ptr->shared_data == 0) {
+        auto p = (voidq_t*)ptr->shared_data->stream.ptr;
+        delete p;
+    } else {
+        if (ptr->flag & shared_stream::READ) {
+            ptr->shared_data->flag_shared |= shared_stream::CLOSED_READ;
         }
     }
 }
 
-bool
-deref_shared_stream(shared_stream *ptr)
+void
+deref_fd_stream(shared_stream *ptr)
 {
     if (ptr->shared_data->flag_shared & shared_stream::SHARED_MT) {
-        spin_lock_acquire lock(ptr->shared_data->lock);
+        spin_lock_acquire_unsafe lock(ptr->shared_data->lock);
         
         ptr->shared_data->refcnt--;
-        if (ptr->shared_data->refcnt == 0)
-            return true;
+        if (ptr->shared_data->refcnt == 0) {
+            lock.unlock();
+            close(ptr->shared_data->stream.fd);
+            return;
+        }
+        
+        if (ptr->flag & shared_stream::READ) {
+            ptr->shared_data->flag_shared |= shared_stream::CLOSED_READ;
+        }
+
+        lock.unlock();
     } else {
         ptr->shared_data->refcnt--;
-        if (ptr->shared_data->refcnt == 0)
-            return true;
-    }
+        if (ptr->shared_data->refcnt == 0) {
+            close(ptr->shared_data->stream.fd);
+            return;
+        }
 
-    return false;
+        if (ptr->flag & shared_stream::READ) {
+            ptr->shared_data->flag_shared |= shared_stream::CLOSED_READ;
+        }
+    }
 }
 
 } // extern "C"

@@ -136,7 +136,7 @@ private:
     struct kevent m_kev;
 #endif // KQUEUE
     
-    void schedule();
+    void select_fd(bool is_block);
 };
 
 }

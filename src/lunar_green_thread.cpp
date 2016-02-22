@@ -204,13 +204,26 @@ green_thread::pushq(void *ptr)
 }
 
 void
-green_thread::schedule()
+green_thread::select_fd(bool is_block)
 {
 #ifdef KQUEUE
     auto size = m_wait_fd.size();
+    if (size == 0)
+        return;
+    
     struct kevent *kev = new struct kevent[size];
     
-    int ret = kevent(m_kq, kev, size, kev, size, NULL);
+    int ret;
+    
+    if (is_block) {
+        ret = kevent(m_kq, kev, size, kev, size, NULL);
+    } else {
+        timespec tm;
+        tm.tv_sec  = 0;
+        tm.tv_nsec = 0;
+        ret = kevent(m_kq, kev, size, kev, size, &tm);
+    }
+
     if (ret == -1) {
         PRINTERR("ERROR: failed kevent");
         exit(-1);
@@ -314,6 +327,14 @@ green_thread::yield()
                 );
             }
         }
+        
+        if (m_qlen > 0 && m_threadq) {
+            m_threadq->m_state = context::SUSPENDING;
+            m_suspend.push_back(m_threadq);
+            m_threadq = nullptr;
+        }
+        
+        select_fd(false);
     
         // invoke SUSPEND state thread
         if (! m_suspend.empty()) {
@@ -392,7 +413,7 @@ green_thread::yield()
         if (m_wait_fd.empty())
             break;
 
-        schedule();
+        select_fd(true);
     }
     
     longjmp(m_jmp_buf, 1);

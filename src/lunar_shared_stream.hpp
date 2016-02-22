@@ -33,10 +33,10 @@ struct shared_stream {
 };
 
 extern "C" {
-    void make_shared_stream(shared_stream *p, stream_t srm, bool is_enable_mt);
-    void make_shared_write_only_stream(shared_stream *dst,
-                                       shared_stream *src, bool is_shared_mt);
-    bool deref_shared_stream(shared_stream *ptr);
+    void make_ptr_stream(shared_stream *rw, shared_stream *wonly, int bufsize = 64);
+    void make_fd_stream(shared_stream *rw, shared_stream *wonly, int fd, int bufsize = 64);
+    void deref_ptr_stream(shared_stream *ptr);
+    void deref_fd_stream(shared_stream *ptr);
 }
 
 }
