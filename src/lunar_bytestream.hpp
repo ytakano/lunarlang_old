@@ -7,12 +7,6 @@
 
 namespace lunar {
 
-enum read_result {
-    SUCCESS,
-    NO_MORE_DATA,
-    END_OF_STREAM,
-};
-
 template <typename T>
 class bytestream {
     typedef std::basic_string<T> string_t;

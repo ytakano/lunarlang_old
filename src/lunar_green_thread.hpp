@@ -3,6 +3,8 @@
 
 #include "lunar_common.hpp"
 #include "lunar_spin_lock.hpp"
+#include "lunar_shared_stream.hpp"
+#include "lunar_ringq.hpp"
 
 #include <setjmp.h>
 
@@ -29,8 +31,6 @@ extern "C" {
     void run_green_thread();
     void wait_fd_read_green_thread(int fd);
     void wait_fd_write_green_thread(int fd);
-    void wait_stream_green_thread();
-    void wake_up_stream_green_thread(void *);
 }
 
 class green_thread {
@@ -96,10 +96,11 @@ public:
     void wait(int id);
     void wait_fd_read(int fd);
     void wait_fd_write(int fd);
-    void wait_stream();
-    void wake_up_stream(void *ptr);
-    void* popq();
-    void  pushq(void *ptr);
+    void* pop_threadq();
+    void  push_threadq(void *ptr);
+    
+    template<typename T> read_result pop_stream(shared_stream *p, T &ret);
+    template<typename T> void push_stream(shared_stream *p, T ptr);
 
 private:
     jmp_buf     m_jmp_buf;

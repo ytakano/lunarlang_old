@@ -78,18 +78,6 @@ wait_fd_write_green_thread(int fd)
     lunar_gt->wait_fd_write(fd);
 }
 
-void
-wait_stream_green_thread()
-{
-    lunar_gt->wait_stream();
-}
-
-void
-wake_up_stream_green_thread(void *ptr)
-{
-    lunar_gt->wake_up_stream(ptr);
-}
-
 } // extern "C"
 
 void
@@ -118,30 +106,8 @@ green_thread::wait_fd_write(int fd)
     yield();
 }
 
-void
-green_thread::wait_stream()
-{
-    m_running->m_state = context::WAITING_STREAM;
-
-    yield();
-}
-
-void
-green_thread::wake_up_stream(void *ptr)
-{
-    auto it = m_wait_stream.find(ptr); 
-    if (it == m_wait_stream.end())
-        return;
-    
-    it->second->m_state = context::SUSPENDING;
-    m_suspend.push_back(std::move(it->second));
-    m_wait_stream.erase(it);
-    
-    yield();
-}
-
 void*
-green_thread::popq()
+green_thread::pop_threadq()
 {
     int i = 0;
     while (m_qlen == 0) {
@@ -170,9 +136,16 @@ green_thread::popq()
 }
 
 void
-green_thread::pushq(void *ptr)
+green_thread::push_threadq(void *ptr)
 {
-    while (m_qlen == m_max_qlen); // how to handle?
+    int i = 0;
+    while (m_qlen == m_max_qlen) {
+        i++;
+        if (i > 100) {
+            yield();
+            i = 0;
+        }
+    }
 
     spin_lock_acquire_unsafe lock(m_qlock);
 
@@ -201,6 +174,54 @@ green_thread::pushq(void *ptr)
     lock.unlock();
     
     return;
+}
+
+template<typename T>
+read_result
+green_thread::pop_stream(shared_stream *p, T &ret)
+{
+    assert(p->flag & shared_stream::READ);
+    
+    ringq<T> *q = (ringq<T>*)p->shared_data->stream.ptr;
+    
+    for (;;) {
+        auto result = q->pop(ret);
+        if (result == END_OF_STREAM) {
+            return END_OF_STREAM;
+        } else if (result == SUCCESS) {
+            break;
+        } else {
+            m_running->m_state = context::WAITING_STREAM;
+            m_wait_stream[q] = m_running;
+            yield();
+        }
+    }
+    
+    return SUCCESS;
+}
+
+template<typename T>
+void
+green_thread::push_stream(shared_stream *p, T data)
+{
+    assert(p->flag & shared_stream::WRITE);
+    
+    voidq_t *q = (voidq_t*)p->shared_data->stream.ptr;
+    
+    for (;;) {
+        if (q->push(data)) {
+            auto it = m_wait_stream.find(q);
+            if (it != m_wait_stream.end()) {
+                // notify
+                it->second->m_state = context::SUSPENDING;
+                m_suspend.push_back(it->second);
+                m_wait_stream.erase(it);
+            }
+            return;
+        } else {
+            yield();
+        }
+    }
 }
 
 void
@@ -287,7 +308,6 @@ green_thread::yield()
                 m_wait_fd[m_running->m_fd] = m_running;
             } else if (m_running->m_state == context::WAITING_STREAM) {
                 ctx = m_running;
-                m_wait_stream[m_running->m_stream] = m_running;
             } else if (m_running->m_state == context::WAITING_THQ) {
                 ctx = m_running;
                 m_threadq = m_running;

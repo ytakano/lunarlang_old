@@ -3,9 +3,6 @@
 
 namespace lunar {
 
-typedef ringq<void*> voidq_t;
-typedef ringq<int>   intq_t;
-
 extern "C" {
 
 void

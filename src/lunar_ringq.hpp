@@ -3,12 +3,6 @@
 
 namespace lunar {
 
-enum ringq_result {
-    SUCCESS,
-    END_OF_Q,
-    NO_MORE_BUF,
-};
-
 template <typename T>
 class ringq {
 public:
@@ -21,8 +15,8 @@ public:
                   m_is_eof(false) { }
     virtual ~ringq() { delete[] m_buf; }
 
-    ringq_result pop(T &retval);
-    void push(const T &val);
+    read_result pop(T &retval);
+    bool push(const T &val);
     void push_eof() { m_is_eof = true; }
     int  get_len() { return m_len; }
 
@@ -39,14 +33,14 @@ private:
 };
 
 template <typename T>
-inline ringq_result
+inline read_result
 ringq<T>::pop(T &retval)
 {
     if (m_len == 0) {
         if (m_is_eof)
-            return ringq_result::END_OF_Q;
+            return END_OF_STREAM;
         else
-            return ringq_result::NO_MORE_BUF;
+            return NO_MORE_DATA;
     }
 
     retval = *m_head;
@@ -58,14 +52,15 @@ ringq<T>::pop(T &retval)
         m_head = m_buf;
     }
     
-    return ringq_result::SUCCESS;
+    return SUCCESS;
 }
 
 template <typename T>
 inline
-void ringq<T>::push(const T &val)
+bool ringq<T>::push(const T &val)
 {
-    while (m_len == m_max_len); // how to handle?
+    if (m_len == m_max_len)
+        return false;
 
     *m_tail = val;
     m_len++;
@@ -75,7 +70,12 @@ void ringq<T>::push(const T &val)
     if (m_tail == m_buf_end) {
         m_tail = m_buf;
     }
+    
+    return true;
 }
+
+typedef ringq<void*> voidq_t;
+typedef ringq<int>   intq_t;
 
 }
 
