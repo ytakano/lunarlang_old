@@ -202,15 +202,12 @@ public:
         virtual bool operator() ()
         {
             T c;
-            printf("here\n");
             for (;;) {
                 auto result = parser::m_parsec.m_stream.front(c);
 
                 if (result == SUCCESS) {
-                    printf("success: c = %c\n", (char)c);
                     break;
                 } else if (result == NO_MORE_DATA) {
-                    printf("no more data\n");
                     std::u32string *ptr;
                     auto result2 = pop_string(&parser::m_parsec.m_shared_stream, &ptr);
                     if (result2 == SUCCESS) {

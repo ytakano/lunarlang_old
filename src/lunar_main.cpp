@@ -53,7 +53,6 @@ test_parsec()
         push_string(ws, text);
         push_eof(ws);
         
-        printf("here\n");
         int num = parse_int(parsec);
         printf("num = %d\n", num);
 

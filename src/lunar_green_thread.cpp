@@ -13,17 +13,18 @@ rtm_lock lock_thread2gt;
 std::unordered_map<std::thread::id, green_thread*> thread2gt;
 
 // stack layout:
-//     context
-//     func
+//    context
+//    func
 asm (
     ".global ___INVOKE;"
     "___INVOKE:"
     "popq %rax;"               // pop func
     "subq $8, %rsp;"           // align 16 bytes
     "callq *%rax;"             // call func()
-    "addq $8, %rsp;"           // align 16 bytes
+    "addq $8, %rsp;"
     "popq %rax;"               // pop context
     "movl $6, (%rax);"         // context.m_state = STOP
+    "subq $8, %rsp;"           // align 16 bytes
     "jmp _yield_green_thread;" // jump to _yeild_green_thread
 );
 
@@ -327,8 +328,6 @@ green_thread::run()
     if (setjmp(m_jmp_buf) == 0) {
         yield();
     }
-    
-    printf("run\n");
 }
 
 void
@@ -474,7 +473,6 @@ green_thread::yield()
         select_fd(true);
     }
     
-    printf("back!\n");
     longjmp(m_jmp_buf, 1);
 }
 
