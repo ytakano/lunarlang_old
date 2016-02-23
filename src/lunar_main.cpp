@@ -65,6 +65,7 @@ test_parsec()
     lunar::spawn_green_thread(func);
 
     lunar::run_green_thread();
+    printf("end green thread\n");
 }
 
 void

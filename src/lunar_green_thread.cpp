@@ -12,19 +12,22 @@ __thread green_thread *lunar_gt = nullptr;
 rtm_lock lock_thread2gt;
 std::unordered_map<std::thread::id, green_thread*> thread2gt;
 
+// 32 
+// 24
+// 16
+// 8 
+// 0
+
 // stack layout:
 //    context
 //    func
 asm (
     ".global ___INVOKE;"
     "___INVOKE:"
-    "popq %rax;"               // pop func
-    "subq $8, %rsp;"           // align 16 bytes
-    "callq *%rax;"             // call func()
-    "addq $8, %rsp;"
-    "popq %rax;"               // pop context
+    "callq *(%rsp);"           // call func()
+    "movq 8(%rsp), %rax;"
     "movl $6, (%rax);"         // context.m_state = STOP
-    "subq $8, %rsp;"           // align 16 bytes
+    "subq $8, %rsp;"
     "jmp _yield_green_thread;" // jump to _yeild_green_thread
 );
 
@@ -350,6 +353,7 @@ green_thread::yield()
                 ctx = m_running;
                 m_threadq = m_running;
             } else if (m_running->m_state == context::RUNNING) {
+                printf("m_running->m_state = %d\n", m_running->m_state);
                 ctx = m_running;
                 m_running->m_state = context::SUSPENDING;
                 m_suspend.push_back(m_running);
