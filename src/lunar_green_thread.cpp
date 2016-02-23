@@ -12,12 +12,6 @@ __thread green_thread *lunar_gt = nullptr;
 rtm_lock lock_thread2gt;
 std::unordered_map<std::thread::id, green_thread*> thread2gt;
 
-// 32 
-// 24
-// 16
-// 8 
-// 0
-
 // stack layout:
 //    context
 //    func
