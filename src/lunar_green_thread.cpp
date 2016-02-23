@@ -78,6 +78,21 @@ wait_fd_write_green_thread(int fd)
     lunar_gt->wait_fd_write(fd);
 }
 
+read_result pop_string(shared_stream *p, std::u32string **ret)
+{
+    return lunar_gt->pop_stream<std::u32string*>(p, *ret);
+}
+
+read_result push_string(shared_stream *p, std::u32string *ret)
+{
+    return lunar_gt->push_stream<std::u32string*>(p, ret);
+}
+
+void push_eof(shared_stream *p)
+{
+    return lunar_gt->push_eof_stream(p);
+}
+
 } // extern "C"
 
 void
@@ -228,6 +243,24 @@ green_thread::push_stream(shared_stream *p, T data)
 }
 
 void
+green_thread::push_eof_stream(shared_stream *p)
+{
+    assert(p->flag & shared_stream::WRITE);
+    
+    voidq_t *q = (voidq_t*)p->shared_data->stream.ptr;
+    
+    q->push_eof();
+    
+    if (p->flag & shared_stream::READ) {
+        p->shared_data->flag_shared |= shared_stream::CLOSED_READ;
+    }
+
+    if (p->flag & shared_stream::WRITE) {
+        p->shared_data->flag_shared |= shared_stream::CLOSED_WRITE;
+    }
+}
+
+void
 green_thread::select_fd(bool is_block)
 {
 #ifdef KQUEUE
@@ -294,6 +327,8 @@ green_thread::run()
     if (setjmp(m_jmp_buf) == 0) {
         yield();
     }
+    
+    printf("run\n");
 }
 
 void
@@ -304,8 +339,8 @@ green_thread::yield()
         
         if (m_running) {
             if (m_running->m_state == context::STOP) {
-                m_running = nullptr;
                 m_id2context.erase(m_running->m_id);
+                m_running = nullptr;
             } else if (m_running->m_state == context::WAITING_FD) {
                 ctx = m_running;
                 m_wait_fd[m_running->m_fd] = m_running;
@@ -439,6 +474,7 @@ green_thread::yield()
         select_fd(true);
     }
     
+    printf("back!\n");
     longjmp(m_jmp_buf, 1);
 }
 

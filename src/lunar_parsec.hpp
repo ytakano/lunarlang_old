@@ -4,6 +4,8 @@
 #include "lunar_common.hpp"
 #include "lunar_bytestream.hpp"
 #include "lunar_string.hpp"
+#include "lunar_ringq.hpp"
+#include "lunar_green_thread.hpp"
 
 #include <string>
 #include <unordered_set>
@@ -18,8 +20,8 @@ public:
     typedef std::unordered_set<T> chars_t;
     typedef std::basic_string<T>  string_t;
 
-    parsec(stream_t &stream)
-        : m_stream(stream),
+    parsec(shared_stream s)
+        : m_shared_stream(s),
           m_col(1),
           m_line(1),
           m_num(0),
@@ -200,16 +202,29 @@ public:
         virtual bool operator() ()
         {
             T c;
-            auto result = parser::m_parsec.m_stream.front(c); 
+            printf("here\n");
+            for (;;) {
+                auto result = parser::m_parsec.m_stream.front(c);
 
-            if (result == NO_MORE_DATA) {
-                parser::m_parsec.m_result = false;
-                parser::m_parsec.set_err(result, parser::m_parsec.m_line, parser::m_parsec.m_col);
-                return false;
-            } else if (result == END_OF_STREAM) {
-                parser::m_parsec.m_result = false;
-                parser::m_parsec.set_err(result, parser::m_parsec.m_line, parser::m_parsec.m_col);
-                return false;
+                if (result == SUCCESS) {
+                    printf("success: c = %c\n", (char)c);
+                    break;
+                } else if (result == NO_MORE_DATA) {
+                    printf("no more data\n");
+                    std::u32string *ptr;
+                    auto result2 = pop_string(&parser::m_parsec.m_shared_stream, &ptr);
+                    if (result2 == SUCCESS) {
+                        parser::m_parsec.m_stream.push_back(ptr);
+                    } else if (result2 == END_OF_STREAM) {
+                        parser::m_parsec.m_stream.push_eof();
+                    }
+                    
+                    assert(result2 != NO_MORE_DATA);
+                } else {
+                    parser::m_parsec.m_result = false;
+                    parser::m_parsec.set_err(result, parser::m_parsec.m_line, parser::m_parsec.m_col);
+                    return false;
+                }
             }
 
             if (m_func(c)) {
@@ -232,9 +247,9 @@ public:
                 
                 return true;
             }
-
+            
             parser::m_parsec.m_result = false;
-            parser::m_parsec.set_err(result, parser::m_parsec.m_line, parser::m_parsec.m_col);
+            parser::m_parsec.set_err(SUCCESS, parser::m_parsec.m_line, parser::m_parsec.m_col);
             
             return false;
         }
@@ -548,15 +563,16 @@ private:
     static chars_t *p_space;
     volatile static int lock;
 
-    stream_t &m_stream;
-    string_t  m_str;
-    message   m_err;
-    int       m_col;
-    int       m_line;
-    int       m_num;
-    bool      m_result;
-    bool      m_is_look_ahead;
-    bool      m_is_try;
+    shared_stream m_shared_stream;
+    stream_t m_stream;
+    string_t m_str;
+    message  m_err;
+    int      m_col;
+    int      m_line;
+    int      m_num;
+    bool     m_result;
+    bool     m_is_look_ahead;
+    bool     m_is_try;
 };
 
 template<typename T> typename parsec<T>::chars_t *parsec<T>::p_space = nullptr;

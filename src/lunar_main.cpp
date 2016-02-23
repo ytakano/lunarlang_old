@@ -1,6 +1,8 @@
 #include "lunar_common.hpp"
 #include "lunar_parsec.hpp"
 #include "lunar_green_thread.hpp"
+#include "lunar_ringq.hpp"
+#include "lunar_shared_stream.hpp"
 
 #include <locale>
 #include <codecvt>
@@ -29,8 +31,6 @@ parse_int(lunar::parsec<char32_t> &parsec)
     if (p()) {
         auto str = lunar::to_string(parsec.get_string());
         return lunar::to_int(str);
-    } else {
-        throw parse_error("not integer!", parsec.get_line(), parsec.get_col());
     }
     
     return 0;
@@ -39,20 +39,33 @@ parse_int(lunar::parsec<char32_t> &parsec)
 void
 test_parsec()
 {
-    lunar::parsec<char32_t>::stream_t stream;
-    lunar::parsec<char32_t>::chars_t  chars1, chars2, chars3;
-    lunar::parsec<char32_t> parsec(stream);
-    
-    auto text = llvm::make_unique<std::u32string>(U"12345abc");
-    
-    stream.push_back(std::move(text));
-    
-    try {
+    lunar::init_green_thread();
+
+    auto func = [] () {
+        auto rs = new lunar::shared_stream;
+        auto ws = new lunar::shared_stream;
+        lunar::make_ptr_stream(rs, ws, 32);
+        
+        lunar::parsec<char32_t> parsec(*rs);
+
+        auto text = new std::u32string(U"12345abc");
+        
+        push_string(ws, text);
+        push_eof(ws);
+        
+        printf("here\n");
         int num = parse_int(parsec);
         printf("num = %d\n", num);
-    } catch (parse_error err) {
-        printf("error: %s (line = %d, col = %d)\n", err.m_msg.c_str(), err.m_line, err.m_col);
-    }
+
+        deref_ptr_stream(rs);
+        deref_ptr_stream(ws);
+        delete rs;
+        delete ws;
+    };
+    
+    lunar::spawn_green_thread(func);
+
+    lunar::run_green_thread();
 }
 
 void
@@ -95,7 +108,8 @@ test_green_thread()
 int
 main(int argc, char *argv[])
 {
-    test_green_thread();
+    //test_green_thread();
+    test_parsec();
 
     return 0;
 }

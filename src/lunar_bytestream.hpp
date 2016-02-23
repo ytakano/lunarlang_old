@@ -71,16 +71,18 @@ public:
         }
     }
     
-    void push_back(std::unique_ptr<string_t> data)
+    void push_back(string_t *data)
     {
-        auto d = llvm::make_unique<data_t>(std::move(data));
+        auto d = llvm::make_unique<data_t>(data);
         m_deque.push_back(std::move(d));
     }
+    
+    void push_eof() { m_is_eof = true; }
 
 private:
     class data_t {
     public:
-        data_t(std::unique_ptr<string_t> data) : m_data(std::move(data)), m_pos(0) { }
+        data_t(string_t *data) : m_data(data), m_pos(0) { }
         
         read_result front(T &c, size_t offset)
         {
@@ -105,8 +107,8 @@ private:
         }
 
     private:
-        std::unique_ptr<string_t> m_data;
-        size_t m_pos;
+        string_t *m_data;
+        size_t    m_pos;
     };
 
     std::deque<std::unique_ptr<data_t>> m_deque;
