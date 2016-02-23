@@ -335,6 +335,7 @@ green_thread::yield()
 {
     for (;;) {
         context *ctx = nullptr;
+        bool flag = true;
         
         if (m_running) {
             if (m_running->m_state == context::STOP) {
@@ -352,6 +353,15 @@ green_thread::yield()
                 ctx = m_running;
                 m_running->m_state = context::SUSPENDING;
                 m_suspend.push_back(m_running);
+                
+                flag = false;
+                if (m_qlen > 0 && m_threadq) {
+                    m_threadq->m_state = context::SUSPENDING;
+                    m_suspend.push_back(m_threadq);
+                    m_threadq = nullptr;
+                }
+        
+                select_fd(false);
             }
         }
     
@@ -385,13 +395,15 @@ green_thread::yield()
             }
         }
         
-        if (m_qlen > 0 && m_threadq) {
-            m_threadq->m_state = context::SUSPENDING;
-            m_suspend.push_back(m_threadq);
-            m_threadq = nullptr;
-        }
+        if (flag) {
+            if (m_qlen > 0 && m_threadq) {
+                m_threadq->m_state = context::SUSPENDING;
+                m_suspend.push_back(m_threadq);
+                m_threadq = nullptr;
+            }
         
-        select_fd(false);
+            select_fd(false);
+        }
     
         // invoke SUSPEND state thread
         if (! m_suspend.empty()) {

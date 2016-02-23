@@ -83,6 +83,7 @@ private:
     class data_t {
     public:
         data_t(string_t *data) : m_data(data), m_pos(0) { }
+        ~data_t() { delete m_data; }
         
         read_result front(T &c, size_t offset)
         {
