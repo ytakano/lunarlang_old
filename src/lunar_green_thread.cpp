@@ -18,10 +18,10 @@ std::unordered_map<std::thread::id, green_thread*> thread2gt;
 asm (
     ".global ___INVOKE;"
     "___INVOKE:"
-    "callq *(%rsp);"           // call func()
+    "callq *(%rsp);"            // call func()
     "movq 8(%rsp), %rax;"
-    "movl $6, (%rax);"         // context.m_state = STOP
-    "call _yield_green_thread;" // jump to _yeild_green_thread
+    "movl $6, (%rax);"          // context.m_state = STOP
+    "call _yield_green_thread;" // call _yeild_green_thread
 );
 
 extern "C" {

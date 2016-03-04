@@ -1,3 +1,3 @@
-#include "lunar_lisp.hpp"
+#include "lunar_ir.hpp"
 
 #include "MCJITHelper.hpp"
