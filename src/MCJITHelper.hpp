@@ -196,7 +196,12 @@ MCJITHelper::compileModule(llvm::Module *M)
 
     // Set up the optimizer pipeline.  Start with registering info about how the
     // target lays out data structures.
+#if LLVM_VERSION_MINOR >= 7
+    M->setDataLayout(*NewEngine->getDataLayout());
+#else
     M->setDataLayout(NewEngine->getDataLayout());
+#endif // LLVM_VERSION_MINOR >= 7
+
     //FPM->add(new llvm::DataLayout(*NewEngine->getDataLayout()));
     // Provide basic AliasAnalysis support for GVN.
     FPM->add(llvm::createBasicAliasAnalysisPass());
