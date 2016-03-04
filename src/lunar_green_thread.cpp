@@ -21,12 +21,14 @@ asm (
     "callq *(%rsp);"            // call func()
     "movq 8(%rsp), %rax;"
     "movl $6, (%rax);"          // context.m_state = STOP
+#ifdef __APPLE__
     "call _yield_green_thread;" // call _yeild_green_thread
+#else  // *BSD, Linux
+    "call yield_green_thread;"  // call yeild_green_thread
+#endif // __APPLE__
 );
 
 extern "C" {
-
-void __INVOKE();
 
 void
 init_green_thread()
