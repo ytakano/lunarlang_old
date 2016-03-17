@@ -75,9 +75,6 @@ bool ringq<T>::push(const T &val)
     return true;
 }
 
-typedef ringq<void*> voidq_t;
-typedef ringq<int>   intq_t;
-
 }
 
 #endif // LUNAR_RINGQ_HPP

@@ -29,7 +29,6 @@ public:
     MEMTYPE get_memtype() { return m_memtype; }
     const std::u32string & get_typename() { return m_typename; }
 
-
 private:
     MEMTYPE m_memtype;
     std::u32string m_typename;
@@ -49,19 +48,9 @@ private:
     std::u32string m_name;
 };
 
-class lunar_ir_data_ast : public lunar_ir_ast {
-public:
-    lunar_ir_data_ast() { }
-    virtual ~lunar_ir_data_ast() { }
-    
-    void push(std::unique_ptr<lunar_ir_variable_ast> var) { m_vars.push_back(std::move(var)); }
-
-private:
-    std::vector<std::unique_ptr<lunar_ir_variable_ast>> m_vars;
-};
-
 class lunar_ir_list_ast : public lunar_ir_ast {
 public:
+//    lunar_ir_list_ast(std::unique_ptr)
 
 private:
 

@@ -3,22 +3,44 @@
 
 namespace lunar {
 
-extern "C" {
-
+template <typename T>
 void
-make_ptr_stream(shared_stream *rw, shared_stream *wonly, int bufsize)
+make_stream(shared_stream *rw, shared_stream *wonly, int bufsize)
 {
     auto p = new shared_stream::shared_data_t;
     
     p->flag_shared = 0;
     p->refcnt      = 2;
-    p->stream.ptr  = new voidq_t(bufsize);
+    p->stream.ptr  = new ringq<T>(bufsize);
     
     rw->flag        = shared_stream::READ | shared_stream::WRITE;
     rw->shared_data = p;
 
     wonly->flag        = shared_stream::WRITE;
     wonly->shared_data = p;
+}
+
+template <typename T>
+void
+deref_stream(shared_stream *ptr)
+{
+    ptr->shared_data--;
+    if (ptr->shared_data == 0) {
+        auto p = (ringq<T>*)ptr->shared_data->stream.ptr;
+        delete p;
+    } else {
+        if (ptr->flag & shared_stream::READ) {
+            ptr->shared_data->flag_shared |= shared_stream::CLOSED_READ;
+        }
+    }
+}
+
+extern "C" {
+
+void
+make_ptr_stream(shared_stream *rw, shared_stream *wonly, int bufsize)
+{
+    make_stream<void*>(rw, wonly, bufsize);
 }
 
 // before shared_stream is transfered to another thread,
@@ -59,15 +81,7 @@ make_fd_stream(shared_stream *rw, shared_stream *wonly, int fd, int bufsize)
 void
 deref_ptr_stream(shared_stream *ptr)
 {
-    ptr->shared_data--;
-    if (ptr->shared_data == 0) {
-        auto p = (voidq_t*)ptr->shared_data->stream.ptr;
-        delete p;
-    } else {
-        if (ptr->flag & shared_stream::READ) {
-            ptr->shared_data->flag_shared |= shared_stream::CLOSED_READ;
-        }
-    }
+    deref_stream<void*>(ptr);
 }
 
 void

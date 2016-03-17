@@ -87,9 +87,9 @@ read_result push_string(shared_stream *p, std::u32string *ret)
     return lunar_gt->push_stream<std::u32string*>(p, ret);
 }
 
-void push_eof(shared_stream *p)
+void push_eof_string(shared_stream *p)
 {
-    return lunar_gt->push_eof_stream(p);
+    return lunar_gt->push_eof_stream<std::u32string*>(p);
 }
 
 } // extern "C"
@@ -220,7 +220,7 @@ green_thread::push_stream(shared_stream *p, T data)
 {
     assert(p->flag & shared_stream::WRITE);
     
-    voidq_t *q = (voidq_t*)p->shared_data->stream.ptr;
+    ringq<T> *q = (ringq<T>*)p->shared_data->stream.ptr;
     
     if (p->shared_data->flag_shared & shared_stream::CLOSED_READ || q->is_eof())
         return END_OF_STREAM;
@@ -241,12 +241,13 @@ green_thread::push_stream(shared_stream *p, T data)
     }
 }
 
+template<typename T>
 void
 green_thread::push_eof_stream(shared_stream *p)
 {
     assert(p->flag & shared_stream::WRITE);
     
-    voidq_t *q = (voidq_t*)p->shared_data->stream.ptr;
+    ringq<T> *q = (ringq<T>*)p->shared_data->stream.ptr;
     
     q->push_eof();
     

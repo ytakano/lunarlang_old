@@ -51,7 +51,7 @@ test_parsec()
         auto text = new std::u32string(U"12345abc");
         
         push_string(ws, text);
-        push_eof(ws);
+        push_eof_string(ws);
         
         int num = parse_int(parsec);
         printf("num = %d\n", num);
