@@ -15,8 +15,8 @@ public:
                   m_is_eof(false) { }
     virtual ~ringq() { delete[] m_buf; }
 
-    read_result pop(T &retval);
-    bool push(const T &val);
+    STRM_RESULT pop(T &retval);
+    STRM_RESULT push(const T &val);
     void push_eof() { m_is_eof = true; }
     bool is_eof() { return m_is_eof; }
     int  get_len() { return m_len; }
@@ -34,14 +34,14 @@ private:
 };
 
 template <typename T>
-inline read_result
+inline STRM_RESULT
 ringq<T>::pop(T &retval)
 {
     if (m_len == 0) {
         if (m_is_eof)
-            return END_OF_STREAM;
+            return STRM_CLOSED;
         else
-            return NO_MORE_DATA;
+            return STRM_NO_MORE_DATA;
     }
 
     retval = *m_head;
@@ -53,15 +53,18 @@ ringq<T>::pop(T &retval)
         m_head = m_buf;
     }
     
-    return SUCCESS;
+    return STRM_SUCCESS;
 }
 
 template <typename T>
-inline
-bool ringq<T>::push(const T &val)
+STRM_RESULT
+ringq<T>::push(const T &val)
 {
+    if (m_is_eof)
+        return STRM_CLOSED;
+    
     if (m_len == m_max_len)
-        return false;
+        return STRM_NO_VACANCY;
 
     *m_tail = val;
     m_len++;
@@ -72,7 +75,7 @@ bool ringq<T>::push(const T &val)
         m_tail = m_buf;
     }
     
-    return true;
+    return STRM_SUCCESS;
 }
 
 }

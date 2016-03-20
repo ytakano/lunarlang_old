@@ -23,10 +23,11 @@ struct point3i {
     point3i(int x, int y, int z) : x(x), y(y), z(z) { }
 };
 
-enum read_result {
-    SUCCESS       =  1,
-    NO_MORE_DATA  = -1,
-    END_OF_STREAM = -2,
+enum STRM_RESULT {
+    STRM_SUCCESS      =  1,
+    STRM_NO_MORE_DATA = -1,
+    STRM_CLOSED       = -2,
+    STRM_NO_VACANCY   = -3,
 };
 
 }

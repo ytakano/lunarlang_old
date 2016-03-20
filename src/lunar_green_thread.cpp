@@ -77,12 +77,12 @@ wait_fd_write_green_thread(int fd)
     lunar_gt->wait_fd_write(fd);
 }
 
-read_result pop_string(shared_stream *p, std::u32string **ret)
+STRM_RESULT pop_string(shared_stream *p, std::u32string **ret)
 {
     return lunar_gt->pop_stream<std::u32string*>(p, *ret);
 }
 
-read_result push_string(shared_stream *p, std::u32string *ret)
+STRM_RESULT push_string(shared_stream *p, std::u32string *ret)
 {
     return lunar_gt->push_stream<std::u32string*>(p, ret);
 }
@@ -191,7 +191,7 @@ green_thread::push_threadq(void *ptr)
 }
 
 template<typename T>
-read_result
+STRM_RESULT
 green_thread::pop_stream(shared_stream *p, T &ret)
 {
     assert(p->flag & shared_stream::READ);
@@ -200,9 +200,9 @@ green_thread::pop_stream(shared_stream *p, T &ret)
     
     for (;;) {
         auto result = q->pop(ret);
-        if (result == END_OF_STREAM) {
-            return END_OF_STREAM;
-        } else if (result == SUCCESS) {
+        if (result == STRM_CLOSED) {
+            return STRM_CLOSED;
+        } else if (result == STRM_SUCCESS) {
             break;
         } else {
             m_running->m_state = context::WAITING_STREAM;
@@ -211,11 +211,11 @@ green_thread::pop_stream(shared_stream *p, T &ret)
         }
     }
     
-    return SUCCESS;
+    return STRM_SUCCESS;
 }
 
 template<typename T>
-read_result
+STRM_RESULT
 green_thread::push_stream(shared_stream *p, T data)
 {
     assert(p->flag & shared_stream::WRITE);
@@ -223,10 +223,11 @@ green_thread::push_stream(shared_stream *p, T data)
     ringq<T> *q = (ringq<T>*)p->shared_data->stream.ptr;
     
     if (p->shared_data->flag_shared & shared_stream::CLOSED_READ || q->is_eof())
-        return END_OF_STREAM;
+        return STRM_CLOSED;
     
     for (;;) {
-        if (q->push(data)) {
+        auto result = q->push(data);
+        if (result == STRM_SUCCESS) {
             auto it = m_wait_stream.find(q);
             if (it != m_wait_stream.end()) {
                 // notify
@@ -234,7 +235,9 @@ green_thread::push_stream(shared_stream *p, T data)
                 m_suspend.push_back(it->second);
                 m_wait_stream.erase(it);
             }
-            return SUCCESS;
+            return STRM_SUCCESS;
+        } else if (result == STRM_CLOSED) {
+            return STRM_CLOSED;
         } else {
             yield();
         }

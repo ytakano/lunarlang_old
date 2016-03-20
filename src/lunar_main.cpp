@@ -108,8 +108,8 @@ test_green_thread()
 int
 main(int argc, char *argv[])
 {
-    test_green_thread();
-    //test_parsec();
+    //test_green_thread();
+    test_parsec();
 
     return 0;
 }

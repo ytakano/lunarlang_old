@@ -29,7 +29,7 @@ public:
           m_is_look_ahead(false),
           m_is_try(false)
     {
-        m_err.result = SUCCESS;
+        m_err.result = STRM_SUCCESS;
         m_err.line   = 1;
         m_err.col    = 1;
         
@@ -97,7 +97,7 @@ public:
     }
 
     struct message {
-        read_result result;
+        STRM_RESULT result;
         int         line;
         int         col;
     };
@@ -205,18 +205,18 @@ public:
             for (;;) {
                 auto result = parser::m_parsec.m_stream.front(c);
 
-                if (result == SUCCESS) {
+                if (result == STRM_SUCCESS) {
                     break;
-                } else if (result == NO_MORE_DATA) {
+                } else if (result == STRM_NO_MORE_DATA) {
                     std::u32string *ptr;
                     auto result2 = pop_string(&parser::m_parsec.m_shared_stream, &ptr);
-                    if (result2 == SUCCESS) {
+                    if (result2 == STRM_SUCCESS) {
                         parser::m_parsec.m_stream.push_back(ptr);
-                    } else if (result2 == END_OF_STREAM) {
+                    } else if (result2 == STRM_CLOSED) {
                         parser::m_parsec.m_stream.push_eof();
                     }
                     
-                    assert(result2 != NO_MORE_DATA);
+                    assert(result2 != STRM_NO_MORE_DATA);
                 } else {
                     parser::m_parsec.m_result = false;
                     parser::m_parsec.set_err(result, parser::m_parsec.m_line, parser::m_parsec.m_col);
@@ -246,7 +246,7 @@ public:
             }
             
             parser::m_parsec.m_result = false;
-            parser::m_parsec.set_err(SUCCESS, parser::m_parsec.m_line, parser::m_parsec.m_col);
+            parser::m_parsec.set_err(STRM_SUCCESS, parser::m_parsec.m_line, parser::m_parsec.m_col);
             
             return false;
         }
@@ -549,7 +549,7 @@ public:
     int  get_line() { return m_line; }
     int  get_col() {return m_col; }
     
-    void set_err(read_result result, int line, int col)
+    void set_err(STRM_RESULT result, int line, int col)
     {
         m_err.result = result;
         m_err.line   = line;

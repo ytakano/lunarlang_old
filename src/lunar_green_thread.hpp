@@ -32,8 +32,8 @@ extern "C" {
     void run_green_thread();
     void wait_fd_read_green_thread(int fd);
     void wait_fd_write_green_thread(int fd);
-    read_result pop_string(shared_stream *p, std::u32string **ret);
-    read_result push_string(shared_stream *p, std::u32string *ret);
+    STRM_RESULT pop_string(shared_stream *p, std::u32string **ret);
+    STRM_RESULT push_string(shared_stream *p, std::u32string *ret);
     void push_eof_string(shared_stream *p);
 }
 
@@ -103,8 +103,8 @@ public:
     void* pop_threadq();
     void  push_threadq(void *ptr);
     
-    template<typename T> read_result pop_stream(shared_stream *p, T &ret);
-    template<typename T> read_result push_stream(shared_stream *p, T ptr);
+    template<typename T> STRM_RESULT pop_stream(shared_stream *p, T &ret);
+    template<typename T> STRM_RESULT push_stream(shared_stream *p, T ptr);
     template<typename T> void        push_eof_stream(shared_stream *p);
 
 private:
