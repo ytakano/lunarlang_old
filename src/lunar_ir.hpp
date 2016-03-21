@@ -9,13 +9,17 @@
 
 /*
  * TYPE := TYPE0 | ( OWNERSHIP TYPE0 )
- * TYPE0 := SCALAR | VECTOR | LIST | STRUCT | DICT | SET | DATA | FUNC | RSTREAM | WSTREAM | IDENTIFIER
+ * TYPE0 := SCALAR | VECTOR | STRING | LIST | STRUCT | DICT | SET | DATA | FUNC | RSTREAM | WSTREAM | IDENTIFIER
+ *
+ * OWNERSHIP := unique | shared | ref | global
  *
  * SCALAR := bool | u64 | s64 | u32 | s32 | u16 | s16 | u8 | s8 | double | float | binary | char | string | ATOM
  * ATOM := `IDENTIFIER
  *
  * VECTOR := ( vector TYPE SIZE)
  * SIZE := An integer greater than or equal to 0
+ *
+ * STRING := string
  *
  * LIST := ( list TYPE )
  *
@@ -25,7 +29,12 @@
  *
  * SET := ( set TYPE )
  *
- * DATA := ( data 識別子 (TYPE 識別子)+ )
+ * DATA := ( data IDENTIFIER (TYPE IDENTIFIER)+ )
+ *
+ * FUNC := ( func (TYPE*) ( TYPE* ) )
+ *
+ * RSTREAM := (rstrm TYPE)
+ * WSTREAM := (wstrm TYPE)
  */
 
 namespace lunar {
@@ -35,6 +44,7 @@ enum OWNERSHIP {
     OWN_SHARED,
     OWN_IMMOVABLE,
     OWN_REF,
+    OWN_GLOBAL,
 };
 
 enum SCALAR {
@@ -56,13 +66,15 @@ enum SCALAR {
 enum BASIC_TYPE {
     BT_SCALAR,
     BT_VECTOR,
+    BT_STRING,
     BT_LIST,
     BT_STRUCT,
     BT_DICT,
     BT_SET,
     BT_DATA,
-    BT_FUNC,
-    BT_STREAM,
+    BT_FUNCTYPE,
+    BT_RSTREAM,
+    BT_WSTREAM,
 };
 
 class lunar_ir_ast {
@@ -171,6 +183,54 @@ private:
     std::vector<std::unique_ptr<lunar_ir_type>> m_member_types;
     std::vector<std::string> m_member_names;
     std::string m_name;
+};
+
+class lunar_ir_functype : public lunar_ir_type {
+public:
+    lunar_ir_functype(OWNERSHIP owner_ship) : lunar_ir_type(BT_FUNCTYPE, owner_ship) { }
+    virtual ~lunar_ir_functype() { }
+    
+    void add_ret(std::unique_ptr<lunar_ir_type> ret)
+    {
+        m_ret.push_back(std::move(ret));
+    }
+
+    void add_arg(std::unique_ptr<lunar_ir_type> arg)
+    {
+        m_arg.push_back(std::move(arg));
+    }
+
+private:
+    std::vector<std::unique_ptr<lunar_ir_type>> m_ret;
+    std::vector<std::unique_ptr<lunar_ir_type>> m_arg;
+};
+
+class lunar_ir_rstream : public lunar_ir_type {
+public:
+    lunar_ir_rstream(std::unique_ptr<lunar_ir_type> type)
+        : lunar_ir_type(BT_RSTREAM, OWN_UNIQUE), m_type(std::move(type)) { }
+
+    virtual ~lunar_ir_rstream() { }
+
+private:
+    std::unique_ptr<lunar_ir_type> m_type;
+};
+
+class lunar_ir_wstream : public lunar_ir_type {
+public:
+    lunar_ir_wstream(std::unique_ptr<lunar_ir_type> type)
+        : lunar_ir_type(BT_WSTREAM, OWN_SHARED), m_type(std::move(type)) { }
+
+    virtual ~lunar_ir_wstream() { }
+
+private:
+    std::unique_ptr<lunar_ir_type> m_type;
+};
+
+class lunar_ir_string : public lunar_ir_type {
+public:
+    lunar_ir_string(OWNERSHIP owner_ship) : lunar_ir_type(BT_STRING, owner_ship) { }
+    virtual ~lunar_ir_string() { }
 };
 
 }
