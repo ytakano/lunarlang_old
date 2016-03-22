@@ -11,7 +11,7 @@
  * TYPE := TYPE0 | ( OWNERSHIP TYPE0 )
  * TYPE0 := SCALAR | VECTOR | STRING | LIST | STRUCT | DICT | SET | DATA | FUNC | RSTREAM | WSTREAM | IDENTIFIER
  *
- * OWNERSHIP := unique | shared | ref | global
+ * OWNERSHIP := unique | shared | ref
  *
  * SCALAR := bool | u64 | s64 | u32 | s32 | u16 | s16 | u8 | s8 | double | float | binary | char | string | ATOM
  * ATOM := `IDENTIFIER
@@ -44,7 +44,6 @@ enum OWNERSHIP {
     OWN_SHARED,
     OWN_IMMOVABLE,
     OWN_REF,
-    OWN_GLOBAL,
 };
 
 enum SCALAR {
