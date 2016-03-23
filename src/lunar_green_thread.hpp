@@ -6,6 +6,7 @@
 #include "lunar_shared_stream.hpp"
 #include "lunar_ringq.hpp"
 
+#include <unistd.h>
 #include <setjmp.h>
 
 #include <string>

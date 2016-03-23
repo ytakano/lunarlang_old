@@ -6,7 +6,6 @@
 
 #include <vector>
 
-
 /*
  * TYPE := TYPE0 | ( OWNERSHIP TYPE0 )
  * TYPE0 := SCALAR | VECTOR | STRING | LIST | STRUCT | DICT | SET | DATA | FUNC | RSTREAM | WSTREAM | IDENTIFIER
@@ -230,6 +229,18 @@ class lunar_ir_string : public lunar_ir_type {
 public:
     lunar_ir_string(OWNERSHIP owner_ship) : lunar_ir_type(BT_STRING, owner_ship) { }
     virtual ~lunar_ir_string() { }
+};
+
+class lunar_ir_func : public lunar_ir_ast {
+public:
+    lunar_ir_func() { }
+    virtual ~lunar_ir_func() { }
+
+private:
+    std::vector<std::unique_ptr<lunar_ir_type>> m_ret;
+    std::vector<std::unique_ptr<lunar_ir_type>> m_arg;
+    std::vector<std::string> m_argname;
+    std::string m_name;
 };
 
 }
