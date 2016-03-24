@@ -8,14 +8,15 @@
 
 /*
  * TYPE := TYPE0 | ( OWNERSHIP TYPE0 )
- * TYPE0 := SCALAR | VECTOR | STRING | LIST | STRUCT | DICT | SET | DATA | FUNC | RSTREAM | WSTREAM | IDENTIFIER
+ * TYPE0 := SCALAR | VECTOR | STRING | LIST | STRUCT | DICT | SET | DATA | FUNCTYPE | RSTREAM | WSTREAM | IDENTIFIER
  *
  * OWNERSHIP := unique | shared | ref
  *
- * SCALAR := bool | u64 | s64 | u32 | s32 | u16 | s16 | u8 | s8 | double | float | binary | char | string | ATOM
+ * SCALAR := SCALARTYPE INITSCALAR | SCALARTYPE
+ * SCALARTYPE := bool | u64 | s64 | u32 | s32 | u16 | s16 | u8 | s8 | double | float | binary | char | ATOM
  * ATOM := `IDENTIFIER
  *
- * VECTOR := ( vector TYPE SIZE)
+ * VECTOR := ( vector TYPE SIZE )
  * SIZE := An integer greater than or equal to 0
  *
  * STRING := string
@@ -28,12 +29,25 @@
  *
  * SET := ( set TYPE )
  *
- * DATA := ( data IDENTIFIER (TYPE IDENTIFIER)+ )
+ * DATA := ( data IDENTIFIER ( TYPE IDENTIFIER )+ )
  *
- * FUNC := ( func (TYPE*) ( TYPE* ) )
+ * FUNCTYPE := ( func ( TYPE* ) ( TYPE* ) )
  *
- * RSTREAM := (rstrm TYPE)
- * WSTREAM := (wstrm TYPE)
+ * RSTREAM := ( rstrm TYPE )
+ * WSTREAM := ( wstrm TYPE )
+ *
+ * FUNC := ( defun IDENTIFIER ( TYPE* ) ( TYPE IDENTIFIER )* EXPR* )
+ *
+ * CALLFUNC := ( IDENTIFIER EXPRIDENT* )
+ * EXPRIDENT := EXPR | IDENTIFIER
+ *
+ * NEW := ( new TYPE )
+ * 
+ * LET := ( let ( ( TYPE ( IDENTIFIER+ ) EXPR )* ) EXPR* )
+ *
+ * STORE := ( store! EXPRIDENT EXPRIDENT )
+ *
+ * ASSOC := ( assoc! EXPRIDENT EXPRIDENT )
  */
 
 namespace lunar {
@@ -75,10 +89,10 @@ enum BASIC_TYPE {
     BT_WSTREAM,
 };
 
-class lunar_ir_ast {
+class lunar_ir_expr {
 public:
-    lunar_ir_ast() { }
-    virtual ~lunar_ir_ast() { }
+    lunar_ir_expr() { }
+    virtual ~lunar_ir_expr() { }
 };
 
 class lunar_ir_type {
@@ -231,16 +245,33 @@ public:
     virtual ~lunar_ir_string() { }
 };
 
-class lunar_ir_func : public lunar_ir_ast {
+class lunar_ir_func : public lunar_ir_expr {
 public:
-    lunar_ir_func() { }
+    lunar_ir_func(const std::string &name) : m_name(name) { }
     virtual ~lunar_ir_func() { }
+    
+    void add_ret(std::unique_ptr<lunar_ir_type> ret)
+    {
+        m_ret.push_back(std::move(ret));
+    }
+
+    void add_arg(std::unique_ptr<lunar_ir_type> arg, const std::string &name)
+    {
+        m_arg.push_back(std::move(arg));
+        m_argname.push_back(name);
+    }
+    
+    void add_expr(std::unique_ptr<lunar_ir_expr> expr)
+    {
+        m_exprs.push_back(std::move(expr));
+    }
 
 private:
     std::vector<std::unique_ptr<lunar_ir_type>> m_ret;
     std::vector<std::unique_ptr<lunar_ir_type>> m_arg;
     std::vector<std::string> m_argname;
     std::string m_name;
+    std::vector<std::unique_ptr<lunar_ir_expr>> m_exprs;
 };
 
 }
