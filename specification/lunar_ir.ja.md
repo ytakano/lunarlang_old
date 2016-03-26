@@ -221,10 +221,10 @@ if は式であり値を返す。
 ### cond 制御構文
 
 構文：
-- COND := ( cond ( EXPRIDENT EXPR\* )+ ?( else EXPR\* )
+- COND := ( cond ( EXPRIDENT EXPR\* )+ ?( else EXPR\* ) )
 
 セマンティクス：
-- ( cond ( 条件 条件が真の時に実行する式\* )+ ?( else どの条件にも当てはまらない場合に実行する式\* )
+- ( cond ( 条件 条件が真の時に実行する式\* )+ ?( else どの条件にも当てはまらない場合に実行する式\* ) )
 
 cond は制御構文であり、値は返さない。
 
@@ -234,7 +234,7 @@ cond は制御構文であり、値は返さない。
 - WHILE := ( while EXPRIDENT EXPR* )
 
 セマンティクス：
-- ( while 条件 条件が真の間実行する式\* ) 
+- ( while 条件 条件が真の間実行する式\* )
 
 ### break 文
 
