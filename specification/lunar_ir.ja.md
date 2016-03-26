@@ -114,8 +114,6 @@ Lunar IRにはオーナーという概念があり、変数を利用する際に
 セマンティクス
 - ( dict Keyの型 Valueの型 )
 
-keyの型にはuniqueかimmovableのみ指定可能。
-
 例：
 ```lisp
 (dict u32 (unique string))
@@ -128,8 +126,6 @@ keyの型にはuniqueかimmovableのみ指定可能。
 
 セマンティクス
 - ( set 値の型 )
-
-値の型にはuniqueかimmovableのみ指定可能。
 
 ```lisp
 (set (unique u32))
@@ -211,3 +207,37 @@ keyの型にはuniqueかimmovableのみ指定可能。
 - ( assoc! 変数 束縛先 )
 
 ただし、束縛先を変更できるのはuniqueかshared変数のみである。
+
+### if 式
+
+構文：
+- IF := ( if EXPRIDENT EXPRIDENT EXPRIDENT )
+
+セマンティクス：
+- ( if 条件 条件が真の時の値 条件が偽の時の値 )
+
+if は式であり値を返す。
+
+### cond 制御構文
+
+構文：
+- COND := ( cond ( EXPRIDENT EXPR\* )+ ?( else EXPR\* )
+
+セマンティクス：
+- ( cond ( 条件 条件が真の時に実行する式\* )+ ?( else どの条件にも当てはまらない場合に実行する式\* )
+
+cond は制御構文であり、値は返さない。
+
+### while ループ
+
+構文：
+- WHILE := ( while EXPRIDENT EXPR* )
+
+セマンティクス：
+- ( while 条件 条件が真の間実行する式\* ) 
+
+### break 文
+
+- BREAK := ( break )
+
+while ループの制御から脱出するときに使う。
