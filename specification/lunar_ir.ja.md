@@ -164,7 +164,7 @@ Lunar IRにはオーナーという概念があり、変数を利用する際に
 - 読み込み用の端点は所有権がuniqueであり、書き込み用の端点は所有権がsharedでなければならない。
 - ストリームが扱える値は、sharedもしくはunique変数か、プリミティブスカラ変数のみである。
 
-## 構文
+## 構文・組み込み関数
 
 ### 関数定義
 
@@ -241,3 +241,48 @@ cond は制御構文であり、値は返さない。
 - BREAK := ( break )
 
 while ループの制御から脱出するときに使う。
+
+### type 式
+
+構文：
+- TYPEOF := ( type TYPE0 IDENTIFIER )
+
+セマンティクス：
+- ( type 検査する形名 識別子 )
+
+type 式は真偽値を返す式であり、多相型変数の型を動的に検査するために利用される。
+
+例：
+```lisp
+(type u32 var)
+```
+
+## マルチタスキング
+
+### fiber
+
+構文：
+- FIBER := ( fiber EXPRIDENT EXPRIDENT* )
+
+セマンティクス：
+- ( fiber 呼び出す関数 関数へ渡す引数* )
+
+### yield
+
+構文：
+- YIELD := (yield)
+
+### thread
+
+構文：
+- THREAD := ( thread TYPE EXPRIDENT EXPRIDENT* )
+
+セマンティクス：
+- ( thread スレッドキューの型 呼び出す関数 関数へ渡す引数* )
+
+ストリームと同じく、スレッドキューには以下の制約がある。
+- スレッドキューが扱える値は、sharedもしくはunique変数か、プリミティブスカラ変数のみである。
+
+## リテラル
+
+## ABI (Application Binary Interface)
