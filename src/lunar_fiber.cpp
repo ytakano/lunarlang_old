@@ -1,4 +1,4 @@
-#include "lunar_green_thread.hpp"
+#include "lunar_fiber.hpp"
 #include "lunar_rtm_lock.hpp"
 
 #include <thread>
@@ -7,10 +7,10 @@
 
 namespace lunar {
 
-__thread green_thread *lunar_gt = nullptr;
+__thread fiber *lunar_gt = nullptr;
 
 rtm_lock lock_thread2gt;
-std::unordered_map<std::thread::id, green_thread*> thread2gt;
+std::unordered_map<std::thread::id, fiber*> thread2gt;
 
 // stack layout:
 //    context
@@ -18,42 +18,42 @@ std::unordered_map<std::thread::id, green_thread*> thread2gt;
 asm (
     ".global ___INVOKE;"
     "___INVOKE:"
-    "callq *(%rsp);"            // call func()
+    "callq *(%rsp);"      // call func()
     "movq 8(%rsp), %rax;"
-    "movl $6, (%rax);"          // context.m_state = STOP
+    "movl $6, (%rax);"    // context.m_state = STOP
 #ifdef __APPLE__
-    "call _yield_green_thread;" // call _yeild_green_thread
+    "call _yield_fiber;"  // call _yeild_fiber
 #else  // *BSD, Linux
-    "call yield_green_thread;"  // call yeild_green_thread
+    "call yield_fiber;"   // call yeild_fiber
 #endif // __APPLE__
 );
 
 extern "C" {
 
 void
-init_green_thread()
+init_fiber()
 {
     if (lunar_gt == nullptr) {
-        lunar_gt = new green_thread;
+        lunar_gt = new fiber;
         rtm_transaction tr(lock_thread2gt);
         thread2gt[std::this_thread::get_id()] = lunar_gt;
     }
 }
 
 void
-yield_green_thread()
+yield_fiber()
 {
     lunar_gt->yield();
 }
 
 void
-spawn_green_thread(void (*func)())
+spawn_fiber(void (*func)())
 {
     lunar_gt->spawn(func);
 }
 
 void
-run_green_thread()
+run_fiber()
 {
     lunar_gt->run();
 
@@ -66,13 +66,13 @@ run_green_thread()
 }
 
 void
-wait_fd_read_green_thread(int fd)
+wait_fd_read_fiber(int fd)
 {
     lunar_gt->wait_fd_read(fd);
 }
 
 void
-wait_fd_write_green_thread(int fd)
+wait_fd_write_fiber(int fd)
 {
     lunar_gt->wait_fd_write(fd);
 }
@@ -95,7 +95,7 @@ void push_eof_string(shared_stream *p)
 } // extern "C"
 
 void
-green_thread::wait_fd_read(int fd)
+fiber::wait_fd_read(int fd)
 {
     m_running->m_state = context::WAITING_FD;
     m_running->m_fd    = fd;
@@ -108,7 +108,7 @@ green_thread::wait_fd_read(int fd)
 }
 
 void
-green_thread::wait_fd_write(int fd)
+fiber::wait_fd_write(int fd)
 {
     m_running->m_state = context::WAITING_FD;
     m_running->m_fd    = fd;
@@ -121,7 +121,7 @@ green_thread::wait_fd_write(int fd)
 }
 
 void*
-green_thread::pop_threadq()
+fiber::pop_threadq()
 {
     int i = 0;
     while (m_qlen == 0) {
@@ -150,7 +150,7 @@ green_thread::pop_threadq()
 }
 
 void
-green_thread::push_threadq(void *ptr)
+fiber::push_threadq(void *ptr)
 {
     int i = 0;
     while (m_qlen == m_max_qlen) {
@@ -192,7 +192,7 @@ green_thread::push_threadq(void *ptr)
 
 template<typename T>
 STRM_RESULT
-green_thread::pop_stream(shared_stream *p, T &ret)
+fiber::pop_stream(shared_stream *p, T &ret)
 {
     assert(p->flag & shared_stream::READ);
     
@@ -216,7 +216,7 @@ green_thread::pop_stream(shared_stream *p, T &ret)
 
 template<typename T>
 STRM_RESULT
-green_thread::push_stream(shared_stream *p, T data)
+fiber::push_stream(shared_stream *p, T data)
 {
     assert(p->flag & shared_stream::WRITE);
     
@@ -246,7 +246,7 @@ green_thread::push_stream(shared_stream *p, T data)
 
 template<typename T>
 void
-green_thread::push_eof_stream(shared_stream *p)
+fiber::push_eof_stream(shared_stream *p)
 {
     assert(p->flag & shared_stream::WRITE);
     
@@ -264,7 +264,7 @@ green_thread::push_eof_stream(shared_stream *p)
 }
 
 void
-green_thread::select_fd(bool is_block)
+fiber::select_fd(bool is_block)
 {
 #ifdef KQUEUE
     auto size = m_wait_fd.size();
@@ -304,7 +304,7 @@ green_thread::select_fd(bool is_block)
 }
 
 int
-green_thread::spawn(void (*func)(), int stack_size)
+fiber::spawn(void (*func)(), int stack_size)
 {
     auto ctx = llvm::make_unique<context>();
     
@@ -325,7 +325,7 @@ green_thread::spawn(void (*func)(), int stack_size)
 }
 
 void
-green_thread::run()
+fiber::run()
 {
     if (setjmp(m_jmp_buf) == 0) {
         yield();
@@ -333,7 +333,7 @@ green_thread::run()
 }
 
 void
-green_thread::yield()
+fiber::yield()
 {
     for (;;) {
         context *ctx = nullptr;

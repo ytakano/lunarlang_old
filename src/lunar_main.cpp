@@ -1,6 +1,6 @@
 #include "lunar_common.hpp"
 #include "lunar_parsec.hpp"
-#include "lunar_green_thread.hpp"
+#include "lunar_fiber.hpp"
 #include "lunar_ringq.hpp"
 #include "lunar_shared_stream.hpp"
 
@@ -39,7 +39,7 @@ parse_int(lunar::parsec<char32_t> &parsec)
 void
 test_parsec()
 {
-    lunar::init_green_thread();
+    lunar::init_fiber();
 
     auto func = [] () {
         auto rs = new lunar::shared_stream;
@@ -62,9 +62,9 @@ test_parsec()
         delete ws;
     };
     
-    lunar::spawn_green_thread(func);
+    lunar::spawn_fiber(func);
 
-    lunar::run_green_thread();
+    lunar::run_fiber();
     printf("end green thread\n");
 }
 
@@ -73,7 +73,7 @@ thread1()
 {
     for (;;) {
         printf("thread 1\n");
-        lunar::yield_green_thread();
+        lunar::yield_fiber();
     }
 }
 
@@ -82,7 +82,7 @@ thread2()
 {
     for (;;) {
         printf("thread 2\n");
-        lunar::yield_green_thread();
+        lunar::yield_fiber();
     }
 }
 
@@ -91,24 +91,24 @@ thread3()
 {
     for (;;) {
         printf("thread 3\n");
-        lunar::yield_green_thread();
+        lunar::yield_fiber();
     }
 }
 
 void
-test_green_thread()
+test_fiber()
 {
-    lunar::init_green_thread();
-    lunar::spawn_green_thread(thread1);
-    lunar::spawn_green_thread(thread2);
-    lunar::spawn_green_thread(thread3);
-    lunar::run_green_thread();
+    lunar::init_fiber();
+    lunar::spawn_fiber(thread1);
+    lunar::spawn_fiber(thread2);
+    lunar::spawn_fiber(thread3);
+    lunar::run_fiber();
 }
 
 int
 main(int argc, char *argv[])
 {
-    //test_green_thread();
+    //test_fiber();
     test_parsec();
 
     return 0;

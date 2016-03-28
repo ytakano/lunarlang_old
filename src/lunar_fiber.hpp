@@ -1,5 +1,5 @@
-#ifndef LUNAR_GREEN_THREAD_HPP
-#define LUNAR_GREEN_THREAD_HPP
+#ifndef LUNAR_FIBER_HPP
+#define LUNAR_FIBER_HPP
 
 #include "lunar_common.hpp"
 #include "lunar_spin_lock.hpp"
@@ -27,18 +27,18 @@
 namespace lunar {
 
 extern "C" {
-    void init_green_thread();
-    void yield_green_thread();
-    void spawn_green_thread(void (*func)());
-    void run_green_thread();
-    void wait_fd_read_green_thread(int fd);
-    void wait_fd_write_green_thread(int fd);
+    void init_fiber();
+    void yield_fiber();
+    void spawn_fiber(void (*func)());
+    void run_fiber();
+    void wait_fd_read_fiber(int fd);
+    void wait_fd_write_fiber(int fd);
     STRM_RESULT pop_string(shared_stream *p, std::u32string **ret);
     STRM_RESULT push_string(shared_stream *p, std::u32string *ret);
     void push_eof_string(shared_stream *p);
 }
 
-class green_thread {
+class fiber {
 public:
     struct context {
         enum {
@@ -57,7 +57,7 @@ public:
         std::vector<uint64_t> m_stack;
     };
 
-    green_thread(int qsize = 4096)
+    fiber(int qsize = 4096)
         : m_count(0),
           m_running(nullptr),
           m_threadq(nullptr),
@@ -84,7 +84,7 @@ public:
 #endif // KQUEUE
     }
     
-    ~green_thread()
+    ~fiber()
     {
         delete[] m_q;
 #ifdef KQUEUE
@@ -148,4 +148,4 @@ private:
 
 }
 
-#endif // LUNAR_GREEN_THREAD_HPP
+#endif // LUNAR_FIBER_HPP

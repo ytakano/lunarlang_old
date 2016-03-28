@@ -5,7 +5,7 @@
 #include "lunar_bytestream.hpp"
 #include "lunar_string.hpp"
 #include "lunar_ringq.hpp"
-#include "lunar_green_thread.hpp"
+#include "lunar_fiber.hpp"
 
 #include <string>
 #include <unordered_set>
