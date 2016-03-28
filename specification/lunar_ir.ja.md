@@ -164,7 +164,7 @@ Lunar IRにはオーナーという概念があり、変数を利用する際に
 - 読み込み用の端点は所有権がuniqueであり、書き込み用の端点は所有権がsharedでなければならない。
 - ストリームが扱える値は、sharedもしくはunique変数か、プリミティブスカラ変数のみである。
 
-## 構文・組み込み関数
+## 関数
 
 ### 関数定義
 
@@ -176,6 +176,12 @@ Lunar IRにはオーナーという概念があり、変数を利用する際に
 構文：
 - CALLFUNC := ( IDENTIFIER EXPRIDENT\* )
 - EXPRIDENT := EXPR | IDENTIFIER
+
+### 無名関数
+
+XXX
+
+## 変数
 
 ### 変数生成
 
@@ -208,6 +214,8 @@ Lunar IRにはオーナーという概念があり、変数を利用する際に
 
 ただし、束縛先を変更できるのはuniqueかshared変数のみである。
 
+## 制御式、制御文
+
 ### if 式
 
 構文：
@@ -218,7 +226,7 @@ Lunar IRにはオーナーという概念があり、変数を利用する際に
 
 if は式であり値を返す。
 
-### cond 制御構文
+### cond 条件分岐
 
 構文：
 - COND := ( cond ( EXPRIDENT EXPR\* )+ ?( else EXPR\* ) )
@@ -242,6 +250,8 @@ cond は制御構文であり、値は返さない。
 
 while ループの制御から脱出するときに使う。
 
+## 多相型
+
 ### type 式
 
 構文：
@@ -257,6 +267,32 @@ type 式は真偽値を返す式であり、多相型変数の型を動的に検
 (type u32 var)
 ```
 
+## ストリーム操作
+
+### ストリームの作成
+
+構文：
+- MKSTREAM := ( mkstream TYPE SIZE )
+
+(unique (rstrm TYPE))と(shared (wstrm TYPE))の2つの値を返す。
+
+### push
+
+構文：
+- PUSH := ( push! EXPRIDENT )
+
+ストリームの最後尾にデータを挿入する。
+
+### pop
+
+構文：
+- POP := ( pop! EXPRIDENT ?SIZE )
+
+セマンティクス：
+- ( pop! ストリーム タイムアウト )
+
+ストリームから先頭のデータを取り出す。
+
 ## マルチタスキング
 
 ### fiber
@@ -270,7 +306,7 @@ type 式は真偽値を返す式であり、多相型変数の型を動的に検
 ### yield
 
 構文：
-- YIELD := (yield)
+- YIELD := ( yield )
 
 ### thread
 
