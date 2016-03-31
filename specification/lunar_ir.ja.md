@@ -312,13 +312,23 @@ type 式は真偽値を返す式であり、多相型変数の型を動的に検
 ### thread
 
 構文：
-- THREAD := ( thread TYPE EXPRIDENT EXPRIDENT* )
+- THREAD := ( thread TYPE SIZE EXPRIDENT EXPRIDENT* )
 
 セマンティクス：
-- ( thread スレッドキューの型 呼び出す関数 関数へ渡す引数* )
+- ( thread スレッドキューの型 キューのサイズ 呼び出す関数 関数へ渡す引数* )
 
 ストリームと同じく、スレッドキューには以下の制約がある。
 - スレッドキューが扱える値は、sharedもしくはunique変数か、プリミティブスカラ変数のみである。
+
+## Parser Combinator
+
+## C関数呼び出し
+
+構文：
+- CCALL := ( ccall IDENTIFIER EXPRIDENT* )
+
+セマンティクス：
+- ( ccall C関数名 引数* )
 
 ## プリミティブ演算
 
