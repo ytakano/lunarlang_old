@@ -153,6 +153,7 @@ Lunar IRにはオーナーという概念があり、変数を利用する際に
 
 ストリームは読み込み用の端点と、書き込み用の端点から構成される。
 
+構文：
 - RSTREAM := ( rstrm TYPE )
 - WSTREAM := ( wstrm TYPE )
 
@@ -167,6 +168,18 @@ Lunar IRにはオーナーという概念があり、変数を利用する際に
 ### ポインタ型
 
 C関数と互換性を保つために利用され、それ以外での利用は非推奨である。
+
+構文：
+- PTR := ( ptr TYPE ) | ( ptr PTR )
+
+セマンティクス：
+- ( ptr ポインタの型 )
+
+```lisp
+(ptr u64)
+(ptr (shared mystruct))
+(ptr (ptr (unique u32)))
+```
 
 ### 共用体
 
@@ -354,14 +367,22 @@ pointerのpointerはptr型を利用して実現する。
 モジュール読み込み
 
 構文：
-- dlopen := ( dlopen EXPRIDENT )
+- DLOPEN := ( dlopen EXPRIDENT )
 
 セマンティクス：
 - ( dlopen モジュールへのパス )
 
 動的ライブラリ、.soファイルを読み込む。
 
-### 型変換
+### deref
+
+PTR型の参照外し
+
+構文：
+- DEREF := ( deref EXPRIDENT )
+
+セマンティクス：
+- ( deref PTR型変数 )
 
 ## プリミティブ演算
 
