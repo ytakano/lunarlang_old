@@ -276,9 +276,18 @@ cond は制御構文であり、値は返さない。
 
 ### break 文
 
+構文：
 - BREAK := ( break )
 
 while ループの制御から脱出するときに使う。
+
+### return 文
+
+構文：
+- RETURN := ( return (EXPRIDENT*) )
+
+セマンティクス：
+- ( return (返り値*) )
 
 ## 多相型
 
