@@ -23,17 +23,30 @@ one2nine(char32_t c)
     return U'1' <= c && c <= U'9';
 }
 
-int
-parse_int(lunar::parsec<char32_t> &parsec)
+bool
+int_parser(lunar::parsec<char32_t> &parsec)
 {
-    auto intparser = parsec.satisfy(one2nine) >> parsec.many(parsec.digit()) || parsec.character(U'0');
+    auto psr = parsec.satisfy(one2nine) >> parsec.many(parsec.digit()) || parsec.character(U'0');
     
-    if (intparser()) {
-        auto str = lunar::to_string(parsec.get_string());
-        return lunar::to_int(str);
+    return psr();
+}
+
+bool
+float_parser(lunar::parsec<char32_t> &parsec)
+{
+    auto psr = parsec.func(int_parser) >> parsec.character(U'.') >> parsec.func(int_parser);
+    
+    return psr();
+}
+
+std::string
+read_float(lunar::parsec<char32_t> &parsec)
+{
+    if (float_parser(parsec)) {
+        return lunar::to_string(parsec.get_string());
     }
     
-    return 0;
+    return "";
 }
 
 void
@@ -48,13 +61,13 @@ test_parsec()
         
         lunar::parsec<char32_t> parsec(*rs);
 
-        auto text = new std::u32string(U"12345abc");
+        auto text = new std::u32string(U"12345.67abc");
         
         push_string(ws, text);
         push_eof_string(ws);
         
-        int num = parse_int(parsec);
-        printf("num = %d\n", num);
+        auto num = read_float(parsec);
+        printf("num = %s\n", num.c_str());
 
         deref_ptr_stream(rs);
         deref_ptr_stream(ws);

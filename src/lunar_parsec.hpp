@@ -107,7 +107,7 @@ public:
     
     class parser {
     public:
-        parser(parsec &p) : m_parsec(p) { }
+        parser(parsec &p) : m_parsec(p), m_is_skip(false) { }
         virtual ~parser() { }
 
         virtual bool operator() () { return m_parsec.m_result; };
@@ -134,6 +134,7 @@ public:
     
     public:
         parsec &m_parsec;
+        bool    m_is_skip;
     };
     
     class parser_func : public parser {
@@ -227,7 +228,9 @@ public:
             if (m_func(c)) {
                 parser::m_parsec.m_result = true;
                 parser::m_parsec.m_num++;
-                parser::m_parsec.m_str.push_back(c);
+                
+                if (! parser::m_is_skip)
+                    parser::m_parsec.m_str.push_back(c);
                 
                 if (c == (T)'\n') {
                     parser::m_parsec.m_line++;
@@ -318,6 +321,83 @@ public:
         {
             return (T)'0' <= c && c <= (T)'7';
         }
+    };
+    
+    class parser_skip : public parser {
+    public:
+        parser_skip(parsec &pc, parser &pr) : parser(pc), m_parser(pr) { }
+        virtual ~parser_skip() { }
+        
+        virtual bool operator() ()
+        {
+            bool is_skip = m_parser.m_is_skip;
+            bool result = m_parser();
+            m_parser.m_is_skip = is_skip;
+            
+            return result;
+        }
+    
+    private:
+        parser &m_parser;
+    };
+
+    class parser_skip_many : public parser {
+    public:
+        parser_skip_many(parsec &pc, parser &pr) : parser(pc), m_parser(pr) { }
+        virtual ~parser_skip_many() { }
+        
+        virtual bool operator() ()
+        {
+            bool is_skip = m_parser.m_is_skip;
+            m_parser.m_is_skip = true;
+
+            for (;;) {
+                m_parser();
+                if (! parser::m_parsec.m_result)
+                    break;
+            }
+            
+            m_parser.m_is_skip = is_skip;
+
+            parser::m_parsec.m_result = true;
+            return true;
+        }
+    
+    private:
+        parser &m_parser;
+    };
+    
+    class parser_skip_many1 : public parser {
+    public:
+        parser_skip_many1(parsec &pc, parser &pr) : parser(pc), m_parser(pr) { }
+        virtual ~parser_skip_many1() { }
+        
+        virtual bool operator() ()
+        {
+            bool is_skip = m_parser.m_is_skip;
+            m_parser.m_is_skip = true;
+
+            m_parser();
+
+            if (! parser::m_parsec.m_result) {
+                m_parser.m_is_skip = is_skip;
+                return false;
+            }
+
+            for (;;) {
+                m_parser();
+                if (! parser::m_parsec.m_result)
+                    break;
+            }
+            
+            m_parser.m_is_skip = is_skip;
+            parser::m_parsec.m_result = true;
+
+            return true;
+        }
+    
+    private:
+        parser &m_parser;
     };
 
     class parser_many : public parser {
@@ -504,6 +584,36 @@ public:
         return one_of(*p_space);
     }
     
+    parser_skip skip(parser &&p)
+    {
+        return parser_skip(*this, p);
+    }
+
+    parser_skip skip(parser &p)
+    {
+        return parser_skip(*this, p);
+    }
+    
+    parser_skip_many skip_many(parser &&p)
+    {
+        return parser_skip_many(*this, p);
+    }
+    
+    parser_skip_many skip_many(parser &p)
+    {
+        return parser_skip_many(*this, p);
+    }
+
+    parser_skip_many skip_many1(parser &&p)
+    {
+        return parser_skip_many1(*this, p);
+    }
+    
+    parser_skip_many skip_many1(parser &p)
+    {
+        return parser_skip_many1(*this, p);
+    }
+    
     parser_many many(parser &&p)
     {
         return parser_many(*this, p);
@@ -534,7 +644,7 @@ public:
         return parser_look_ahead(*this, p);
     }
     
-    parser_func func(std::function<void(parsec&)> f)
+    parser_func func(std::function<bool(parsec&)> f)
     {
         return parser_func(*this, f);
     }
