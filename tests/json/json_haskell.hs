@@ -9,16 +9,32 @@ import           Text.Parsec            ((<?>))
 import qualified Text.Parsec            as Parsec
 
 {-
-number        = [ minus ] int [ frac ] [ exp ]
-decimal-point = %x2E                         ; .
-digit1-9      = %x31-39                      ; 1-9
-e             = %x65 / %x45                  ; e E
-exp           = e [ minus / plus ] 1*DIGIT
-frac          = decimal-point 1*DIGIT
-int           = zero / ( digit1-9 *DIGIT )
-minus         = %x2D                         ; -
-plus          = %x2B                         ; +
-zero          = %x30                         ; 0
+number         = [ minus ] int [ frac ] [ exp ]
+decimal-point  = %x2E                          ; .
+digit1-9       = %x31-39                       ; 1-9
+e              = %x65 / %x45                   ; e E
+exp            = e [ minus / plus ] 1*DIGIT
+frac           = decimal-point 1*DIGIT
+int            = zero / ( digit1-9 *DIGIT )
+minus          = %x2D                          ; -
+plus           = %x2B                          ; +
+zero           = %x30                          ; 0
+
+string         = quotation-mark *char quotation-mark
+char           = unescaped /
+                   escape (
+                     %x22 /                    ; "    quotation mark  U+0022
+                     %x5C /                    ; \    reverse solidus U+005C
+                     %x2F /                    ; /    solidus         U+002F
+                     %x62 /                    ; b    backspace       U+0008
+                     %x66 /                    ; f    form feed       U+000C
+                     %x6E /                    ; n    line feed       U+000A
+                     %x72 /                    ; r    carriage return U+000D
+                     %x74 /                    ; t    tab             U+0009
+                     %x75 4HEXDIG )            ; uXXXX                U+XXXX
+escape         = %x5C                          ; \
+quotation-mark = %x22                          ; "
+unescaped      = %x20-21 / %x23-5B / %x5D-10FFFF
 -}
 
 parse_frac =
@@ -48,6 +64,18 @@ parse_number =
     exp   <- Parsec.try $ parse_exp
 
     return $ minus ++ int ++ frac ++ exp
+
+parse_char =
+  do
+    c <- Parsec.try $ Parsec.satisfy is_unescaped <|> return '\\'
+    return ""
+
+is_unescaped x
+  | x == '\x20'                    = True
+  | x == '\x21'                    = True
+  | x <= '\x23' && x <= '\x5b'     = True
+  | x <= '\x5d' && x <= '\x10ffff' = True
+  | otherwise                      = False
 
 parse :: Parsec.Stream s Identity t => Parsec.Parsec s () a -> s -> Either Parsec.ParseError a
 parse rule text = Parsec.parse rule "(stdin)" text
