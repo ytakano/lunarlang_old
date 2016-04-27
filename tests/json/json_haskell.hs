@@ -70,17 +70,8 @@ data JSON_VAL = JSON_Bool   Bool       |
                 JSON_Array  [JSON_VAL] |
                 JSON_Object [(String, JSON_VAL)] deriving (Show)
 
-parse_separator x =
-  do
-    ws1 <- parse_ws
-    sp  <- Parsec.string x
-    ws2 <- parse_ws
-    return $ ws1 ++ sp ++ ws2
-
-parse_ws =
-  do
-    ws <- Parsec.many $ Parsec.oneOf ['\x20', '\x09', '\x0a', '\x0d']
-    return ws
+parse_separator x = parse_ws >> (Parsec.char x) >> parse_ws >> return ()
+parse_ws = (Parsec.many $ Parsec.oneOf ['\x20', '\x09', '\x0a', '\x0d']) >> return ()
 
 parse_false = Parsec.string "false" >> (return $ JSON_Bool False)
 parse_true  = Parsec.string "true"  >> (return $ JSON_Bool True)
@@ -101,48 +92,42 @@ parse_value =
 
 parse_object =
   do
-    _     <- parse_separator "{"
+    _     <- parse_separator '{'
     mems  <- Parsec.try parse_members <|> (return $ JSON_Object [])
-    _     <- parse_separator "}"
+    _     <- parse_separator '}'
     return mems
 
 parse_members =
   do
     h <- parse_member
+    _ <- parse_ws
     t <- (Parsec.try $ Parsec.many parse_sp_member) <|> return []
     return $ JSON_Object $ h:t
 
 parse_member =
   do
     key <- parse_string
-    _   <- parse_separator ":"
+    _   <- parse_separator ':'
     val <- parse_value
     return $ (key, val)
 
-parse_sp_member =
-  do
-    _   <- parse_separator ","
-    mem <- parse_member
-    return mem
+parse_sp_member = Parsec.char ',' >> parse_ws >> parse_member
 
 parse_array =
   do
-    _     <- parse_separator "["
+    _     <- parse_separator '['
     vals  <- Parsec.try parse_values <|> (return $ JSON_Array [])
-    _     <- parse_separator "]"
+    _     <- parse_separator ']'
     return vals
 
 parse_values =
   do
     h <- parse_value
+    _ <- parse_ws
     t <- (Parsec.try $ Parsec.many parse_sp_value) <|> return []
     return $ JSON_Array $ h:t
 
-parse_sp_value =
-  do
-    _   <- parse_separator ","
-    val <- parse_value
-    return val
+parse_sp_value = Parsec.char ',' >> parse_ws >> parse_value
 
 parse_frac =
   do
@@ -182,19 +167,11 @@ parse_char =
   do
     c <- (Parsec.try $ Parsec.satisfy is_unescaped) <|> parse_escaped
     return c
-
-is_unescaped x
-  | x == '\x20'                    = True
-  | x == '\x21'                    = True
-  | '\x23' <= x && x <= '\x5b'     = True
-  | '\x5d' <= x && x <= '\x10ffff' = True
-  | otherwise                      = False
-
-is_hexdig x
-  | '0' <= x && x <= '9' = True
-  | 'a' <= x && x <= 'f' = True
-  | 'A' <= x && x <= 'F' = True
-  | otherwise            = False
+  where is_unescaped x | x == '\x20'                    = True
+                       | x == '\x21'                    = True
+                       | '\x23' <= x && x <= '\x5b'     = True
+                       | '\x5d' <= x && x <= '\x10ffff' = True
+                       | otherwise                      = False
 
 hexdig2char h1 h2 h3 h4 =
   C.chr $ x1 + x2 + x3 + x4 where
@@ -217,6 +194,10 @@ parse_4hexdig =
     h3 <- Parsec.satisfy is_hexdig
     h4 <- Parsec.satisfy is_hexdig
     return $ hexdig2char h1 h2 h3 h4
+  where is_hexdig x | '0' <= x && x <= '9' = True
+                    | 'a' <= x && x <= 'f' = True
+                    | 'A' <= x && x <= 'F' = True
+                    | otherwise            = False
 
 parse :: Parsec.Stream s Identity t => Parsec.Parsec s () a -> s -> Either Parsec.ParseError a
 parse rule text = Parsec.parse rule "(stdin)" text
