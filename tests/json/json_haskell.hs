@@ -82,78 +82,67 @@ parse_ws =
     ws <- Parsec.many $ Parsec.oneOf ['\x20', '\x09', '\x0a', '\x0d']
     return ws
 
-parse_false =
-  do
-    str <- Parsec.string "false"
-    return str
-
-parse_true =
-  do
-    str <- Parsec.string "true"
-    return str
-
-parse_null =
-  do
-    str <- Parsec.string "null"
-    return str
+parse_false = Parsec.string "false" >> (return $ JSON_Bool False)
+parse_true  = Parsec.string "true"  >> (return $ JSON_Bool True)
+parse_null  = Parsec.string "null"  >> (return $ JSON_Null ())
 
 parse_value =
   do
-    str <- (Parsec.try parse_false)  <|>
+    val <- (Parsec.try parse_false)  <|>
            (Parsec.try parse_null)   <|>
            (Parsec.try parse_true)   <|>
            (Parsec.try parse_object) <|>
            (Parsec.try parse_array)  <|>
            (Parsec.try parse_number) <|>
-           parse_string
-    return str
+             do
+               str <- parse_string
+               return $ JSON_String str
+    return val
 
 parse_object =
   do
-    begin <- parse_separator "{"
-    mems  <- Parsec.try parse_members <|> return ""
-    end   <- parse_separator "}"
-    return $ begin ++ mems ++ end
+    _     <- parse_separator "{"
+    mems  <- Parsec.try parse_members <|> (return $ JSON_Object [])
+    _     <- parse_separator "}"
+    return mems
 
 parse_members =
   do
-    member1 <- parse_member
-    member2 <- (Parsec.try $ Parsec.many parse_sp_member) <|> return [""]
-
-    return $ member1 ++ (concat member2)
+    h <- parse_member
+    t <- (Parsec.try $ Parsec.many parse_sp_member) <|> return []
+    return $ JSON_Object $ h:t
 
 parse_member =
   do
     key <- parse_string
-    sp  <- parse_separator ":"
+    _   <- parse_separator ":"
     val <- parse_value
-    return $ key ++ sp ++ val
+    return $ (key, val)
 
 parse_sp_member =
   do
-    sp  <- parse_separator ","
+    _   <- parse_separator ","
     mem <- parse_member
-    return $ sp ++ mem
+    return mem
 
 parse_array =
   do
-    begin <- parse_separator "["
-    vals  <- Parsec.try parse_values <|> return ""
-    end   <- parse_separator "]"
-    return $ begin ++ vals ++ end
+    _     <- parse_separator "["
+    vals  <- Parsec.try parse_values <|> (return $ JSON_Array [])
+    _     <- parse_separator "]"
+    return vals
 
 parse_values =
   do
-    val1 <- parse_value
-    val2 <- (Parsec.try $ Parsec.many parse_sp_value) <|> return [""]
-
-    return $ val1 ++ (concat val2)
+    h <- parse_value
+    t <- (Parsec.try $ Parsec.many parse_sp_value) <|> return []
+    return $ JSON_Array $ h:t
 
 parse_sp_value =
   do
-    sp  <- parse_separator ","
+    _   <- parse_separator ","
     val <- parse_value
-    return $ sp ++ val
+    return val
 
 parse_frac =
   do
@@ -180,15 +169,14 @@ parse_number =
     int   <- (Parsec.try $ Parsec.string "0") <|> parse_digit1_9
     frac  <- (Parsec.try parse_frac) <|> return ""
     exp   <- Parsec.try parse_exp <|> return ""
-
-    return $ minus ++ int ++ frac ++ exp
+    return $ JSON_Double $ read (minus ++ int ++ frac ++ exp)
 
 parse_string =
   do
-    q1  <- Parsec.string "\""
+    _   <- Parsec.string "\""
     str <- Parsec.many parse_char
-    q2  <- Parsec.string "\""
-    return $ q1 ++ str ++ q1
+    _   <- Parsec.string "\""
+    return str
 
 parse_char =
   do
