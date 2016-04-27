@@ -10,43 +10,143 @@ import           Text.Parsec            ((<?>))
 import qualified Text.Parsec            as Parsec
 
 {-
-value          = false / null / true / object / array / number / string
-false          = %x66.61.6c.73.65              ; false
-null           = %x6e.75.6c.6c                 ; null
-true           = %x74.72.75.65                 ; true
+JSON-text       = ws value ws
 
-number         = [ minus ] int [ frac ] [ exp ]
-decimal-point  = %x2E                          ; .
-digit1-9       = %x31-39                       ; 1-9
-e              = %x65 / %x45                   ; e E
-exp            = e [ minus / plus ] 1*DIGIT
-frac           = decimal-point 1*DIGIT
-int            = zero / ( digit1-9 *DIGIT )
-minus          = %x2D                          ; -
-plus           = %x2B                          ; +
-zero           = %x30                          ; 0
+begin-array     = ws %x5B ws                   ; [ left square bracket
+begin-object    = ws %x7B ws                   ; { left curly bracket
+end-array       = ws %x5D ws                   ; ] right square bracket
+end-object      = ws %x7D ws                   ; } right curly bracket
+name-separator  = ws %x3A ws                   ; : colon
+value-separator = ws %x2C ws                   ; , comma
 
-string         = quotation-mark *char quotation-mark
-char           = unescaped /
-                   escape (
-                     %x22 /                    ; "    quotation mark  U+0022
-                     %x5C /                    ; \    reverse solidus U+005C
-                     %x2F /                    ; /    solidus         U+002F
-                     %x62 /                    ; b    backspace       U+0008
-                     %x66 /                    ; f    form feed       U+000C
-                     %x6E /                    ; n    line feed       U+000A
-                     %x72 /                    ; r    carriage return U+000D
-                     %x74 /                    ; t    tab             U+0009
-                     %x75 4HEXDIG )            ; uXXXX                U+XXXX
-escape         = %x5C                          ; \
-quotation-mark = %x22                          ; "
-unescaped      = %x20-21 / %x23-5B / %x5D-10FFFF
+ws = *(
+        %x20 /                                 ; Space
+        %x09 /                                 ; Horizontal tab
+        %x0A /                                 ; Line feed or New line
+        %x0D )                                 ; Carriage return
+
+value           = false / null / true / object / array / number / string
+false           = %x66.61.6c.73.65             ; false
+null            = %x6e.75.6c.6c                ; null
+true            = %x74.72.75.65                ; true
+
+object          = begin-object [ member *( value-separator member ) ] end-object
+member          = string name-separator value
+
+array           = begin-array [ value *( value-separator value ) ] end-array
+
+number          = [ minus ] int [ frac ] [ exp ]
+decimal-point   = %x2E                         ; .
+digit1-9        = %x31-39                      ; 1-9
+e               = %x65 / %x45                  ; e E
+exp             = e [ minus / plus ] 1*DIGIT
+frac            = decimal-point 1*DIGIT
+int             = zero / ( digit1-9 *DIGIT )
+minus           = %x2D                         ; -
+plus            = %x2B                         ; +
+zero            = %x30                         ; 0
+
+string          = quotation-mark *char quotation-mark
+char            = unescaped /
+                    escape (
+                      %x22 /                   ; "    quotation mark  U+0022
+                      %x5C /                   ; \    reverse solidus U+005C
+                      %x2F /                   ; /    solidus         U+002F
+                      %x62 /                   ; b    backspace       U+0008
+                      %x66 /                   ; f    form feed       U+000C
+                      %x6E /                   ; n    line feed       U+000A
+                      %x72 /                   ; r    carriage return U+000D
+                      %x74 /                   ; t    tab             U+0009
+                      %x75 4HEXDIG )           ; uXXXX                U+XXXX
+escape          = %x5C                         ; \
+quotation-mark  = %x22                         ; "
+unescaped       = %x20-21 / %x23-5B / %x5D-10FFFF
 -}
+
+parse_separator x =
+  do
+    ws1 <- parse_ws
+    sp  <- Parsec.string x
+    ws2 <- parse_ws
+    return $ ws1 ++ sp ++ ws2
+
+parse_ws =
+  do
+    ws <- Parsec.many $ Parsec.oneOf ['\x20', '\x09', '\x0a', '\x0d']
+    return ws
+
+parse_false =
+  do
+    str <- Parsec.string "false"
+    return str
+
+parse_true =
+  do
+    str <- Parsec.string "true"
+    return str
+
+parse_null =
+  do
+    str <- Parsec.string "null"
+    return str
 
 parse_value =
   do
-    str <- (Parsec.try parse_number) <|> parse_string
+    str <- (Parsec.try parse_false)  <|>
+           (Parsec.try parse_null)   <|>
+           (Parsec.try parse_true)   <|>
+           (Parsec.try parse_object) <|>
+           (Parsec.try parse_array)  <|>
+           (Parsec.try parse_number) <|>
+           parse_string
     return str
+
+parse_object =
+  do
+    begin <- parse_separator "{"
+    mems  <- Parsec.try parse_members <|> return ""
+    end   <- parse_separator "}"
+    return $ begin ++ mems ++ end
+
+parse_members =
+  do
+    member1 <- parse_member
+    member2 <- (Parsec.try $ Parsec.many parse_sp_member) <|> return [""]
+
+    return $ member1 ++ (concat member2)
+
+parse_member =
+  do
+    key <- parse_string
+    sp  <- parse_separator ":"
+    val <- parse_value
+    return $ key ++ sp ++ val
+
+parse_sp_member =
+  do
+    sp  <- parse_separator ","
+    mem <- parse_member
+    return $ sp ++ mem
+
+parse_array =
+  do
+    begin <- parse_separator "["
+    vals  <- Parsec.try parse_values <|> return ""
+    end   <- parse_separator "]"
+    return $ begin ++ vals ++ end
+
+parse_values =
+  do
+    val1 <- parse_value
+    val2 <- (Parsec.try $ Parsec.many parse_sp_value) <|> return [""]
+
+    return $ val1 ++ (concat val2)
+
+parse_sp_value =
+  do
+    sp  <- parse_separator ","
+    val <- parse_value
+    return $ sp ++ val
 
 parse_frac =
   do
@@ -78,10 +178,10 @@ parse_number =
 
 parse_string =
   do
-    q1  <- Parsec.char '"'
+    q1  <- Parsec.string "\""
     str <- Parsec.many parse_char
-    q2  <- Parsec.char '"'
-    return str
+    q2  <- Parsec.string "\""
+    return $ q1 ++ str ++ q1
 
 parse_char =
   do
