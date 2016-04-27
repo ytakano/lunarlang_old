@@ -63,6 +63,13 @@ quotation-mark  = %x22                         ; "
 unescaped       = %x20-21 / %x23-5B / %x5D-10FFFF
 -}
 
+data JSON_VAL = JSON_Bool   Bool       |
+                JSON_Double Double     |
+                JSON_Null   ()         |
+                JSON_String String     |
+                JSON_Array  [JSON_VAL] |
+                JSON_Object [(String, JSON_VAL)] deriving (Show)
+
 parse_separator x =
   do
     ws1 <- parse_ws
