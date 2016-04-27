@@ -4,7 +4,7 @@
 import           Control.Applicative
 import           Control.Monad
 import           Control.Monad.Identity (Identity)
-import           Data.Char              as C
+import qualified Data.Char              as C
 import           System.IO              as IO
 import           Text.Parsec            ((<?>))
 import qualified Text.Parsec            as Parsec
