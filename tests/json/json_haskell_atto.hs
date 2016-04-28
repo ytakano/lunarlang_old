@@ -136,9 +136,13 @@ parse_4hexdig =
                     | 'A' <= x && x <= 'F' = True
                     | otherwise            = False
 
+print_result (Atto.Partial p)    = print_result $ p ""
+print_result (Atto.Done i r)     = print (i, r)
+print_result (Atto.Fail i x1 x2) = print (x1, x2)
+
 main :: IO ()
 main = forever $ do
   putStr "> "
   hFlush stdout
   a <- getLine
-  print $ Atto.parse parse_value $ T.pack a
+  print_result $ Atto.parse parse_value $ T.pack a
