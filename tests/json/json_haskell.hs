@@ -158,9 +158,9 @@ parse_number =
 
 parse_string =
   do
-    _   <- Parsec.string "\""
+    _   <- Parsec.char '"'
     str <- Parsec.many parse_char
-    _   <- Parsec.string "\""
+    _   <- Parsec.char '"'
     return str
 
 parse_char =
