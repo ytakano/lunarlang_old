@@ -136,9 +136,8 @@ parse_4hexdig =
                     | 'A' <= x && x <= 'F' = True
                     | otherwise            = False
 
-print_result (Atto.Partial p)    = print_result $ p ""
-print_result (Atto.Done i r)     = print (i, r)
-print_result (Atto.Fail i x1 x2) = print (x1, x2)
+print_result (Atto.Partial p) = print_result $ p ""
+print_result x = print x
 
 main :: IO ()
 main = forever $ do
