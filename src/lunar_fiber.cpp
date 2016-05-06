@@ -77,9 +77,9 @@ wait_fd_write_fiber(int fd)
     lunar_gt->wait_fd_write(fd);
 }
 
-STRM_RESULT pop_string(shared_stream *p, std::u32string **ret)
+STRM_RESULT pop_string(shared_stream *p, std::u32string **ret, bool is_yield)
 {
-    return lunar_gt->pop_stream<std::u32string*>(p, *ret);
+    return lunar_gt->pop_stream<std::u32string*>(p, *ret, is_yield);
 }
 
 STRM_RESULT push_string(shared_stream *p, std::u32string *ret)
@@ -192,7 +192,7 @@ fiber::push_threadq(void *ptr)
 
 template<typename T>
 STRM_RESULT
-fiber::pop_stream(shared_stream *p, T &ret)
+fiber::pop_stream(shared_stream *p, T &ret, bool is_yield)
 {
     assert(p->flag & shared_stream::READ);
     
@@ -200,17 +200,25 @@ fiber::pop_stream(shared_stream *p, T &ret)
     
     for (;;) {
         auto result = q->pop(ret);
-        if (result == STRM_CLOSED) {
+        switch (q->pop(ret)) {
+        case STRM_CLOSED:
             return STRM_CLOSED;
-        } else if (result == STRM_SUCCESS) {
-            break;
-        } else {
-            m_running->m_state = context::WAITING_STREAM;
-            m_wait_stream[q] = m_running;
-            yield();
+        case STRM_SUCCESS:
+            return STRM_SUCCESS;
+        case STRM_NO_MORE_DATA:
+            if (is_yield) {
+                m_running->m_state = context::WAITING_STREAM;
+                m_wait_stream[q] = m_running;
+                yield();
+            } else {
+                return STRM_NO_MORE_DATA;
+            }
+        default:
+            assert(result != STRM_NO_VACANCY);
         }
     }
     
+    // not reach here
     return STRM_SUCCESS;
 }
 
@@ -299,7 +307,7 @@ fiber::select_fd(bool is_block)
         m_wait_fd.erase(it);
     }
 
-    delete kev;
+    delete[] kev;
 #endif // KQUEUE
 }
 
