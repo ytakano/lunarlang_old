@@ -23,8 +23,8 @@ public:
     
     STRM_RESULT front(T &c)
     {
-        assert(m_tmp_pos.x <= (int)m_deque.size());
-        if (m_tmp_pos.x >= (int)m_deque.size() ||
+        assert(m_tmp_pos.x <= m_deque.size());
+        if (m_tmp_pos.x >= m_deque.size() ||
             m_deque[m_tmp_pos.x].front(c, m_tmp_pos.y) == STRM_NO_MORE_DATA) {
             return m_is_eof ? STRM_CLOSED : STRM_NO_MORE_DATA;
         } else {
@@ -32,15 +32,15 @@ public:
         }
     }
     
-    const point2i & get_tmp_pos() const { return m_tmp_pos; }
+    const point2u64 & get_tmp_pos() const { return m_tmp_pos; }
     
-    void move_tmp_pos(int num)
+    void move_tmp_pos(uint64_t num)
     {
         assert(num > 0);
         assert((size_t)m_tmp_pos.x < m_deque.size());
         
         while ((size_t)m_tmp_pos.x < m_deque.size()) {
-            int size = m_deque[m_tmp_pos.x].size() - m_tmp_pos.y;
+            auto size = m_deque[m_tmp_pos.x].size() - m_tmp_pos.y;
             if (size > num) {
                 m_tmp_pos.y += num;
                 break;
@@ -56,17 +56,16 @@ public:
         }
     }
     
-    void restore_tmp_pos(const point2i &pos)
+    void restore_tmp_pos(const point2u64 &pos)
     {
-        assert(pos.x >= 0 && pos.y >= 0);
         m_tmp_pos = pos;
     }
 
-    void consume(int num)
+    void consume(uint64_t num)
     {
         while (! m_deque.empty() && num > 0) {
-            data_t &data = m_deque.front();
-            int     len  = data.size();
+            data_t   &data = m_deque.front();
+            uint64_t  len  = data.size();
             
             if (num >= len) {
                 data.remove();
@@ -108,7 +107,7 @@ private:
             return m_data->size() - m_pos;
         }
         
-        void consume(int num)
+        void consume(uint64_t num)
         {
             m_pos += num;
             assert(m_pos <= m_data->size());
@@ -125,8 +124,8 @@ private:
     };
 
     std::deque<data_t> m_deque;
-    point2i m_tmp_pos;
-    bool    m_is_eof;
+    point2u64 m_tmp_pos;
+    bool      m_is_eof;
 };
 
 };

@@ -9,11 +9,11 @@
 
 namespace lunar{
 
-struct point2i {
-    int x, y;
+struct point2u64 {
+    uint64_t x, y;
     
-    point2i() : x(0), y(0) { }
-    point2i(int x, int y) : x(x), y(y) { }
+    point2u64() : x(0), y(0) { }
+    point2u64(uint64_t x, uint64_t y) : x(x), y(y) { }
 };
 
 struct point3i {

@@ -13,12 +13,6 @@
 
 namespace lunar {
 
-enum parse_result {
-    PARSE_DONE =  1,
-    PARSE_CONT = -1,
-    PARSE_END  = -2,
-};
-
 template <typename T>
 class parsec {
 public:

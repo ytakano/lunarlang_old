@@ -197,10 +197,10 @@ fiber::pop_stream(shared_stream *p, T &ret, bool is_yield)
     assert(p->flag & shared_stream::READ);
     
     ringq<T> *q = (ringq<T>*)p->shared_data->stream.ptr;
-    
+
     for (;;) {
         auto result = q->pop(ret);
-        switch (q->pop(ret)) {
+        switch (result) {
         case STRM_CLOSED:
             return STRM_CLOSED;
         case STRM_SUCCESS:
@@ -217,7 +217,7 @@ fiber::pop_stream(shared_stream *p, T &ret, bool is_yield)
             assert(result != STRM_NO_VACANCY);
         }
     }
-    
+
     // not reach here
     return STRM_SUCCESS;
 }
