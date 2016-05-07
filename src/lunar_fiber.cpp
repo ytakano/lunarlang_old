@@ -13,13 +13,16 @@ rtm_lock lock_thread2gt;
 std::unordered_map<std::thread::id, fiber*> thread2gt;
 
 // stack layout:
+//    [empty]
 //    context
-//    func
+//    argument
+//    func     <- %rsp
 asm (
     ".global ___INVOKE;"
     "___INVOKE:"
+    "movq 8(%rsp), %rdi;" // set the argument
     "callq *(%rsp);"      // call func()
-    "movq 8(%rsp), %rax;"
+    "movq 16(%rsp), %rax;"
     "movl $6, (%rax);"    // context.m_state = STOP
 #ifdef __APPLE__
     "call _yield_fiber;"  // call _yeild_fiber
@@ -47,9 +50,9 @@ yield_fiber()
 }
 
 void
-spawn_fiber(void (*func)())
+spawn_fiber(void (*func)(void*), void *arg)
 {
-    lunar_gt->spawn(func);
+    lunar_gt->spawn(func, arg);
 }
 
 void
@@ -312,7 +315,7 @@ fiber::select_fd(bool is_block)
 }
 
 int
-fiber::spawn(void (*func)(), int stack_size)
+fiber::spawn(void (*func)(void*), void *arg, int stack_size)
 {
     auto ctx = llvm::make_unique<context>();
     
@@ -323,8 +326,9 @@ fiber::spawn(void (*func)(), int stack_size)
     ctx->m_id    = m_count;
     
     auto s = ctx->m_stack.size();
-    ctx->m_stack[s - 1] = (uint64_t)ctx.get(); // push context
-    ctx->m_stack[s - 2] = (uint64_t)func;      // push func
+    ctx->m_stack[s - 2] = (uint64_t)ctx.get(); // push context
+    ctx->m_stack[s - 3] = (uint64_t)arg;       // push argument
+    ctx->m_stack[s - 4] = (uint64_t)func;      // push func
     
     m_ready.push_back(ctx.get());
     m_id2context[m_count] = std::move(ctx);
@@ -382,7 +386,7 @@ fiber::yield()
             m_ready.pop_front();
             if (ctx != nullptr) {
                 if (setjmp(ctx->m_jmp_buf) == 0) {
-                    auto p = &m_running->m_stack[m_running->m_stack.size() - 2];
+                    auto p = &m_running->m_stack[m_running->m_stack.size() - 4];
                     asm (
                         "movq %0, %%rsp;" // set stack pointer
                         "movq %0, %%rbp;" // set frame pointer
@@ -394,7 +398,7 @@ fiber::yield()
                     return;
                 }
             } else {
-                auto p = &m_running->m_stack[m_running->m_stack.size() - 2];
+                auto p = &m_running->m_stack[m_running->m_stack.size() - 4];
                 asm (
                     "movq %0, %%rsp;" // set stack pointer
                     "movq %0, %%rbp;" // set frame pointer

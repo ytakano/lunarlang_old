@@ -29,7 +29,7 @@ namespace lunar {
 extern "C" {
     void init_fiber();
     void yield_fiber();
-    void spawn_fiber(void (*func)());
+    void spawn_fiber(void (*func)(void*), void *arg = nullptr);
     void run_fiber();
     void wait_fd_read_fiber(int fd);
     void wait_fd_write_fiber(int fd);
@@ -96,7 +96,7 @@ public:
     }
 
     void yield();
-    int  spawn(void (*func)(), int stack_size = 0x80000);
+    int  spawn(void (*func)(void*), void *arg = nullptr, int stack_size = 0x80000);
     void run();
     void wait(int id);
     void wait_fd_read(int fd);

@@ -53,7 +53,7 @@ test_parsec()
 {
     lunar::init_fiber();
 
-    auto func = [] () {
+    auto func = [] (void *arg) {
         auto rs = new lunar::shared_stream;
         auto ws = new lunar::shared_stream;
         lunar::make_ptr_stream(rs, ws, 32);
@@ -74,14 +74,14 @@ test_parsec()
         delete ws;
     };
     
-    lunar::spawn_fiber(func);
+    lunar::spawn_fiber(func, nullptr);
 
     lunar::run_fiber();
     printf("end green thread\n");
 }
 
 void
-thread1()
+thread1(void *arg)
 {
     for (;;) {
         printf("thread 1\n");
@@ -90,7 +90,7 @@ thread1()
 }
 
 void
-thread2()
+thread2(void *arg)
 {
     for (;;) {
         printf("thread 2\n");
@@ -99,7 +99,7 @@ thread2()
 }
 
 void
-thread3()
+thread3(void *arg)
 {
     for (;;) {
         printf("thread 3\n");
