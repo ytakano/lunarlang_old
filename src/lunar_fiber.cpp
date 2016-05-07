@@ -68,6 +68,7 @@ run_fiber()
     delete lunar_gt;
 }
 
+/*
 void
 wait_fd_read_fiber(int fd)
 {
@@ -94,9 +95,11 @@ void push_eof_string(shared_stream *p)
 {
     return lunar_gt->push_eof_stream<std::u32string*>(p);
 }
+*/
 
 } // extern "C"
 
+/*
 void
 fiber::wait_fd_read(int fd)
 {
@@ -273,10 +276,12 @@ fiber::push_eof_stream(shared_stream *p)
         p->shared_data->flag_shared |= shared_stream::CLOSED_WRITE;
     }
 }
+*/
 
 void
 fiber::select_fd(bool is_block)
 {
+/*
 #ifdef KQUEUE
     auto size = m_wait_fd.size();
     if (size == 0)
@@ -312,18 +317,30 @@ fiber::select_fd(bool is_block)
 
     delete[] kev;
 #endif // KQUEUE
+*/
 }
 
 int
 fiber::spawn(void (*func)(void*), void *arg, int stack_size)
 {
     auto ctx = llvm::make_unique<context>();
+
+    for (;;) {
+        ++m_count;
+        if (m_count > 0) {
+            if (m_id2context.find(m_count) == m_id2context.end())
+                break;
+            else
+                continue;
+        } else {
+            m_count = 1;
+        }
+    }
     
-    while (++m_count == 0);
-    
-    ctx->m_state = context::READY;
+    ctx->m_timeout = 0;
+    ctx->m_id      = m_count;
+    ctx->m_state   = context::READY;
     ctx->m_stack.resize(stack_size);
-    ctx->m_id    = m_count;
     
     auto s = ctx->m_stack.size();
     ctx->m_stack[s - 2] = (uint64_t)ctx.get(); // push context
@@ -347,6 +364,8 @@ fiber::run()
 void
 fiber::yield()
 {
+/*
+
     for (;;) {
         context *ctx = nullptr;
         bool flag = true;
@@ -500,6 +519,19 @@ fiber::yield()
     }
     
     longjmp(m_jmp_buf, 1);
+
+*/
+}
+
+void
+fiber::select_stream(const int *fd_read, int num_fd_read,
+                     const int *fd_write, int num_fd_write,
+                     const void **stream_read, int num_stream_read,
+                     const void **stream_write, int num_stream_write,
+                     bool &is_threadq, int64_t timeout)
+{
+    
+    yield();
 }
 
 }

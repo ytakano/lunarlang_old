@@ -4,10 +4,14 @@ IF(POLICY CMP0042)
   cmake_policy(SET CMP0042 NEW)
 ENDIF(POLICY CMP0042)
 
+# for Boost
+find_package(Boost COMPONENTS REQUIRED)
+
 # for LLVM
 find_package(LLVM REQUIRED CONFIG)
 add_definitions(${LLVM_DEFINITIONS})
-include_directories(${LLVM_INCLUDE_DIRS})
+
+include_directories(${LLVM_INCLUDE_DIRS} ${Boost_INCLUDE_DIR})
 
 execute_process(
     COMMAND ${LLVM_TOOLS_BINARY_DIR}/llvm-config --cxxflags
