@@ -14,6 +14,7 @@
 #include <deque>
 #include <unordered_map>
 #include <unordered_set>
+#include <thread>
 #include <mutex>
 #include <condition_variable>
 
@@ -31,12 +32,16 @@
 
 namespace lunar {
 
+class fiber;
+
 extern "C" {
     void init_fiber();
     void yield_fiber();
     void spawn_fiber(void (*func)(void*), void *arg = nullptr);
     void run_fiber();
 
+    STRM_RESULT push_threadq_fiber(std::thread::id id, const void *p);
+    STRM_RESULT push_threadq_fast_unsafe_fiber(fiber *fb, const void *p);
 /*
     void wait_fd_read_fiber(int fd);
     void wait_fd_write_fiber(int fd);
@@ -62,56 +67,25 @@ public:
 
         uint32_t m_state;
         jmp_buf m_jmp_buf;
-        std::unordered_set<int>      m_fd_read;      // waiting file descripters
-        std::unordered_set<int>      m_fd_write;     // waiting file descripters
-        std::unordered_set<void*>    m_stream_read;  // waiting streams for reading
-        std::unordered_set<void*>    m_stream_write; // waiting streams for writing
-        bool    m_is_threadq;                        // waiting the thread queue?
-        int64_t m_timeout;                           // waiting timer
+        std::unordered_set<int>   m_fd_read;      // waiting file descripters
+        std::unordered_set<int>   m_fd_write;     // waiting file descripters
+        std::unordered_set<void*> m_stream_read;  // waiting streams for reading
+        std::unordered_set<void*> m_stream_write; // waiting streams for writing
+        bool    m_is_threadq;                     // waiting the thread queue?
+        int64_t m_timeout;                        // waiting timer
         int64_t m_id; // m_id must not be less than or equal to 0
         std::vector<uint64_t> m_stack;
     };
 
-    fiber(int qsize = 4096)
-        : m_count(0),
-          m_running(nullptr),
-          m_threadq(nullptr),
-          m_max_qlen(qsize),
-          m_qlen(0),
-          m_q(new void*[qsize]),
-          m_qend(m_q + qsize),
-          m_qhead(m_q),
-          m_qtail(m_q),
-          m_is_qnotified(true)
-    {
-        if (pipe(m_qpipe) == -1) {
-            PRINTERR("could not create pipe!");
-            exit(-1);
-        }
-
-#ifdef KQUEUE
-        m_kq = kqueue();
-        if (m_kq == -1) {
-            PRINTERR("could not create kqueue!");
-            exit(-1);
-        }
-#endif // KQUEUE
-    }
-    
-    ~fiber()
-    {
-        delete[] m_q;
-#ifdef KQUEUE
-        close(m_kq);
-#endif // KQUEUE
-
-        close(m_qpipe[0]);
-        close(m_qpipe[1]);
-    }
+    fiber(int qsize = 4096);
+    virtual ~fiber();
 
     void yield();
     int  spawn(void (*func)(void*), void *arg = nullptr, int stack_size = 0x80000);
     void run();
+    void inc_refcnt_threadq() { m_threadq.inc_refcnt(); }
+    void dec_refcnt_threadq() { m_threadq.dec_refcnt(); }
+    STRM_RESULT push_threadq(const void *p) { return m_threadq.push(p); }
     void select_stream(const int *fd_read, int num_fd_read,
                        const int *fd_write, int num_fd_write,
                        const void **stream_read, int num_stream_read,
@@ -142,7 +116,7 @@ private:
     int64_t  m_count;
     context* m_running;
     ctxq     m_suspend;
-    context* m_threadq;
+    context* m_wait_thq;
     std::deque<context*> m_ready;
     std::unordered_map<int64_t, std::unique_ptr<context>> m_id2context;
     std::unordered_map<int, context*>     m_wait_fd_read;
@@ -150,31 +124,47 @@ private:
     std::unordered_map<void*, context*>   m_wait_stream_read;
     std::unordered_map<void*, context*>   m_wait_stream_write;
     std::unordered_map<int64_t, context*> m_timeout;
-
+    
     // for circular buffer
-    int m_max_qlen;
-    int m_qlen;
-    void **m_q;
-    void **m_qend;
-    void **m_qhead;
-    void **m_qtail;
-    bool   m_is_qnotified;
-    spin_lock   m_qlock;
-    std::mutex  m_qmutex;
-    std::condition_variable m_qcond;
-    int m_qpipe[2];
+    class threadq {
+    public:
+        enum qwait_type {
+            QWAIT_COND,
+            QWAIT_PIPE,
+        };
+        
+        threadq(int qsize);
+        virtual ~threadq();
+        
+        qwait_type m_qwait_type;
+        
+        STRM_RESULT push(const void *p);
+        STRM_RESULT pop(void **p);
+        
+        void inc_refcnt() { __sync_fetch_and_add(&m_refcnt, 1); }
+        void dec_refcnt() { __sync_fetch_and_sub(&m_refcnt, 1); }
+    
+    private:
+        volatile int m_qlen;
+        volatile int m_refcnt;
+        int    m_max_qlen;
+        void **m_q;
+        void **m_qend;
+        void **m_qhead;
+        void **m_qtail;
+        bool   m_is_qnotified;
+        int    m_qpipe[2];
+        spin_lock  m_qlock;
+        std::mutex m_qmutex;
+        std::condition_variable m_qcond;
+    };
 
-    enum {
-        QWAIT_COND,
-        QWAIT_PIPE,
-    } m_qwait_type;
-    
-    // for file descripter
+    threadq m_threadq;
+
 #ifdef KQUEUE
-    int           m_kq;
-    struct kevent m_kev;
+    int m_kq;
 #endif // KQUEUE
-    
+
     void select_fd(bool is_block);
 };
 

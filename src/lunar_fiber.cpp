@@ -1,8 +1,6 @@
 #include "lunar_fiber.hpp"
 #include "lunar_rtm_lock.hpp"
 
-#include <thread>
-
 // currentry, this code can run on X86_64 System V ABI
 
 namespace lunar {
@@ -66,6 +64,34 @@ run_fiber()
     }
 
     delete lunar_gt;
+}
+
+STRM_RESULT
+push_threadq_fiber(std::thread::id id, const void *p)
+{
+    fiber *fb;
+
+    {
+        rtm_transaction tr(lock_thread2gt);
+        auto it = thread2gt.find(id);
+        if (it == thread2gt.end()) {
+            return STRM_CLOSED;
+        } else {
+            fb = it->second;
+            fb->inc_refcnt_threadq();
+        }
+    }
+    
+    auto ret = fb->push_threadq(p);
+    fb->dec_refcnt_threadq();
+    
+    return ret;
+}
+
+STRM_RESULT
+push_threadq_fast_unsafe_fiber(fiber *fb, const void *p)
+{
+    return fb->push_threadq(p);
 }
 
 /*
@@ -277,6 +303,28 @@ fiber::push_eof_stream(shared_stream *p)
     }
 }
 */
+
+fiber::fiber(int qsize)
+    : m_count(0),
+      m_running(nullptr),
+      m_wait_thq(nullptr),
+      m_threadq(qsize)
+{
+#ifdef KQUEUE
+    m_kq = kqueue();
+    if (m_kq == -1) {
+        PRINTERR("could not create kqueue!");
+        exit(-1);
+    }
+#endif // KQUEUE
+}
+
+fiber::~fiber()
+{
+#ifdef KQUEUE
+    close(m_kq);
+#endif // KQUEUE
+}
 
 void
 fiber::select_fd(bool is_block)
@@ -530,8 +578,81 @@ fiber::select_stream(const int *fd_read, int num_fd_read,
                      const void **stream_write, int num_stream_write,
                      bool &is_threadq, int64_t timeout)
 {
+    int i;
+    int n = 0;
+    struct kevent *kev;
+    int evlen = num_fd_read + num_fd_write;
+    
+    if (timeout > 0)
+        evlen++;
+    
+    kev = new struct kevent[evlen];
+
+    for (i = 0; i < num_fd_read; i++, n++) {
+        
+    }
+
+    for (i = 0; i < num_fd_write; i++, n++) {
+        
+    }
+
+    if (timeout > 0) {
+        
+    }
+    
+    delete[] kev;
+
+    for (i = 0; i < num_stream_read; i++) {
+        
+    }
+
+    for (i = 0; i < num_stream_write; i++) {
+        
+    }
+    
+    if (is_threadq) {
+        
+    }
     
     yield();
+}
+
+fiber::threadq::threadq(int qsize)
+    : m_qlen(0),
+      m_refcnt(0),
+      m_max_qlen(qsize),
+      m_q(new void*[qsize]),
+      m_qend(m_q + qsize),
+      m_qhead(m_q),
+      m_qtail(m_q),
+      m_is_qnotified(true)
+{
+    if (pipe(m_qpipe) == -1) {
+        PRINTERR("could not create pipe!");
+        exit(-1);
+    }
+}
+
+fiber::threadq::~threadq()
+{
+    while (m_refcnt);
+    
+    delete[] m_q;
+
+    close(m_qpipe[0]);
+    close(m_qpipe[1]);
+}
+
+STRM_RESULT
+fiber::threadq::push(const void *p)
+{
+
+}
+
+STRM_RESULT
+fiber::threadq::pop(void **p)
+{
+    
 }
 
 }
