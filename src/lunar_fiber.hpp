@@ -40,8 +40,8 @@ extern "C" {
     void spawn_fiber(void (*func)(void*), void *arg = nullptr);
     void run_fiber();
 
-    STRM_RESULT push_threadq_fiber(std::thread::id id, const void *p);
-    STRM_RESULT push_threadq_fast_unsafe_fiber(fiber *fb, const void *p);
+    STRM_RESULT push_threadq_fiber(std::thread::id id, void *p);
+    STRM_RESULT push_threadq_fast_unsafe_fiber(fiber *fb, void *p);
 /*
     void wait_fd_read_fiber(int fd);
     void wait_fd_write_fiber(int fd);
@@ -85,7 +85,7 @@ public:
     void run();
     void inc_refcnt_threadq() { m_threadq.inc_refcnt(); }
     void dec_refcnt_threadq() { m_threadq.dec_refcnt(); }
-    STRM_RESULT push_threadq(const void *p) { return m_threadq.push(p); }
+    STRM_RESULT push_threadq(void *p) { return m_threadq.push(p); }
     void select_stream(const int *fd_read, int num_fd_read,
                        const int *fd_write, int num_fd_write,
                        const void **stream_read, int num_stream_read,
@@ -138,21 +138,21 @@ private:
         
         qwait_type m_qwait_type;
         
-        STRM_RESULT push(const void *p);
+        STRM_RESULT push(void *p);
         STRM_RESULT pop(void **p);
         
         void inc_refcnt() { __sync_fetch_and_add(&m_refcnt, 1); }
         void dec_refcnt() { __sync_fetch_and_sub(&m_refcnt, 1); }
     
     private:
-        volatile int m_qlen;
-        volatile int m_refcnt;
+        volatile int  m_qlen;
+        volatile int  m_refcnt;
+        volatile bool m_is_qnotified;
         int    m_max_qlen;
         void **m_q;
         void **m_qend;
         void **m_qhead;
         void **m_qtail;
-        bool   m_is_qnotified;
         int    m_qpipe[2];
         spin_lock  m_qlock;
         std::mutex m_qmutex;

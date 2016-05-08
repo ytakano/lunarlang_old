@@ -67,7 +67,7 @@ run_fiber()
 }
 
 STRM_RESULT
-push_threadq_fiber(std::thread::id id, const void *p)
+push_threadq_fiber(std::thread::id id, void *p)
 {
     fiber *fb;
 
@@ -89,7 +89,7 @@ push_threadq_fiber(std::thread::id id, const void *p)
 }
 
 STRM_RESULT
-push_threadq_fast_unsafe_fiber(fiber *fb, const void *p)
+push_threadq_fast_unsafe_fiber(fiber *fb, void *p)
 {
     return fb->push_threadq(p);
 }
@@ -620,12 +620,12 @@ fiber::select_stream(const int *fd_read, int num_fd_read,
 fiber::threadq::threadq(int qsize)
     : m_qlen(0),
       m_refcnt(0),
+      m_is_qnotified(true),
       m_max_qlen(qsize),
       m_q(new void*[qsize]),
       m_qend(m_q + qsize),
       m_qhead(m_q),
-      m_qtail(m_q),
-      m_is_qnotified(true)
+      m_qtail(m_q)
 {
     if (pipe(m_qpipe) == -1) {
         PRINTERR("could not create pipe!");
@@ -644,15 +644,60 @@ fiber::threadq::~threadq()
 }
 
 STRM_RESULT
-fiber::threadq::push(const void *p)
+fiber::threadq::push(void *p)
 {
+    if (m_qlen == m_max_qlen) 
+        return STRM_NO_VACANCY;
 
+    spin_lock_acquire_unsafe lock(m_qlock);
+
+    *m_qtail = p;
+    m_qlen++;
+    m_qtail++;
+
+    if (m_qtail == m_qend) {
+        m_qtail = m_q;
+    }
+    
+    if (! m_is_qnotified) {
+        m_is_qnotified = true;
+        lock.unlock();
+        if (m_qwait_type == QWAIT_COND) {
+            std::unique_lock<std::mutex> mlock(m_qmutex);
+            m_qcond.notify_one();
+        } else {
+            char c = '\0';
+            write(m_qpipe[1], &c, sizeof(c));
+        }
+        
+        return STRM_SUCCESS;
+    }
+    
+    lock.unlock();
+    
+    return STRM_SUCCESS;
 }
 
 STRM_RESULT
 fiber::threadq::pop(void **p)
 {
-    
+    if (m_qlen == 0)
+        return STRM_NO_MORE_DATA;
+
+    *p = *m_qhead;
+
+    {
+        spin_lock_acquire lock(m_qlock);
+        m_qlen--;
+    }
+
+    m_qhead++;
+
+    if (m_qhead == m_qend) {
+        m_qhead = m_q;
+    }
+
+    return STRM_SUCCESS;
 }
 
 }
