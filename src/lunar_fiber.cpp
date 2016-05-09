@@ -152,108 +152,6 @@ fiber::wait_fd_write(int fd)
     yield();
 }
 
-void*
-fiber::pop_threadq()
-{
-    int i = 0;
-    while (m_qlen == 0) {
-        i++;
-        if (i > 100) {
-            m_running->m_state = context::WAITING_THQ;
-            yield();
-            i = 0;
-        }
-    }
-
-    void* retval = *m_qhead;
-
-    {
-        spin_lock_acquire lock(m_qlock);
-        m_qlen--;
-    }
-
-    m_qhead++;
-
-    if (m_qhead == m_qend) {
-        m_qhead = m_q;
-    }
-
-    return retval;
-}
-
-void
-fiber::push_threadq(void *ptr)
-{
-    int i = 0;
-    while (m_qlen == m_max_qlen) {
-        i++;
-        if (i > 100) {
-            yield();
-            i = 0;
-        }
-    }
-
-    spin_lock_acquire_unsafe lock(m_qlock);
-
-    *m_qtail = ptr;
-    m_qlen++;
-    m_qtail++;
-
-    if (m_qtail == m_qend) {
-        m_qtail = m_q;
-    }
-    
-    if (! m_is_qnotified) {
-        m_is_qnotified = true;
-        lock.unlock();
-        if (m_qwait_type == QWAIT_COND) {
-            std::unique_lock<std::mutex> mlock(m_qmutex);
-            m_qcond.notify_one();
-        } else {
-            char c = '\0';
-            write(m_qpipe[1], &c, sizeof(c));
-        }
-        
-        return;
-    }
-    
-    lock.unlock();
-    
-    return;
-}
-
-template<typename T>
-STRM_RESULT
-fiber::pop_stream(shared_stream *p, T &ret, bool is_yield)
-{
-    assert(p->flag & shared_stream::READ);
-    
-    ringq<T> *q = (ringq<T>*)p->shared_data->stream.ptr;
-
-    for (;;) {
-        auto result = q->pop(ret);
-        switch (result) {
-        case STRM_CLOSED:
-            return STRM_CLOSED;
-        case STRM_SUCCESS:
-            return STRM_SUCCESS;
-        case STRM_NO_MORE_DATA:
-            if (is_yield) {
-                m_running->m_state = context::WAITING_STREAM;
-                m_wait_stream[q] = m_running;
-                yield();
-            } else {
-                return STRM_NO_MORE_DATA;
-            }
-        default:
-            assert(result != STRM_NO_VACANCY);
-        }
-    }
-
-    // not reach here
-    return STRM_SUCCESS;
-}
-
 template<typename T>
 STRM_RESULT
 fiber::push_stream(shared_stream *p, T data)
@@ -574,8 +472,7 @@ fiber::yield()
 void
 fiber::select_stream(const int *fd_read, int num_fd_read,
                      const int *fd_write, int num_fd_write,
-                     const void **stream_read, int num_stream_read,
-                     const void **stream_write, int num_stream_write,
+                     void * const *stream, int num_stream,
                      bool &is_threadq, int64_t timeout)
 {
     int i;
@@ -587,31 +484,52 @@ fiber::select_stream(const int *fd_read, int num_fd_read,
         evlen++;
     
     kev = new struct kevent[evlen];
+    
+    m_running->m_state = 0;
 
     for (i = 0; i < num_fd_read; i++, n++) {
-        
+        int fd = fd_read[i];
+        m_wait_fd_read[fd] = m_running;
+        m_running->m_fd_read.insert(fd);
+        // TODO: set kevent
     }
+    
+    if (num_fd_read)
+        m_running->m_state |= context::WAITING_FD_READ;
 
     for (i = 0; i < num_fd_write; i++, n++) {
-        
+        int fd = fd_write[i];
+        m_wait_fd_write[fd] = m_running;
+        m_running->m_fd_write.insert(fd);
+        // TODO: set kevent
     }
 
-    if (timeout > 0) {
-        
+    if (num_fd_write)
+        m_running->m_state |= context::WAITING_FD_WRITE;
+
+    if (timeout) {
+        m_running->m_timeout = timeout;
+        m_running->m_state |= context::WAITING_TIMEOUT;
+        // TODO: set kevent
     }
     
+    // TODO: set kqueue
     delete[] kev;
 
-    for (i = 0; i < num_stream_read; i++) {
-        
-    }
-
-    for (i = 0; i < num_stream_write; i++) {
-        
+    for (i = 0; i < num_stream; i++) {
+        void *s = stream[i];
+        m_wait_stream[s] = m_running;
+        m_running->m_stream.insert(s);
     }
     
+    if (num_stream)
+        m_running->m_state |= context::WAITING_STREAM;
+    
     if (is_threadq) {
-        
+        assert(m_wait_thq == nullptr);
+        m_wait_thq = m_running;
+        m_wait_thq->m_is_threadq  = true;
+        m_wait_thq->m_state |= context::WAITING_THQ;
     }
     
     yield();

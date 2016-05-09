@@ -5,13 +5,14 @@ IF(POLICY CMP0042)
 ENDIF(POLICY CMP0042)
 
 # for Boost
-find_package(Boost COMPONENTS REQUIRED)
+# find_package(Boost COMPONENTS REQUIRED)
 
 # for LLVM
 find_package(LLVM REQUIRED CONFIG)
 add_definitions(${LLVM_DEFINITIONS})
 
-include_directories(${LLVM_INCLUDE_DIRS} ${Boost_INCLUDE_DIR})
+# include_directories(${LLVM_INCLUDE_DIRS} ${Boost_INCLUDE_DIR})
+include_directories(${LLVM_INCLUDE_DIRS})
 
 execute_process(
     COMMAND ${LLVM_TOOLS_BINARY_DIR}/llvm-config --cxxflags
