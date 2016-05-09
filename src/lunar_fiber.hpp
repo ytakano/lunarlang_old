@@ -23,7 +23,17 @@
 #include <boost/multi_index/ordered_index.hpp>
 #include <boost/multi_index/hashed_index.hpp>
 
-#define KQUEUE
+#if (defined(__unix__) || defined(unix) || (defined __APPLE__)) && !defined(USG)
+#include <sys/param.h>
+#endif
+
+#if (defined BSD)
+    #define KQUEUE
+#elif (defined __linux__)
+    #define EPOLL
+#else
+    #error unsupported platform! 
+#endif
 
 #ifdef KQUEUE
 #include <sys/types.h>
