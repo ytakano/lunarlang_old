@@ -283,7 +283,6 @@ fiber::spawn(void (*func)(void*), void *arg, int stack_size)
         }
     }
     
-    ctx->m_timeout = 0;
     ctx->m_id      = m_count;
     ctx->m_state   = context::READY;
     ctx->m_stack.resize(stack_size);
@@ -474,44 +473,45 @@ fiber::select_stream(const int *fd_read, int num_fd_read,
                      const int *fd_write, int num_fd_write,
                      void * const *stream, int num_stream,
                      bool &is_threadq, int64_t timeout)
-{
+{   
+    if (timeout) {
+        timeval tv;
+        gettimeofday(&tv, nullptr);
+        
+        double t = tv.tv_sec + tv.tv_usec * 0.000001 + timeout * 0.001;
+
+        m_running->m_state |= context::WAITING_TIMEOUT;
+        m_timeout.insert(ctx_time(t, m_running));
+    }
+    
     int i;
     int n = 0;
     struct kevent *kev;
     int evlen = num_fd_read + num_fd_write;
-    
-    if (timeout > 0)
-        evlen++;
-    
+
     kev = new struct kevent[evlen];
     
     m_running->m_state = 0;
 
     for (i = 0; i < num_fd_read; i++, n++) {
         int fd = fd_read[i];
-        m_wait_fd_read[fd] = m_running;
-        m_running->m_fd_read.insert(fd);
+        m_wait_fd[fd] = m_running;
+        m_running->m_fd.insert(fd);
         // TODO: set kevent
     }
     
     if (num_fd_read)
-        m_running->m_state |= context::WAITING_FD_READ;
+        m_running->m_state |= context::WAITING_FD;
 
     for (i = 0; i < num_fd_write; i++, n++) {
         int fd = fd_write[i];
-        m_wait_fd_write[fd] = m_running;
-        m_running->m_fd_write.insert(fd);
+        m_wait_fd[fd] = m_running;
+        m_running->m_fd.insert(fd);
         // TODO: set kevent
     }
 
     if (num_fd_write)
-        m_running->m_state |= context::WAITING_FD_WRITE;
-
-    if (timeout) {
-        m_running->m_timeout = timeout;
-        m_running->m_state |= context::WAITING_TIMEOUT;
-        // TODO: set kevent
-    }
+        m_running->m_state |= context::WAITING_FD;
     
     // TODO: set kqueue
     delete[] kev;

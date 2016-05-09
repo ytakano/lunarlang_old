@@ -18,6 +18,11 @@
 #include <mutex>
 #include <condition_variable>
 
+#include <boost/multi_index_container.hpp>
+#include <boost/multi_index/member.hpp>
+#include <boost/multi_index/ordered_index.hpp>
+#include <boost/multi_index/hashed_index.hpp>
+
 #define KQUEUE
 
 #ifdef KQUEUE
@@ -50,23 +55,20 @@ extern "C" {
 class fiber {
 public:
     struct context {
-        static const int READY             = 0x0000;
-        static const int RUNNING           = 0x0001;
-        static const int SUSPENDING        = 0x0002;
-        static const int WAITING_FD_READ   = 0x0004;
-        static const int WAITING_FD_WRITE  = 0x0008;
-        static const int WAITING_STREAM    = 0x0010;
-        static const int WAITING_THQ       = 0x0020;
-        static const int WAITING_TIMEOUT   = 0x0040;
-        static const int STOP              = 0x0080;
+        static const int READY           = 0x0000;
+        static const int RUNNING         = 0x0001;
+        static const int SUSPENDING      = 0x0002;
+        static const int WAITING_FD      = 0x0004;
+        static const int WAITING_STREAM  = 0x0010;
+        static const int WAITING_THQ     = 0x0020;
+        static const int WAITING_TIMEOUT = 0x0040;
+        static const int STOP            = 0x0080;
 
         uint32_t m_state;
         jmp_buf m_jmp_buf;
-        std::unordered_set<int>   m_fd_read;  // waiting file descripters
-        std::unordered_set<int>   m_fd_write; // waiting file descripters
-        std::unordered_set<void*> m_stream;   // waiting streams for reading
-        bool    m_is_threadq;                 // waiting the thread queue?
-        int64_t m_timeout;                    // waiting timer
+        std::unordered_set<int>   m_fd;     // waiting file descripters
+        std::unordered_set<void*> m_stream; // waiting streams
+        bool    m_is_threadq;               // waiting the thread queue?
         int64_t m_id; // m_id must not be less than or equal to 0
         std::vector<uint64_t> m_stack;
     };
@@ -97,17 +99,38 @@ public:
     template<typename T> void        push_eof_stream(shared_stream *p);
 */
 private:
-    jmp_buf  m_jmp_buf;
-    int64_t  m_count;
-    context* m_running;
-    context* m_wait_thq;
+    struct ctx_time {
+        double   m_time;
+        context *m_ctx;
+        
+        ctx_time(double t, context *ctx) : m_time(t), m_ctx(ctx) { }
+    };
+    
+    struct k_time { };
+    struct k_ctx  { };
+
+    typedef boost::multi_index::multi_index_container<
+        ctx_time,
+        boost::multi_index::indexed_by<
+            boost::multi_index::ordered_non_unique<
+                boost::multi_index::tag<k_time>,
+                boost::multi_index::member<ctx_time, double, &ctx_time::m_time>>,
+            boost::multi_index::hashed_unique<
+                boost::multi_index::tag<k_ctx>,
+                boost::multi_index::member<ctx_time, context*, &ctx_time::m_ctx>>
+        >
+    > timeout_t;
+
+    jmp_buf   m_jmp_buf;
+    int64_t   m_count;
+    context*  m_running;
+    context*  m_wait_thq;
+    timeout_t m_timeout;
     std::deque<context*> m_suspend;
     std::deque<context*> m_ready;
     std::unordered_map<int64_t, std::unique_ptr<context>> m_id2context;
-    std::unordered_map<int, context*>     m_wait_fd_read;
-    std::unordered_map<int, context*>     m_wait_fd_write;
-    std::unordered_map<void*, context*>   m_wait_stream;
-    std::unordered_map<int64_t, context*> m_timeout;
+    std::unordered_map<int, context*>   m_wait_fd;
+    std::unordered_map<void*, context*> m_wait_stream;
     
     // for circular buffer
     class threadq {
