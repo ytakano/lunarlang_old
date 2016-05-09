@@ -469,11 +469,12 @@ fiber::yield()
 }
 
 void
-fiber::select_stream(const int *fd_read, int num_fd_read,
-                     const int *fd_write, int num_fd_write,
+fiber::select_stream(const uintptr_t *fd, const int16_t *fd_flag, int num_fd, // fd, process ID, signal number
                      void * const *stream, int num_stream,
                      bool &is_threadq, int64_t timeout)
-{   
+{
+    m_running->m_state = 0;
+
     if (timeout) {
         timeval tv;
         gettimeofday(&tv, nullptr);
@@ -486,44 +487,36 @@ fiber::select_stream(const int *fd_read, int num_fd_read,
     
     int i;
     int n = 0;
+
+#ifdef KQUEUE
     struct kevent *kev;
-    int evlen = num_fd_read + num_fd_write;
-
-    kev = new struct kevent[evlen];
+    kev = new struct kevent[num_fd];
+#endif // KQUEUE
     
-    m_running->m_state = 0;
-
-    for (i = 0; i < num_fd_read; i++, n++) {
-        int fd = fd_read[i];
-        m_wait_fd[fd] = m_running;
-        m_running->m_fd.insert(fd);
-        // TODO: set kevent
+    if (num_fd) {
+        m_running->m_state |= context::WAITING_FD;
+        for (i = 0; i < num_fd; i++, n++) {
+            m_wait_fd[fd[i]] = m_running;
+            m_running->m_fd.insert(fd[i]);
+#ifdef KQUEUE
+            // TODO: set kevent
+#endif // KQUEUE
+        }
     }
     
-    if (num_fd_read)
-        m_running->m_state |= context::WAITING_FD;
-
-    for (i = 0; i < num_fd_write; i++, n++) {
-        int fd = fd_write[i];
-        m_wait_fd[fd] = m_running;
-        m_running->m_fd.insert(fd);
-        // TODO: set kevent
-    }
-
-    if (num_fd_write)
-        m_running->m_state |= context::WAITING_FD;
-    
+#ifdef KQUEUE
     // TODO: set kqueue
     delete[] kev;
+#endif // KQUEUE
 
-    for (i = 0; i < num_stream; i++) {
-        void *s = stream[i];
-        m_wait_stream[s] = m_running;
-        m_running->m_stream.insert(s);
-    }
-    
-    if (num_stream)
+    if (num_stream) {
         m_running->m_state |= context::WAITING_STREAM;
+        for (i = 0; i < num_stream; i++) {
+            void *s = stream[i];
+            m_wait_stream[s] = m_running;
+            m_running->m_stream.insert(s);
+        }
+    }
     
     if (is_threadq) {
         assert(m_wait_thq == nullptr);

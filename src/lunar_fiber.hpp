@@ -55,6 +55,7 @@ extern "C" {
 class fiber {
 public:
     struct context {
+        // states of contexts
         static const int READY           = 0x0000;
         static const int RUNNING         = 0x0001;
         static const int SUSPENDING      = 0x0002;
@@ -82,10 +83,9 @@ public:
     void inc_refcnt_threadq() { m_threadq.inc_refcnt(); }
     void dec_refcnt_threadq() { m_threadq.dec_refcnt(); }
     STRM_RESULT push_threadq(void *p) { return m_threadq.push(p); }
-    void select_stream(const int *fd_read, int num_fd_read,
-                       const int *fd_write, int num_fd_write,
+    void select_stream(const uintptr_t *fd, const int16_t *fd_flag, int num_fd, // fd, process ID, signal number
                        void * const *stream, int num_stream,
-                       bool &is_threadq, int64_t timeout = 0); // timeout is milliseconds
+                       bool &is_threadq, int64_t timeout);
 
 /*
     void wait(int id);
