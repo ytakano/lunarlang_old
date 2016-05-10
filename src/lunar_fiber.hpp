@@ -177,7 +177,6 @@ private:
         jmp_buf m_jmp_buf;
         std::unordered_set<ev_key, ev_key_hasher> m_fd; // waiting file descripters
         std::unordered_set<void*>  m_stream;            // waiting streams
-        bool m_is_threadq;                              // waiting the thread queue?
         std::unordered_map<ev_key, event_data, ev_key_hasher> m_events; // invoked events;
         int64_t m_id; // m_id must not be less than or equal to 0
         std::vector<uint64_t> m_stack;
@@ -216,7 +215,6 @@ private:
     context*  m_wait_thq;
     timeout_t m_timeout;
     std::deque<context*> m_suspend;
-    std::deque<context*> m_ready;
     std::unordered_map<int64_t, std::unique_ptr<context>> m_id2context;
     std::unordered_map<ev_key, std::unordered_set<context*>, ev_key_hasher> m_wait_fd;
     std::unordered_map<void*, context*> m_wait_stream;
@@ -237,6 +235,7 @@ private:
         STRM_RESULT push(void *p);
         STRM_RESULT pop(void **p);
         
+        int get_len() { return m_qlen; }
         void inc_refcnt() { __sync_fetch_and_add(&m_refcnt, 1); }
         void dec_refcnt() { __sync_fetch_and_sub(&m_refcnt, 1); }
     
@@ -253,6 +252,8 @@ private:
         spin_lock  m_qlock;
         std::mutex m_qmutex;
         std::condition_variable m_qcond;
+        
+        friend void fiber::yield();
     };
 
     threadq m_threadq;
@@ -262,6 +263,7 @@ private:
 #endif // KQUEUE
 
     void select_fd(bool is_block);
+    void resume_timeout();
 };
 
 }

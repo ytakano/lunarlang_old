@@ -296,9 +296,6 @@ fiber::select_fd(bool is_block)
 {
 #ifdef KQUEUE
     auto size = m_wait_fd.size();
-    if (size == 0)
-        return;
-    
     struct kevent *kev = new struct kevent[size];
     
     int ret;
@@ -360,20 +357,6 @@ fiber::select_fd(bool is_block)
 
 #ifdef EPOLL
 #endif // EPOLL
-
-    timespec now;
-    GETTIME(&now);
-
-    auto &tout = m_timeout.get<0>();
-    for (auto it = tout.begin(); it != tout.end(); ) {
-        if (TIMESPECCMP(&it->m_time.m_tspec, &now, >=))
-            break;
-
-        it->m_ctx->m_state |= context::SUSPENDING;
-        m_suspend.push_back(it->m_ctx);
-        
-        tout.erase(it++);
-    }
 }
 
 int
@@ -393,8 +376,8 @@ fiber::spawn(void (*func)(void*), void *arg, int stack_size)
         }
     }
     
-    ctx->m_id      = m_count;
-    ctx->m_state   = context::READY;
+    ctx->m_id    = m_count;
+    ctx->m_state = context::READY;
     ctx->m_stack.resize(stack_size);
     
     auto s = ctx->m_stack.size();
@@ -402,7 +385,7 @@ fiber::spawn(void (*func)(void*), void *arg, int stack_size)
     ctx->m_stack[s - 3] = (uint64_t)arg;       // push argument
     ctx->m_stack[s - 4] = (uint64_t)func;      // push func
     
-    m_ready.push_back(ctx.get());
+    m_suspend.push_back(ctx.get());
     m_id2context[m_count] = std::move(ctx);
     
     return 0;
@@ -417,88 +400,75 @@ fiber::run()
 }
 
 void
+fiber::resume_timeout()
+{
+    timespec now;
+    GETTIME(&now);
+
+    auto &tout = m_timeout.get<0>();
+    for (auto it = tout.begin(); it != tout.end(); ) {
+        if (TIMESPECCMP(&it->m_time.m_tspec, &now, >=))
+            break;
+
+        it->m_ctx->m_state |= context::SUSPENDING;
+        m_suspend.push_back(it->m_ctx);
+        
+        tout.erase(it++);
+    }
+}
+
+void
 fiber::yield()
 {
     for (;;) {
         context *ctx = nullptr;
         
-        if (m_running && m_running->m_state == context::RUNNING) {
-            m_running->m_state = context::SUSPENDING;
-            m_suspend.push_back(m_running);
-            ctx = m_running;
-        }
-
-        // invoke READY state thread
-        if (! m_ready.empty()) {
-            m_running = m_ready.front();
-            m_running->m_state = context::RUNNING;
-            m_ready.pop_front();
-            if (ctx != nullptr) {
-                if (setjmp(ctx->m_jmp_buf) == 0) {
-                    auto p = &m_running->m_stack[m_running->m_stack.size() - 4];
-                    asm (
-                        "movq %0, %%rsp;" // set stack pointer
-                        "movq %0, %%rbp;" // set frame pointer
-                        "jmp ___INVOKE;"
-                        :
-                        : "r" (p)
-                    );
-                } else {
-                    return;
-                }
-            } else {
-                auto p = &m_running->m_stack[m_running->m_stack.size() - 4];
-                asm (
-                    "movq %0, %%rsp;" // set stack pointer
-                    "movq %0, %%rbp;" // set frame pointer
-                    "jmp ___INVOKE;"
-                    :
-                    : "r" (p)
-                );
-            }
-        }
-    }
-
-/*
-    for (;;) {
-        context *ctx = nullptr;
-        bool flag = true;
-        
         if (m_running) {
-            if (m_running->m_state == context::STOP) {
-                m_id2context.erase(m_running->m_id);
-                m_running = nullptr;
-            } else if (m_running->m_state == context::WAITING_FD) {
-                ctx = m_running;
-                m_wait_fd[m_running->m_fd] = m_running;
-            } else if (m_running->m_state == context::WAITING_STREAM) {
-                ctx = m_running;
-            } else if (m_running->m_state == context::WAITING_THQ) {
-                ctx = m_running;
-                m_threadq = m_running;
-            } else if (m_running->m_state == context::RUNNING) {
-                ctx = m_running;
+            ctx = m_running;
+            if (m_running->m_state == context::RUNNING) {
                 m_running->m_state = context::SUSPENDING;
                 m_suspend.push_back(m_running);
-                
-                flag = false;
-                if (m_qlen > 0 && m_threadq) {
-                    m_threadq->m_state = context::SUSPENDING;
-                    m_suspend.push_back(m_threadq);
-                    m_threadq = nullptr;
-                }
-        
-                select_fd(false);
             }
         }
-    
+        
+        if (! m_wait_fd.empty())
+            select_fd(false);
+        
+        if (! m_timeout.empty())
+            resume_timeout();
+
+        if (m_threadq.get_len() > 0 && m_wait_thq) {
+            if (! (m_wait_thq->m_state & context::SUSPENDING)) {
+                m_wait_thq->m_state |= context::SUSPENDING;
+                m_suspend.push_back(m_wait_thq);
+            }
+            m_wait_thq = nullptr;
+        }
+
         // invoke READY state thread
-        if (! m_ready.empty()) {
-            m_running = m_ready.front();
+        if (! m_suspend.empty()) {
+            uint32_t state;
+
+            m_running = m_suspend.front();
+            state = m_running->m_state;
             m_running->m_state = context::RUNNING;
-            m_ready.pop_front();
-            if (ctx != nullptr) {
-                if (setjmp(ctx->m_jmp_buf) == 0) {
+            m_suspend.pop_front();
+
+            if (state & context::READY) {
+                if (ctx) {
+                    if (setjmp(ctx->m_jmp_buf) == 0) {
+                        auto p = &m_running->m_stack[m_running->m_stack.size() - 4];
+                        asm (
+                            "movq %0, %%rsp;" // set stack pointer
+                            "movq %0, %%rbp;" // set frame pointer
+                            "jmp ___INVOKE;"
+                            :
+                            : "r" (p)
+                        );
+                    } else {
+                        return;
+                    }
+                } else {
                     auto p = &m_running->m_stack[m_running->m_stack.size() - 4];
                     asm (
                         "movq %0, %%rsp;" // set stack pointer
@@ -507,46 +477,73 @@ fiber::yield()
                         :
                         : "r" (p)
                     );
-                } else {
-                    return;
                 }
             } else {
-                auto p = &m_running->m_stack[m_running->m_stack.size() - 4];
-                asm (
-                    "movq %0, %%rsp;" // set stack pointer
-                    "movq %0, %%rbp;" // set frame pointer
-                    "jmp ___INVOKE;"
-                    :
-                    : "r" (p)
-                );
-            }
-        }
-        
-        if (flag) {
-            if (m_qlen > 0 && m_threadq) {
-                m_threadq->m_state = context::SUSPENDING;
-                m_suspend.push_back(m_threadq);
-                m_threadq = nullptr;
-            }
-        
-            select_fd(false);
-        }
-    
-        // invoke SUSPEND state thread
-        if (! m_suspend.empty()) {
-            m_running = m_suspend.front();
-            m_running->m_state = context::RUNNING;
-            m_suspend.pop_front();
-            if (ctx != nullptr) {
+                // TODO: erase the context from containers for events
+                
+                if (ctx == m_running)
+                    return;
+                
                 if (setjmp(ctx->m_jmp_buf) == 0) {
                     longjmp(m_running->m_jmp_buf, 1);
                 } else {
                     return;
                 }
-            } else {
-                longjmp(m_running->m_jmp_buf, 1);
             }
         }
+        
+        if (m_wait_thq) {
+            spin_lock_acquire_unsafe lock(m_threadq.m_qlock);
+            if (m_threadq.m_qlen > 0) {
+                lock.unlock();
+
+                if (! (m_wait_thq->m_state & context::SUSPENDING)) {
+                    m_wait_thq->m_state |= context::SUSPENDING;
+                    m_suspend.push_back(m_wait_thq);
+                }
+
+                m_wait_thq = nullptr;
+                continue;
+            } else {
+                m_threadq.m_is_qnotified = false;
+                if (m_wait_fd.empty() && m_timeout.empty()) {
+                    m_threadq.m_qwait_type = threadq::QWAIT_COND;
+                    lock.unlock();
+                    // condition wait
+                    {
+                        std::unique_lock<std::mutex> mlock(m_threadq.m_qmutex);
+                        if (m_threadq.m_qlen == 0)
+                            m_threadq.m_qcond.wait(mlock);
+                    }
+
+                    if (! (m_wait_thq->m_state & context::SUSPENDING)) {
+                        m_wait_thq->m_state |= context::SUSPENDING;
+                        m_suspend.push_back(m_wait_thq);
+                    }
+                    
+                    continue;
+                } else {
+                    m_threadq.m_qwait_type = threadq::QWAIT_PIPE;
+                    lock.unlock();
+                    
+                    // TODO:
+                }
+            }
+            
+        }
+
+        if (m_wait_fd.empty())
+            break;
+
+        select_fd(true);
+    }
+
+    longjmp(m_jmp_buf, 1);
+
+/*
+    for (;;) {
+        context *ctx = nullptr;
+        bool flag = true;
         
         if (m_threadq) {
             spin_lock_acquire_unsafe lock(m_qlock);
@@ -650,6 +647,7 @@ fiber::select_stream(
             PRINTERR("could not set events to kqueue!");
             exit(-1);
         }
+
         for (int i = 0; i < num_kev; i++) {
             m_wait_fd[{kev[i].ident, kev[i].filter}].insert(m_running);
             m_running->m_fd.insert({kev[i].ident, kev[i].filter});
@@ -672,7 +670,6 @@ fiber::select_stream(
     if (is_threadq) {
         assert(m_wait_thq == nullptr);
         m_wait_thq = m_running;
-        m_wait_thq->m_is_threadq  = true;
         m_wait_thq->m_state |= context::WAITING_THQ;
     }
     
