@@ -645,6 +645,7 @@ fiber::select_stream(
 
 #ifdef KQUEUE
     if (num_kev > 0) {
+        m_running->m_state |= context::WAITING_FD;
         if (kevent(m_kq, kev, num_kev, NULL, 0, NULL) == -1) {
             PRINTERR("could not set events to kqueue!");
             exit(-1);
