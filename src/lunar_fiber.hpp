@@ -41,6 +41,43 @@
 #include <sys/time.h>
 #endif // KQUEUE
 
+#define	TIMESPECCMP(tvp, uvp, cmp)                  \
+	(((tvp)->tv_sec == (uvp)->tv_sec) ?             \
+	    ((tvp)->tv_nsec cmp (uvp)->tv_nsec) :       \
+	    ((tvp)->tv_sec cmp (uvp)->tv_sec))
+
+#define	TIMESPECADD(vvp, uvp)                       \
+    do {                                            \
+        (vvp)->tv_sec += (uvp)->tv_sec;             \
+        (vvp)->tv_nsec += (uvp)->tv_nsec;           \
+        if ((vvp)->tv_nsec >= 1000000000) {         \
+            (vvp)->tv_sec++;                        \
+            (vvp)->tv_nsec -= 1000000000;           \
+        }                                           \
+    } while (0)
+
+#define	TIMESPECSUB(vvp, uvp)                       \
+    do {                                            \
+        (vvp)->tv_sec -= (uvp)->tv_sec;             \
+        (vvp)->tv_nsec -= (uvp)->tv_nsec;           \
+        if ((vvp)->tv_nsec < 0) {                   \
+            (vvp)->tv_sec--;                        \
+            (vvp)->tv_nsec += 1000000000;           \
+        }                                           \
+    } while (0)
+
+#ifdef __APPLE__
+#define GETTIME(ts)                                 \
+    do {                                            \
+        timeval tv;                                 \
+        gettimeofday(&tv, nullptr);                 \
+        (ts)->tv_sec  = tv.tv_sec;                  \
+        (ts)->tv_nsec = tv.tv_usec * 1000;          \
+    } while (0)
+#else
+#define GETTIME(ts) clock_gettime(CLOCK_MONOTONIC, ts)
+#endif // __APPLE__
+
 namespace lunar {
 
 class fiber;
@@ -145,25 +182,30 @@ private:
         int64_t m_id; // m_id must not be less than or equal to 0
         std::vector<uint64_t> m_stack;
     };
+    
+    struct ctx_tspec {
+        timespec m_tspec;
+        
+        bool operator< (const ctx_tspec &rhs) const {
+            return TIMESPECCMP(&m_tspec, &rhs.m_tspec, <);
+        }
+    };
 
     struct ctx_time {
-        double   m_time;
-        context *m_ctx;
+        ctx_tspec  m_time;
+        context   *m_ctx;
         
-        ctx_time(double t, context *ctx) : m_time(t), m_ctx(ctx) { }
+        ctx_time(ctx_tspec t, context *ctx) : m_time(t), m_ctx(ctx) { }
     };
     
-    struct k_time { };
-    struct k_ctx  { };
-
     typedef boost::multi_index::multi_index_container<
         ctx_time,
         boost::multi_index::indexed_by<
             boost::multi_index::ordered_non_unique<
-                boost::multi_index::tag<k_time>,
-                boost::multi_index::member<ctx_time, double, &ctx_time::m_time>>,
+                boost::multi_index::tag<>,
+                boost::multi_index::member<ctx_time, ctx_tspec, &ctx_time::m_time>>,
             boost::multi_index::hashed_unique<
-                boost::multi_index::tag<k_ctx>,
+                boost::multi_index::tag<>,
                 boost::multi_index::member<ctx_time, context*, &ctx_time::m_ctx>>
         >
     > timeout_t;

@@ -304,8 +304,23 @@ fiber::select_fd(bool is_block)
     int ret;
     
     if (is_block) {
-        // TODO: check timeout
-        ret = kevent(m_kq, nullptr, 0, kev, size, NULL);
+        if (m_timeout.empty()) {
+            ret = kevent(m_kq, nullptr, 0, kev, size, nullptr);
+        } else {
+            auto &tout = m_timeout.get<0>();
+            auto it = tout.begin();
+            
+            timespec ts;
+            GETTIME(&ts);
+            
+            if (TIMESPECCMP(&ts, &it->m_time.m_tspec, >)) {
+                ret = kevent(m_kq, nullptr, 0, kev, size, nullptr);
+            } else {
+                timespec ts2 = it->m_time.m_tspec;
+                TIMESPECSUB(&ts2, &ts);
+                ret = kevent(m_kq, nullptr, 0, kev, size, &ts2);
+            }
+        }
     } else {
         timespec tm;
         tm.tv_sec  = 0;
@@ -346,6 +361,19 @@ fiber::select_fd(bool is_block)
 #ifdef EPOLL
 #endif // EPOLL
 
+    timespec now;
+    GETTIME(&now);
+
+    auto &tout = m_timeout.get<0>();
+    for (auto it = tout.begin(); it != tout.end(); ) {
+        if (TIMESPECCMP(&it->m_time.m_tspec, &now, >=))
+            break;
+
+        it->m_ctx->m_state |= context::SUSPENDING;
+        m_suspend.push_back(it->m_ctx);
+        
+        tout.erase(it++);
+    }
 }
 
 int
@@ -603,13 +631,16 @@ fiber::select_stream(
     m_running->m_state = 0;
 
     if (timeout) {
-        timeval tv;
-        gettimeofday(&tv, nullptr);
+        timespec ts1, ts2;
+        GETTIME(&ts1);
+
+        ts2.tv_sec  = timeout * 1e-3;
+        ts2.tv_nsec = (timeout - ts2.tv_sec) * 1000000;
         
-        double t = tv.tv_sec + tv.tv_usec * 0.000001 + timeout * 0.001;
+        TIMESPECADD(&ts1, &ts2);
 
         m_running->m_state |= context::WAITING_TIMEOUT;
-        m_timeout.insert(ctx_time(t, m_running));
+        m_timeout.insert(ctx_time({ts2}, m_running));
     }
 
 #ifdef KQUEUE
@@ -627,7 +658,6 @@ fiber::select_stream(
 
 #ifdef EPOLL
 #endif // EPOLL
-
 
     if (num_stream) {
         m_running->m_state |= context::WAITING_STREAM;
