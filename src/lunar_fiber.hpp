@@ -64,26 +64,6 @@ extern "C" {
 
 class fiber {
 public:
-    struct context {
-        // states of contexts
-        static const int READY           = 0x0000;
-        static const int RUNNING         = 0x0001;
-        static const int SUSPENDING      = 0x0002;
-        static const int WAITING_FD      = 0x0004;
-        static const int WAITING_STREAM  = 0x0010;
-        static const int WAITING_THQ     = 0x0020;
-        static const int WAITING_TIMEOUT = 0x0040;
-        static const int STOP            = 0x0080;
-
-        uint32_t m_state;
-        jmp_buf m_jmp_buf;
-        std::unordered_set<int>   m_fd;     // waiting file descripters
-        std::unordered_set<void*> m_stream; // waiting streams
-        bool    m_is_threadq;               // waiting the thread queue?
-        int64_t m_id; // m_id must not be less than or equal to 0
-        std::vector<uint64_t> m_stack;
-    };
-
     fiber(int qsize = 4096);
     virtual ~fiber();
 
@@ -109,6 +89,57 @@ public:
     template<typename T> void        push_eof_stream(shared_stream *p);
 */
 private:
+    struct ev_key {
+        uintptr_t m_fd;
+        int16_t   m_event;
+        
+        ev_key(uintptr_t fd, int16_t event) : m_fd(fd), m_event(event) { }
+        
+        bool operator== (const ev_key &rhs) const {
+            return (m_fd == rhs.m_fd) && (m_event == rhs.m_event);
+        }
+    };
+
+    struct ev_key_hasher {
+        std::size_t operator()(const ev_key& k) const {
+            using std::size_t;
+            using std::hash;
+            using std::string;
+
+            return hash<uintptr_t>()(k.m_fd) ^ hash<int16_t>()(k.m_event);
+        }
+    };
+    
+    struct context {
+        // states of contexts
+        static const int READY           = 0x0000;
+        static const int RUNNING         = 0x0001;
+        static const int SUSPENDING      = 0x0002;
+        static const int WAITING_FD      = 0x0004;
+        static const int WAITING_STREAM  = 0x0010;
+        static const int WAITING_THQ     = 0x0020;
+        static const int WAITING_TIMEOUT = 0x0040;
+        static const int STOP            = 0x0080;
+        
+        struct event_data {
+            uint16_t m_flags;
+            uint32_t m_fflags;
+            intptr_t m_data;
+            
+            event_data(uint16_t flags, uint32_t fflags, intptr_t data)
+                : m_flags(flags), m_fflags(fflags), m_data(data) { }
+        };
+        
+        uint32_t m_state;
+        jmp_buf m_jmp_buf;
+        std::unordered_set<ev_key, ev_key_hasher> m_fd; // waiting file descripters
+        std::unordered_set<void*>  m_stream;            // waiting streams
+        bool m_is_threadq;                              // waiting the thread queue?
+        std::unordered_map<ev_key, event_data, ev_key_hasher> m_events; // invoked events;
+        int64_t m_id; // m_id must not be less than or equal to 0
+        std::vector<uint64_t> m_stack;
+    };
+
     struct ctx_time {
         double   m_time;
         context *m_ctx;
@@ -139,7 +170,7 @@ private:
     std::deque<context*> m_suspend;
     std::deque<context*> m_ready;
     std::unordered_map<int64_t, std::unique_ptr<context>> m_id2context;
-    std::unordered_map<int, context*>   m_wait_fd;
+    std::unordered_map<ev_key, std::unordered_set<context*>, ev_key_hasher> m_wait_fd;
     std::unordered_map<void*, context*> m_wait_stream;
     
     // for circular buffer

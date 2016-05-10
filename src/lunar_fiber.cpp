@@ -3,6 +3,16 @@
 
 // currentry, this code can run on X86_64 System V ABI
 
+#if (defined KQUEUE)
+    #define FD_EV_READ   EVFILT_READ
+    #define FD_EV_WRITE  EVFILT_WRITE
+    #define FD_EV_VNODE  EVFILT_VNODE
+    #define FD_EV_PROC   EVFILT_PROC
+    #define FD_EV_SIGNAL EVFILT_SIGNAL
+    #define FD_EV_USER   EVFILT_USER
+#elif (defined EPOLL)
+#endif
+
 namespace lunar {
 
 __thread fiber *lunar_gt = nullptr;
@@ -237,6 +247,7 @@ fiber::select_fd(bool is_block)
     int ret;
     
     if (is_block) {
+        // TODO: check timeout
         ret = kevent(m_kq, nullptr, 0, kev, size, NULL);
     } else {
         timespec tm;
@@ -251,20 +262,27 @@ fiber::select_fd(bool is_block)
     }
     
     for (int i = 0; i < ret; i++) {
-        if (kev[i].flags & EV_ERROR) {   /* report any error */
-            fprintf(stderr, "kevent error: %s\n", strerror(kev[i].data));
+        if (kev[i].flags & EV_ERROR) { // report any error
+            fprintf(stderr, "error on kevent: %s\n", strerror(kev[i].data));
             continue;
         }
 
-        int  fd = kev[i].ident;
-        auto it = m_wait_fd.find(fd);
+        auto it = m_wait_fd.find({kev[i].ident, kev[i].filter});
         
-        it->second->m_state |= context::SUSPENDING;
-        // TODO: notify events!
+        assert (it != m_wait_fd.end());
         
-        m_suspend.push_back(it->second);
+        for (auto it2 = it->second.begin(); it2 != it->second.end();) {
+            if (! ((*it2)->m_state & context::SUSPENDING)) {
+                (*it2)->m_state |= context::SUSPENDING;
+                m_suspend.push_back(*it2);
+            }
+            (*it2)->m_events.insert({it->first, {kev[i].flags, kev[i].fflags, kev[i].data}});
+            (*it2)->m_fd.erase(it->first);
+            it->second.erase(it2++);
+        }
         
-        m_wait_fd.erase(it);
+        if (it->second.empty())
+            m_wait_fd.erase(it);
     }
 
     delete[] kev;
@@ -353,9 +371,8 @@ fiber::yield()
             }
         }
     }
-    
-/*
 
+/*
     for (;;) {
         context *ctx = nullptr;
         bool flag = true;
@@ -541,11 +558,10 @@ fiber::select_stream(const uintptr_t *fd, const int16_t *fd_flag, int num_fd, //
     if (num_fd) {
         m_running->m_state |= context::WAITING_FD;
         for (i = 0; i < num_fd; i++, n++) {
-            auto f = fd[i];
-            m_wait_fd[f] = m_running;
-            m_running->m_fd.insert(f);
+            m_wait_fd[{fd[i], fd_flag[i]}].insert(m_running);
+            m_running->m_fd.insert({fd[i], fd_flag[i]});
 #ifdef KQUEUE
-            EV_SET(&kev[i], f, fd_flag[i], EV_ADD | EV_ENABLE | EV_ONESHOT, 0, 0, 0);
+            EV_SET(&kev[i], fd[i], fd_flag[i], EV_ADD | EV_ENABLE | EV_ONESHOT, 0, 0, 0);
 #endif // KQUEUE
         }
     }
