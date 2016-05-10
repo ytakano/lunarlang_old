@@ -227,7 +227,6 @@ fiber::~fiber()
 void
 fiber::select_fd(bool is_block)
 {
-/*
 #ifdef KQUEUE
     auto size = m_wait_fd.size();
     if (size == 0)
@@ -238,32 +237,38 @@ fiber::select_fd(bool is_block)
     int ret;
     
     if (is_block) {
-        ret = kevent(m_kq, kev, size, kev, size, NULL);
+        ret = kevent(m_kq, nullptr, 0, kev, size, NULL);
     } else {
         timespec tm;
         tm.tv_sec  = 0;
         tm.tv_nsec = 0;
-        ret = kevent(m_kq, kev, size, kev, size, &tm);
+        ret = kevent(m_kq, nullptr, 0, kev, size, &tm);
     }
 
     if (ret == -1) {
-        PRINTERR("ERROR: failed kevent");
+        PRINTERR("failed kevent");
         exit(-1);
     }
     
     for (int i = 0; i < ret; i++) {
-        int fd = kev[i].ident;
+        if (kev[i].flags & EV_ERROR) {   /* report any error */
+            fprintf(stderr, "kevent error: %s\n", strerror(kev[i].data));
+            continue;
+        }
+
+        int  fd = kev[i].ident;
         auto it = m_wait_fd.find(fd);
         
-        it->second->m_state = context::SUSPENDING;
-        m_suspend.push_back(std::move(it->second));
+        it->second->m_state |= context::SUSPENDING;
+        // TODO: notify events!
+        
+        m_suspend.push_back(it->second);
         
         m_wait_fd.erase(it);
     }
 
     delete[] kev;
 #endif // KQUEUE
-*/
 }
 
 int
@@ -309,6 +314,46 @@ fiber::run()
 void
 fiber::yield()
 {
+    for (;;) {
+        context *ctx = nullptr;
+        
+        if (m_running && m_running->m_state == context::RUNNING) {
+            m_running->m_state = context::SUSPENDING;
+            m_suspend.push_back(m_running);
+            ctx = m_running;
+        }
+
+        // invoke READY state thread
+        if (! m_ready.empty()) {
+            m_running = m_ready.front();
+            m_running->m_state = context::RUNNING;
+            m_ready.pop_front();
+            if (ctx != nullptr) {
+                if (setjmp(ctx->m_jmp_buf) == 0) {
+                    auto p = &m_running->m_stack[m_running->m_stack.size() - 4];
+                    asm (
+                        "movq %0, %%rsp;" // set stack pointer
+                        "movq %0, %%rbp;" // set frame pointer
+                        "jmp ___INVOKE;"
+                        :
+                        : "r" (p)
+                    );
+                } else {
+                    return;
+                }
+            } else {
+                auto p = &m_running->m_stack[m_running->m_stack.size() - 4];
+                asm (
+                    "movq %0, %%rsp;" // set stack pointer
+                    "movq %0, %%rbp;" // set frame pointer
+                    "jmp ___INVOKE;"
+                    :
+                    : "r" (p)
+                );
+            }
+        }
+    }
+    
 /*
 
     for (;;) {
@@ -496,16 +541,20 @@ fiber::select_stream(const uintptr_t *fd, const int16_t *fd_flag, int num_fd, //
     if (num_fd) {
         m_running->m_state |= context::WAITING_FD;
         for (i = 0; i < num_fd; i++, n++) {
-            m_wait_fd[fd[i]] = m_running;
-            m_running->m_fd.insert(fd[i]);
+            auto f = fd[i];
+            m_wait_fd[f] = m_running;
+            m_running->m_fd.insert(f);
 #ifdef KQUEUE
-            // TODO: set kevent
+            EV_SET(&kev[i], f, fd_flag[i], EV_ADD | EV_ENABLE | EV_ONESHOT, 0, 0, 0);
 #endif // KQUEUE
         }
     }
     
 #ifdef KQUEUE
-    // TODO: set kqueue
+    if (kevent(m_kq, kev, num_fd, NULL, 0, NULL) == -1) {
+        PRINTERR("could not set events to kqueue!");
+        exit(-1);
+    }
     delete[] kev;
 #endif // KQUEUE
 
@@ -523,6 +572,11 @@ fiber::select_stream(const uintptr_t *fd, const int16_t *fd_flag, int num_fd, //
         m_wait_thq = m_running;
         m_wait_thq->m_is_threadq  = true;
         m_wait_thq->m_state |= context::WAITING_THQ;
+    }
+    
+    if (m_running->m_state == 0) {
+        m_running->m_state = context::SUSPENDING;
+        m_suspend.push_back(m_running);
     }
     
     yield();
