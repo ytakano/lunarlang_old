@@ -73,9 +73,15 @@ public:
     void inc_refcnt_threadq() { m_threadq.inc_refcnt(); }
     void dec_refcnt_threadq() { m_threadq.dec_refcnt(); }
     STRM_RESULT push_threadq(void *p) { return m_threadq.push(p); }
-    void select_stream(const uintptr_t *fd, const int16_t *fd_flag, int num_fd, // fd, process ID, signal number
+
+#ifdef KQUEUE
+    void select_stream(struct kevent *kev, int num_kev,
                        void * const *stream, int num_stream,
                        bool &is_threadq, int64_t timeout);
+#endif // KQUEUE
+
+#ifdef EPOLL
+#endif
 
 /*
     void wait(int id);

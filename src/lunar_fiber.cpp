@@ -3,15 +3,72 @@
 
 // currentry, this code can run on X86_64 System V ABI
 
-#if (defined KQUEUE)
-    #define FD_EV_READ   EVFILT_READ
-    #define FD_EV_WRITE  EVFILT_WRITE
-    #define FD_EV_VNODE  EVFILT_VNODE
-    #define FD_EV_PROC   EVFILT_PROC
-    #define FD_EV_SIGNAL EVFILT_SIGNAL
-    #define FD_EV_USER   EVFILT_USER
-#elif (defined EPOLL)
-#endif
+#ifdef KQUEUE
+    #define FD_EV_READ             EVFILT_READ
+    #define FD_EV_WRITE            EVFILT_WRITE
+    #define FD_EV_VNODE            EVFILT_VNODE
+    #define FD_EV_PROC             EVFILT_PROC
+    #define FD_EV_SIGNAL           EVFILT_SIGNAL
+    #define FD_EV_USER             EVFILT_USER
+#ifdef __APPLE__
+    #define FD_EV_MACHPORT         EVFILT_MACHPORT
+#endif // __APPLE__
+    
+    // for read or write events
+    #define FD_EV_FLAG_EOF         EV_EOF
+
+    // for files
+    #define FD_EV_FFLAG_DELETE     NOTE_DELETE
+    #define FD_EV_FFLAG_WRITE      NOTE_WRITE
+    #define FD_EV_FFLAG_EXTEND     NOTE_EXTEND
+    #define FD_EV_FFLAG_ATTRIB     NOTE_ATTRIB
+    #define FD_EV_FFLAG_LINK       NOTE_LINK
+    #define FD_EV_FFLAG_RENAME     NOTE_RENAME
+    #define FD_EV_FFLAG_REVOKE     NOTE_REVOKE
+
+    // for processes
+    #define FD_EV_FFLAG_EXIT       NOTE_EXIT
+    #define FD_EV_FFLAG_FORK       NOTE_FORK
+    #define FD_EV_FFLAG_EXEC       NOTE_EXEC
+#ifdef __APPLE__
+    #define FD_EV_FFLAG_EXITSTATUS NOTE_EXITSTATUS
+    #define FD_EV_FFLAG_SIGNAL     NOTE_SIGNAL
+    #define FD_EV_FFLAG_REAP       NOTE_REAP
+#else
+    #define FD_EV_FFLAG_TRAC       NOTE_TRACK
+#endif // __APPLE__
+
+#endif // KQUEUE
+
+#ifdef EPOLL
+    #define FD_EV_READ             1
+    #define FD_EV_WRITE            2
+    #define FD_EV_VNODE            3
+    #define FD_EV_PROC             4
+    #define FD_EV_SIGNAL           5
+    #define FD_EV_USER             6
+    
+    // for read or write events
+    #define FD_EV_FLAG_EOF         1
+
+    // for files
+    #define FD_EV_FFLAG_DELETE     0x0001
+    #define FD_EV_FFLAG_WRITE      0x0002
+    #define FD_EV_FFLAG_EXTEND     0x0004
+    #define FD_EV_FFLAG_ATTRIB     0x0008
+    #define FD_EV_FFLAG_LINK       0x0010
+    #define FD_EV_FFLAG_RENAME     0x0020
+    #define FD_EV_FFLAG_REVOKE     0x0040
+
+    // for processes
+    #define FD_EV_FFLAG_EXIT       0x0080
+    #define FD_EV_FFLAG_FORK       0x0100
+    #define FD_EV_FFLAG_EXEC       0x0200
+    #define FD_EV_FFLAG_EXITSTATUS 0x0400
+    #define FD_EV_FFLAG_SIGNAL     0x0800
+    #define FD_EV_FFLAG_REAP       0x1000
+    #define FD_EV_FFLAG_TRAC       0x2000
+#endif // EPOLL
 
 namespace lunar {
 
@@ -271,22 +328,24 @@ fiber::select_fd(bool is_block)
         
         assert (it != m_wait_fd.end());
         
-        for (auto it2 = it->second.begin(); it2 != it->second.end();) {
+        for (auto it2 = it->second.begin(); it2 != it->second.end(); ++it2) {
             if (! ((*it2)->m_state & context::SUSPENDING)) {
                 (*it2)->m_state |= context::SUSPENDING;
                 m_suspend.push_back(*it2);
             }
             (*it2)->m_events.insert({it->first, {kev[i].flags, kev[i].fflags, kev[i].data}});
             (*it2)->m_fd.erase(it->first);
-            it->second.erase(it2++);
         }
         
-        if (it->second.empty())
-            m_wait_fd.erase(it);
+        m_wait_fd.erase(it);
     }
 
     delete[] kev;
 #endif // KQUEUE
+
+#ifdef EPOLL
+#endif // EPOLL
+
 }
 
 int
@@ -530,10 +589,16 @@ fiber::yield()
 */
 }
 
+#if (defined KQUEUE)
 void
-fiber::select_stream(const uintptr_t *fd, const int16_t *fd_flag, int num_fd, // fd, process ID, signal number
+fiber::select_stream(struct kevent *kev, int num_kev,
                      void * const *stream, int num_stream,
                      bool &is_threadq, int64_t timeout)
+#elif (defined EPOLL) // #if (defined KQUEUE)
+fiber::select_stream(
+                     void * const *stream, int num_stream,
+                     bool &is_threadq, int64_t timeout)
+#endif // #if (defined KQUEUE)
 {
     m_running->m_state = 0;
 
@@ -546,37 +611,27 @@ fiber::select_stream(const uintptr_t *fd, const int16_t *fd_flag, int num_fd, //
         m_running->m_state |= context::WAITING_TIMEOUT;
         m_timeout.insert(ctx_time(t, m_running));
     }
-    
-    int i;
-    int n = 0;
 
 #ifdef KQUEUE
-    struct kevent *kev;
-    kev = new struct kevent[num_fd];
-#endif // KQUEUE
-    
-    if (num_fd) {
-        m_running->m_state |= context::WAITING_FD;
-        for (i = 0; i < num_fd; i++, n++) {
-            m_wait_fd[{fd[i], fd_flag[i]}].insert(m_running);
-            m_running->m_fd.insert({fd[i], fd_flag[i]});
-#ifdef KQUEUE
-            EV_SET(&kev[i], fd[i], fd_flag[i], EV_ADD | EV_ENABLE | EV_ONESHOT, 0, 0, 0);
-#endif // KQUEUE
+    if (num_kev > 0) {
+        if (kevent(m_kq, kev, num_kev, NULL, 0, NULL) == -1) {
+            PRINTERR("could not set events to kqueue!");
+            exit(-1);
+        }
+        for (int i = 0; i < num_kev; i++) {
+            m_wait_fd[{kev[i].ident, kev[i].filter}].insert(m_running);
+            m_running->m_fd.insert({kev[i].ident, kev[i].filter});
         }
     }
-    
-#ifdef KQUEUE
-    if (kevent(m_kq, kev, num_fd, NULL, 0, NULL) == -1) {
-        PRINTERR("could not set events to kqueue!");
-        exit(-1);
-    }
-    delete[] kev;
 #endif // KQUEUE
+
+#ifdef EPOLL
+#endif // EPOLL
+
 
     if (num_stream) {
         m_running->m_state |= context::WAITING_STREAM;
-        for (i = 0; i < num_stream; i++) {
+        for (int i = 0; i < num_stream; i++) {
             void *s = stream[i];
             m_wait_stream[s] = m_running;
             m_running->m_stream.insert(s);
