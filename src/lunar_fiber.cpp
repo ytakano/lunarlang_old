@@ -532,7 +532,7 @@ fiber::yield()
             
         }
 
-        if (m_wait_fd.empty())
+        if (m_wait_fd.empty() && m_timeout.empty())
             break;
 
         select_fd(true);
