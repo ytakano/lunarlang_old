@@ -423,6 +423,7 @@ fiber::resume_timeout()
             break;
 
         it->m_ctx->m_state |= context::SUSPENDING;
+        it->m_ctx->m_is_ev_timeout = true;
         m_suspend.push_back(it->m_ctx);
         
         tout.erase(it++);
@@ -493,7 +494,25 @@ fiber::yield()
                     );
                 }
             } else {
-                // TODO: erase the context from containers for events
+                // remove the context from wait queues
+                for (auto &ev: m_running->m_fd) {
+                    auto it = m_wait_fd.find(ev);
+                    assert(it != m_wait_fd.end());
+                    it->second.erase(m_running);
+                    
+                    if (it->second.empty())
+                        m_wait_fd.erase(it);
+                }
+                
+                m_running->m_fd.clear();
+                
+                for (auto strm: m_running->m_stream) {
+                    m_wait_stream.erase(strm);
+                }
+                
+                m_running->m_stream.clear();
+                
+                m_timeout.get<1>().erase(m_running);
                 
                 if (ctx == m_running)
                     return;
@@ -577,6 +596,9 @@ fiber::select_stream(
 #endif // #if (defined KQUEUE)
 {
     m_running->m_state = 0;
+    m_running->m_events.clear();
+    m_running->m_is_ev_thq = false;
+    m_running->m_is_ev_timeout = false;
 
     if (timeout) {
         timespec ts1, ts2;
@@ -622,7 +644,6 @@ fiber::select_stream(
         assert(m_wait_thq == nullptr);
         m_wait_thq = m_running;
         m_wait_thq->m_state |= context::WAITING_THQ;
-        m_wait_thq->m_is_ev_thq = false;
     }
     
     if (m_running->m_state == 0) {

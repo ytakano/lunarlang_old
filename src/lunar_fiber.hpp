@@ -175,10 +175,12 @@ private:
         
         uint32_t m_state;
         jmp_buf m_jmp_buf;
-        std::unordered_set<ev_key, ev_key_hasher> m_fd; // waiting file descripters
-        std::unordered_set<void*>  m_stream;            // waiting streams
+        std::unordered_set<ev_key, ev_key_hasher> m_fd; // waiting file descripters to read
+        std::unordered_set<void*> m_stream;             // waiting streams to read
+        std::unordered_set<void*> m_ev_stream;          // streams are ready to read
         std::unordered_map<ev_key, event_data, ev_key_hasher> m_events; // invoked events
-        bool m_is_ev_thq; // thread queue is ready to read
+        bool m_is_ev_thq;     // the thread queue is ready to read
+        bool m_is_ev_timeout; //
         int64_t m_id; // m_id must not be less than or equal to 0
         std::vector<uint64_t> m_stack;
     };
