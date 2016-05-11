@@ -177,7 +177,8 @@ private:
         jmp_buf m_jmp_buf;
         std::unordered_set<ev_key, ev_key_hasher> m_fd; // waiting file descripters
         std::unordered_set<void*>  m_stream;            // waiting streams
-        std::unordered_map<ev_key, event_data, ev_key_hasher> m_events; // invoked events;
+        std::unordered_map<ev_key, event_data, ev_key_hasher> m_events; // invoked events
+        bool m_is_ev_thq; // thread queue is ready to read
         int64_t m_id; // m_id must not be less than or equal to 0
         std::vector<uint64_t> m_stack;
     };
@@ -225,17 +226,18 @@ private:
         enum qwait_type {
             QWAIT_COND,
             QWAIT_PIPE,
+            QWAIT_NONE,
         };
         
         threadq(int qsize);
         virtual ~threadq();
         
-        qwait_type m_qwait_type;
-        
         STRM_RESULT push(void *p);
         STRM_RESULT pop(void **p);
         
         int get_len() { return m_qlen; }
+        int get_read_fd() { return m_qpipe[0]; }
+        qwait_type get_wait_type() { return m_qwait_type; }
         void inc_refcnt() { __sync_fetch_and_add(&m_refcnt, 1); }
         void dec_refcnt() { __sync_fetch_and_sub(&m_refcnt, 1); }
     
@@ -243,6 +245,7 @@ private:
         volatile int  m_qlen;
         volatile int  m_refcnt;
         volatile bool m_is_qnotified;
+        volatile qwait_type m_qwait_type;
         int    m_max_qlen;
         void **m_q;
         void **m_qend;

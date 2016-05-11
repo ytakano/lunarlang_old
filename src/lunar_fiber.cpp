@@ -335,7 +335,19 @@ fiber::select_fd(bool is_block)
             fprintf(stderr, "error on kevent: %s\n", strerror(kev[i].data));
             continue;
         }
+        
+        if (m_wait_thq && m_threadq.get_wait_type() == threadq::QWAIT_PIPE &&
+            kev[i].ident == (uintptr_t)m_threadq.get_read_fd() && kev[i].filter == EVFILT_READ) {
+            
+            if (! (m_wait_thq->m_state & context::SUSPENDING)) {
+                m_wait_thq->m_state |= context::SUSPENDING;
+                m_suspend.push_back(m_wait_thq);
+            }
 
+            m_wait_thq = nullptr;
+            continue;
+        }
+        
         auto it = m_wait_fd.find({kev[i].ident, kev[i].filter});
         
         assert (it != m_wait_fd.end());
@@ -437,11 +449,13 @@ fiber::yield()
         if (! m_timeout.empty())
             resume_timeout();
 
-        if (m_threadq.get_len() > 0 && m_wait_thq) {
+        if (m_wait_thq && m_threadq.m_qwait_type == threadq::QWAIT_NONE && m_threadq.get_len() > 0) {
             if (! (m_wait_thq->m_state & context::SUSPENDING)) {
                 m_wait_thq->m_state |= context::SUSPENDING;
                 m_suspend.push_back(m_wait_thq);
             }
+
+            m_wait_thq->m_is_ev_thq = true;
             m_wait_thq = nullptr;
         }
 
@@ -502,6 +516,7 @@ fiber::yield()
                     m_suspend.push_back(m_wait_thq);
                 }
 
+                m_wait_thq->m_is_ev_thq = true;
                 m_wait_thq = nullptr;
                 continue;
             } else {
@@ -514,104 +529,40 @@ fiber::yield()
                         std::unique_lock<std::mutex> mlock(m_threadq.m_qmutex);
                         if (m_threadq.m_qlen == 0)
                             m_threadq.m_qcond.wait(mlock);
+                        
+                        m_threadq.m_qwait_type = threadq::QWAIT_NONE;
                     }
 
                     if (! (m_wait_thq->m_state & context::SUSPENDING)) {
                         m_wait_thq->m_state |= context::SUSPENDING;
                         m_suspend.push_back(m_wait_thq);
                     }
-                    
+
+                    m_wait_thq->m_is_ev_thq = true;
+                    m_wait_thq = nullptr;
                     continue;
                 } else {
                     m_threadq.m_qwait_type = threadq::QWAIT_PIPE;
                     lock.unlock();
                     
-                    // TODO:
-                }
-            }
-            
-        }
-
-        if (m_wait_fd.empty() && m_timeout.empty())
-            break;
-
-        select_fd(true);
-    }
-
-    longjmp(m_jmp_buf, 1);
-
-/*
-    for (;;) {
-        context *ctx = nullptr;
-        bool flag = true;
-        
-        if (m_threadq) {
-            spin_lock_acquire_unsafe lock(m_qlock);
-            if (m_qlen > 0) {
-                // invoke WAITING_THQ state thread
-                lock.unlock();
-                m_running = m_threadq;
-                m_running->m_state = context::RUNNING;
-                m_threadq = nullptr;
-                if (ctx != nullptr) {
-                    if (setjmp(ctx->m_jmp_buf) == 0) {
-                        longjmp(m_running->m_jmp_buf, 1);
-                    } else {
-                        return;
-                    }
-                } else {
-                    longjmp(m_running->m_jmp_buf, 1);
-                }
-            } else {
-                // suspend
-                m_is_qnotified = false;
-                if (m_wait_fd.empty()) {
-                    m_qwait_type = QWAIT_COND;
-                    lock.unlock();
-                    // condition wait
-                    {
-                        std::unique_lock<std::mutex> mlock(m_qmutex);
-                        if (m_qlen == 0)
-                            m_qcond.wait(mlock);
-                    }
-
-                    m_running = m_threadq;
-                    m_running->m_state = context::RUNNING;
-                    m_threadq = nullptr;
-                    if (ctx != nullptr) {
-                        if (setjmp(ctx->m_jmp_buf) == 0) {
-                            longjmp(m_running->m_jmp_buf, 1);
-                        } else {
-                            return;
-                        }
-                    } else {
-                        longjmp(m_running->m_jmp_buf, 1);
-                    }
-                } else {
-                    m_qwait_type = QWAIT_PIPE;
-                    lock.unlock();
-
-                    m_threadq->m_state = context::WAITING_FD;
-                    m_threadq->m_fd    = m_qpipe[0];
-
 #ifdef KQUEUE
-                    EV_SET(&m_kev, m_qpipe[0], EVFILT_READ, EV_ADD, 0, 0, NULL);
+                    struct kevent kev;
+                    EV_SET(&kev, m_threadq.m_qpipe[0], EVFILT_READ, EV_ADD | EV_ENABLE | EV_ONESHOT, 0, 0, NULL);
+                    kevent(m_kq, &kev, 1, nullptr, 0, nullptr);
 #endif // KQUEUE
-                    m_wait_fd[m_qpipe[0]] = m_threadq;
-                    m_threadq = nullptr;
+
+#ifdef EPOLL
+#endif // EPOLL
                 }
             }
-        }
-        
-        if (m_wait_fd.empty())
+        } else if (m_wait_fd.empty() && m_timeout.empty()) {
             break;
+        }
 
         select_fd(true);
     }
-    
-    longjmp(m_jmp_buf, 1);
 
-*/
+    longjmp(m_jmp_buf, 1);
 }
 
 #if (defined KQUEUE)
@@ -671,6 +622,7 @@ fiber::select_stream(
         assert(m_wait_thq == nullptr);
         m_wait_thq = m_running;
         m_wait_thq->m_state |= context::WAITING_THQ;
+        m_wait_thq->m_is_ev_thq = false;
     }
     
     if (m_running->m_state == 0) {
@@ -685,6 +637,7 @@ fiber::threadq::threadq(int qsize)
     : m_qlen(0),
       m_refcnt(0),
       m_is_qnotified(true),
+      m_qwait_type(threadq::QWAIT_NONE),
       m_max_qlen(qsize),
       m_q(new void*[qsize]),
       m_qend(m_q + qsize),
@@ -725,11 +678,12 @@ fiber::threadq::push(void *p)
     
     if (! m_is_qnotified) {
         m_is_qnotified = true;
-        lock.unlock();
         if (m_qwait_type == QWAIT_COND) {
+            lock.unlock();
             std::unique_lock<std::mutex> mlock(m_qmutex);
             m_qcond.notify_one();
         } else {
+            lock.unlock();
             char c = '\0';
             write(m_qpipe[1], &c, sizeof(c));
         }
