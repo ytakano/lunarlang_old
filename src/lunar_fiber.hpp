@@ -240,6 +240,7 @@ private:
         int get_len() { return m_qlen; }
         int get_read_fd() { return m_qpipe[0]; }
         qwait_type get_wait_type() { return m_qwait_type; }
+        void set_wait_type(qwait_type t) { m_qwait_type = t; }
         void inc_refcnt() { __sync_fetch_and_add(&m_refcnt, 1); }
         void dec_refcnt() { __sync_fetch_and_sub(&m_refcnt, 1); }
     

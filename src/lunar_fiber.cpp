@@ -336,6 +336,7 @@ fiber::select_fd(bool is_block)
             continue;
         }
         
+        // invoke the fiber waiting the thread queue
         if (m_wait_thq && m_threadq.get_wait_type() == threadq::QWAIT_PIPE &&
             kev[i].ident == (uintptr_t)m_threadq.get_read_fd() && kev[i].filter == EVFILT_READ) {
             
@@ -344,6 +345,7 @@ fiber::select_fd(bool is_block)
                 m_suspend.push_back(m_wait_thq);
             }
 
+            m_threadq.set_wait_type(threadq::QWAIT_NONE);
             m_wait_thq = nullptr;
             continue;
         }
@@ -352,6 +354,7 @@ fiber::select_fd(bool is_block)
         
         assert (it != m_wait_fd.end());
         
+        // invoke the fibers waiting the file descripters
         for (auto it2 = it->second.begin(); it2 != it->second.end(); ++it2) {
             if (! ((*it2)->m_state & context::SUSPENDING)) {
                 (*it2)->m_state |= context::SUSPENDING;
@@ -495,6 +498,11 @@ fiber::yield()
                 }
             } else {
                 // remove the context from wait queues
+#ifdef KQUEUE
+                struct kevent *kev = new struct kevent[m_running->m_fd.size()];
+#endif // KQUEUE
+                
+                int i = 0;
                 for (auto &ev: m_running->m_fd) {
                     auto it = m_wait_fd.find(ev);
                     assert(it != m_wait_fd.end());
@@ -502,7 +510,16 @@ fiber::yield()
                     
                     if (it->second.empty())
                         m_wait_fd.erase(it);
+
+#ifdef KQUEUE
+                    EV_SET(&kev[i], ev.m_fd, ev.m_event, EV_DELETE, 0, 0, nullptr);
+#endif // KQUEUE
                 }
+                
+#ifdef KQUEUE
+                kevent(m_kq, kev, m_running->m_fd.size(), nullptr, 0, nullptr);
+                delete[] kev;
+#endif // KQUEUE
                 
                 m_running->m_fd.clear();
                 
@@ -512,7 +529,21 @@ fiber::yield()
                 
                 m_running->m_stream.clear();
                 
-                m_timeout.get<1>().erase(m_running);
+                if (state & context::WAITING_TIMEOUT)
+                    m_timeout.get<1>().erase(m_running);
+
+                if (state & context::WAITING_THQ) {
+                    if (m_threadq.m_qwait_type == threadq::QWAIT_PIPE) {
+#ifdef KQUEUE
+                        struct kevent kev;
+                        EV_SET(&kev, m_threadq.m_qpipe[0], EVFILT_READ, EV_DELETE, 0, 0, nullptr);
+                        kevent(m_kq, &kev, 1, nullptr, 0, nullptr);
+#endif // KQUEUE
+                    }
+                    
+                    assert(m_wait_thq == m_running);
+                    m_wait_thq = nullptr;
+                }
                 
                 if (ctx == m_running)
                     return;
