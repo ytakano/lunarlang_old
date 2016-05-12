@@ -133,6 +133,15 @@ run_fiber()
     delete lunar_gt;
 }
 
+
+void
+select_fiber(struct kevent *kev, int num_kev,
+             void * const *stream, int num_stream,
+             bool &is_threadq, int64_t timeout)
+{
+    lunar_gt->select_stream(kev, num_kev, stream, num_stream, is_threadq, timeout);
+}
+                      
 STRM_RESULT
 push_threadq_fiber(std::thread::id id, void *p)
 {
@@ -161,34 +170,29 @@ push_threadq_fast_unsafe_fiber(fiber *fb, void *p)
     return fb->push_threadq(p);
 }
 
-/*
-void
-wait_fd_read_fiber(int fd)
+STRM_RESULT
+pop_threadq_fiber(void **p)
 {
-    lunar_gt->wait_fd_read(fd);
+    return lunar_gt->pop_threadq(p);
 }
 
-void
-wait_fd_write_fiber(int fd)
+STRM_RESULT
+pop_string(shared_stream *p, std::u32string **ret)
 {
-    lunar_gt->wait_fd_write(fd);
+    return lunar_gt->pop_stream<std::u32string*>(p, *ret);
 }
 
-STRM_RESULT pop_string(shared_stream *p, std::u32string **ret, bool is_yield)
-{
-    return lunar_gt->pop_stream<std::u32string*>(p, *ret, is_yield);
-}
-
-STRM_RESULT push_string(shared_stream *p, std::u32string *ret)
+STRM_RESULT
+push_string(shared_stream *p, std::u32string *ret)
 {
     return lunar_gt->push_stream<std::u32string*>(p, ret);
 }
 
-void push_eof_string(shared_stream *p)
+void
+push_eof_string(shared_stream *p)
 {
     return lunar_gt->push_eof_stream<std::u32string*>(p);
 }
-*/
 
 } // extern "C"
 

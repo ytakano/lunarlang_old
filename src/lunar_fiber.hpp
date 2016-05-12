@@ -88,15 +88,17 @@ extern "C" {
     void spawn_fiber(void (*func)(void*), void *arg = nullptr);
     void run_fiber();
 
+#ifdef KQUEUE
+    void select_fiber(struct kevent *kev, int num_kev,
+                      void * const *stream, int num_stream,
+                      bool &is_threadq, int64_t timeout);
+#endif // kQUEUE
+
     STRM_RESULT push_threadq_fiber(std::thread::id id, void *p);
     STRM_RESULT push_threadq_fast_unsafe_fiber(fiber *fb, void *p);
-/*
-    void wait_fd_read_fiber(int fd);
-    void wait_fd_write_fiber(int fd);
-    STRM_RESULT pop_string(shared_stream *p, std::u32string **ret, bool is_yield = true);
+    STRM_RESULT pop_string(shared_stream *p, std::u32string **ret);
     STRM_RESULT push_string(shared_stream *p, std::u32string *ret);
     void push_eof_string(shared_stream *p);
-*/
 }
 
 class fiber {
@@ -110,6 +112,7 @@ public:
     void inc_refcnt_threadq() { m_threadq.inc_refcnt(); }
     void dec_refcnt_threadq() { m_threadq.dec_refcnt(); }
     STRM_RESULT push_threadq(void *p) { return m_threadq.push(p); }
+    STRM_RESULT pop_threadq(void **p) { return m_threadq.pop(p); }
 
 #ifdef KQUEUE
     void select_stream(struct kevent *kev, int num_kev,
