@@ -192,32 +192,30 @@ void push_eof_string(shared_stream *p)
 
 } // extern "C"
 
-/*
-void
-fiber::wait_fd_read(int fd)
+template<typename T>
+STRM_RESULT
+fiber::pop_stream(shared_stream *p, T &ret)
 {
-    m_running->m_state = context::WAITING_FD;
-    m_running->m_fd    = fd;
-
-#ifdef KQUEUE
-    EV_SET(&m_kev, fd, EVFILT_READ, EV_ADD, 0, 0, NULL);
-#endif // KQUEUE
-
-    yield();
+    assert(p->flag & shared_stream::READ);
+    
+    ringq<T> *q = (ringq<T>*)p->shared_data->stream.ptr;
+    
+    auto result = q->pop(ret);
+    
+    assert(result != STRM_NO_VACANCY);
+    
+    return result;
 }
 
-void
-fiber::wait_fd_write(int fd)
-{
-    m_running->m_state = context::WAITING_FD;
-    m_running->m_fd    = fd;
-
-#ifdef KQUEUE
-    EV_SET(&m_kev, fd, EVFILT_WRITE, EV_ADD, 0, 0, NULL);
-#endif // KQUEUE
-
-    yield();
-}
+#define NOTIFY_STREAM(QUEUE)                               \
+    do {                                                   \
+        auto it = m_wait_stream.find(QUEUE);               \
+        if (it != m_wait_stream.end()) {                   \
+            it->second->m_state |= context::SUSPENDING;    \
+            m_suspend.push_back(it->second);               \
+            m_wait_stream.erase(it);                       \
+        }                                                  \
+    } while (0)
 
 template<typename T>
 STRM_RESULT
@@ -227,26 +225,17 @@ fiber::push_stream(shared_stream *p, T data)
     
     ringq<T> *q = (ringq<T>*)p->shared_data->stream.ptr;
     
-    if (p->shared_data->flag_shared & shared_stream::CLOSED_READ || q->is_eof())
+    if (p->shared_data->flag_shared & shared_stream::CLOSED_READ || q->is_eof()) {
+        NOTIFY_STREAM(q);
         return STRM_CLOSED;
-    
-    for (;;) {
-        auto result = q->push(data);
-        if (result == STRM_SUCCESS) {
-            auto it = m_wait_stream.find(q);
-            if (it != m_wait_stream.end()) {
-                // notify
-                it->second->m_state = context::SUSPENDING;
-                m_suspend.push_back(it->second);
-                m_wait_stream.erase(it);
-            }
-            return STRM_SUCCESS;
-        } else if (result == STRM_CLOSED) {
-            return STRM_CLOSED;
-        } else {
-            yield();
-        }
     }
+    
+    auto result = q->push(data);
+    if (result == STRM_SUCCESS) {
+        NOTIFY_STREAM(q);
+    }
+
+    return result;
 }
 
 template<typename T>
@@ -265,9 +254,9 @@ fiber::push_eof_stream(shared_stream *p)
 
     if (p->flag & shared_stream::WRITE) {
         p->shared_data->flag_shared |= shared_stream::CLOSED_WRITE;
+        NOTIFY_STREAM(q);
     }
 }
-*/
 
 fiber::fiber(int qsize)
     : m_count(0),
@@ -517,7 +506,11 @@ fiber::yield()
                 }
                 
 #ifdef KQUEUE
-                kevent(m_kq, kev, m_running->m_fd.size(), nullptr, 0, nullptr);
+                if(kevent(m_kq, kev, m_running->m_fd.size(), nullptr, 0, nullptr) == -1) {
+                    PRINTERR("failed kevent");
+                    exit(-1);
+                }
+
                 delete[] kev;
 #endif // KQUEUE
                 
@@ -537,7 +530,10 @@ fiber::yield()
 #ifdef KQUEUE
                         struct kevent kev;
                         EV_SET(&kev, m_threadq.m_qpipe[0], EVFILT_READ, EV_DELETE, 0, 0, nullptr);
-                        kevent(m_kq, &kev, 1, nullptr, 0, nullptr);
+                        if (kevent(m_kq, &kev, 1, nullptr, 0, nullptr) == -1) {
+                            PRINTERR("failed kevent");
+                            exit(-1);
+                        }
 #endif // KQUEUE
                     }
                     
@@ -598,7 +594,10 @@ fiber::yield()
 #ifdef KQUEUE
                     struct kevent kev;
                     EV_SET(&kev, m_threadq.m_qpipe[0], EVFILT_READ, EV_ADD | EV_ENABLE | EV_ONESHOT, 0, 0, NULL);
-                    kevent(m_kq, &kev, 1, nullptr, 0, nullptr);
+                    if (kevent(m_kq, &kev, 1, nullptr, 0, nullptr) == -1) {
+                        PRINTERR("failed kevent");
+                        exit(-1);
+                    }
 #endif // KQUEUE
 
 #ifdef EPOLL

@@ -120,6 +120,9 @@ public:
 #ifdef EPOLL
 #endif
 
+    template<typename T> STRM_RESULT pop_stream(shared_stream *p, T &ret);
+    template<typename T> STRM_RESULT push_stream(shared_stream *p, T data);
+    template<typename T> void        push_eof_stream(shared_stream *p);
 /*
     void wait(int id);
     void wait_fd_read(int fd);
