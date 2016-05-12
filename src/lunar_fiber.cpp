@@ -133,7 +133,6 @@ run_fiber()
     delete lunar_gt;
 }
 
-
 void
 select_fiber(struct kevent *kev, int num_kev,
              void * const *stream, int num_stream,
@@ -141,7 +140,7 @@ select_fiber(struct kevent *kev, int num_kev,
 {
     lunar_gt->select_stream(kev, num_kev, stream, num_stream, is_threadq, timeout);
 }
-                      
+
 STRM_RESULT
 push_threadq_fiber(std::thread::id id, void *p)
 {

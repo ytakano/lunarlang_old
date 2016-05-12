@@ -126,17 +126,7 @@ public:
     template<typename T> STRM_RESULT pop_stream(shared_stream *p, T &ret);
     template<typename T> STRM_RESULT push_stream(shared_stream *p, T data);
     template<typename T> void        push_eof_stream(shared_stream *p);
-/*
-    void wait(int id);
-    void wait_fd_read(int fd);
-    void wait_fd_write(int fd);
-    void* pop_threadq();
-    void  push_threadq(void *ptr);
-    
-    template<typename T> STRM_RESULT pop_stream(shared_stream *p, T &ret, bool is_yield = true);
-    template<typename T> STRM_RESULT push_stream(shared_stream *p, T ptr);
-    template<typename T> void        push_eof_stream(shared_stream *p);
-*/
+
 private:
     struct ev_key {
         uintptr_t m_fd;
