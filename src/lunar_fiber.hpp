@@ -246,6 +246,23 @@ private:
         void set_wait_type(qwait_type t) { m_qwait_type = t; }
         void inc_refcnt() { __sync_fetch_and_add(&m_refcnt, 1); }
         void dec_refcnt() { __sync_fetch_and_sub(&m_refcnt, 1); }
+        
+        void pop_pipe(ssize_t len) {
+            char buf[16];
+            ssize_t n;
+            do {
+                n = read(m_qpipe[0], buf, sizeof(buf));
+                if (n < 0) {
+                    PRINTERR("could not read data from pipe");
+                    exit(-1);
+                }
+                
+                assert(n != 0);
+                assert(n <= len);
+                
+                len -= n;
+            } while (len > 0);
+        }
     
     private:
         volatile int  m_qlen;

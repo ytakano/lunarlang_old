@@ -336,6 +336,10 @@ fiber::select_fd(bool is_block)
 
             m_threadq.set_wait_type(threadq::QWAIT_NONE);
             m_wait_thq = nullptr;
+            
+            assert(! (kev[i].flags & EV_EOF));
+            m_threadq.pop_pipe(kev[i].data);
+            
             continue;
         }
         
@@ -736,7 +740,10 @@ fiber::threadq::push(void *p)
         } else {
             lock.unlock();
             char c = '\0';
-            write(m_qpipe[1], &c, sizeof(c));
+            if (write(m_qpipe[1], &c, sizeof(c)) < 0) {
+                PRINTERR("could not write data to pipe");
+                exit(-1);
+            }
         }
         
         return STRM_SUCCESS;
