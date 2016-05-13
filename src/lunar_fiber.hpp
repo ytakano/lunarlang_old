@@ -151,10 +151,10 @@ private:
     
     struct context {
         // states of contexts
-        static const int READY           = 0x0000;
-        static const int RUNNING         = 0x0001;
-        static const int SUSPENDING      = 0x0002;
-        static const int WAITING_FD      = 0x0004;
+        static const int READY           = 0x0001;
+        static const int RUNNING         = 0x0002;
+        static const int SUSPENDING      = 0x0004;
+        static const int WAITING_FD      = 0x0008;
         static const int WAITING_STREAM  = 0x0010;
         static const int WAITING_THQ     = 0x0020;
         static const int WAITING_TIMEOUT = 0x0040;

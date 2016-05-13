@@ -458,16 +458,14 @@ fiber::yield()
             m_wait_thq->m_is_ev_thq = true;
             m_wait_thq = nullptr;
         }
-
+        
         // invoke READY state thread
         if (! m_suspend.empty()) {
-            uint32_t state;
-
             m_running = m_suspend.front();
-            state = m_running->m_state;
+            auto state = m_running->m_state;
             m_running->m_state = context::RUNNING;
             m_suspend.pop_front();
-
+            
             if (state & context::READY) {
                 if (ctx) {
                     if (setjmp(ctx->m_jmp_buf) == 0) {
