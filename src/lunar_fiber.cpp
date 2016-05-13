@@ -136,7 +136,7 @@ run_fiber()
 void
 select_fiber(struct kevent *kev, int num_kev,
              void * const *stream, int num_stream,
-             bool &is_threadq, int64_t timeout)
+             bool is_threadq, int64_t timeout)
 {
     lunar_gt->select_stream(kev, num_kev, stream, num_stream, is_threadq, timeout);
 }
@@ -288,9 +288,10 @@ fiber::select_fd(bool is_block)
 {
 #ifdef KQUEUE
     auto size = m_wait_fd.size();
-    struct kevent *kev = new struct kevent[size];
+    struct kevent *kev = new struct kevent[size + 1];
     
     int ret;
+    int is_timer = false;
     
     if (is_block) {
         if (m_timeout.empty()) {
@@ -307,7 +308,16 @@ fiber::select_fd(bool is_block)
             } else {
                 timespec ts2 = it->m_time.m_tspec;
                 TIMESPECSUB(&ts2, &ts);
-                ret = kevent(m_kq, nullptr, 0, kev, size, &ts2);
+
+                is_timer = true;
+                size++;
+                
+                struct kevent kevtimer;
+                intptr_t msec = ts2.tv_sec * 1000 + ts2.tv_nsec * 1e-6;
+                
+                EV_SET(&kevtimer, 1, EVFILT_TIMER, EV_ADD | EV_ENABLE | EV_ONESHOT, 0, msec, 0);
+
+                ret = kevent(m_kq, &kevtimer, 1, kev, size, nullptr);
             }
         }
     } else {
@@ -325,6 +335,12 @@ fiber::select_fd(bool is_block)
     for (int i = 0; i < ret; i++) {
         if (kev[i].flags & EV_ERROR) { // report any error
             fprintf(stderr, "error on kevent: %s\n", strerror(kev[i].data));
+            continue;
+        }
+        
+        if (kev[i].filter == EVFILT_TIMER) {
+            is_timer = false;
+            assert(kev[i].ident == 1);
             continue;
         }
         
@@ -361,6 +377,15 @@ fiber::select_fd(bool is_block)
         }
         
         m_wait_fd.erase(it);
+    }
+    
+    if (is_timer) {
+        struct kevent kevdel;
+        EV_SET(&kevdel, 1, EVFILT_TIMER, EV_ADD | EV_DELETE, 0, 0, 0);
+        if (kevent(m_kq, &kevdel, 1, nullptr, 0, nullptr) < 0) {
+            PRINTERR("failed kevent");
+            exit(-1);
+        }
     }
 
     delete[] kev;
@@ -623,18 +648,18 @@ fiber::yield()
 void
 fiber::select_stream(struct kevent *kev, int num_kev,
                      void * const *stream, int num_stream,
-                     bool &is_threadq, int64_t timeout)
+                     bool is_threadq, int64_t timeout)
 #elif (defined EPOLL) // #if (defined KQUEUE)
 fiber::select_stream(
                      void * const *stream, int num_stream,
-                     bool &is_threadq, int64_t timeout)
+                     bool is_threadq, int64_t timeout)
 #endif // #if (defined KQUEUE)
 {
     m_running->m_state = 0;
     m_running->m_events.clear();
     m_running->m_is_ev_thq = false;
     m_running->m_is_ev_timeout = false;
-
+    
     if (timeout) {
         timespec ts1, ts2;
         GETTIME(&ts1);
@@ -645,7 +670,7 @@ fiber::select_stream(
         TIMESPECADD(&ts1, &ts2);
 
         m_running->m_state |= context::WAITING_TIMEOUT;
-        m_timeout.insert(ctx_time({ts2}, m_running));
+        m_timeout.insert(ctx_time({ts1}, m_running));
     }
 
 #ifdef KQUEUE

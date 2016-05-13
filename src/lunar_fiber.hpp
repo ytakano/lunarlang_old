@@ -91,7 +91,7 @@ extern "C" {
 #ifdef KQUEUE
     void select_fiber(struct kevent *kev, int num_kev,
                       void * const *stream, int num_stream,
-                      bool &is_threadq, int64_t timeout);
+                      bool is_threadq, int64_t timeout);
 #endif // kQUEUE
 
     STRM_RESULT push_threadq_fiber(std::thread::id id, void *p);
@@ -117,7 +117,7 @@ public:
 #ifdef KQUEUE
     void select_stream(struct kevent *kev, int num_kev,
                        void * const *stream, int num_stream,
-                       bool &is_threadq, int64_t timeout);
+                       bool is_threadq, int64_t timeout);
 #endif // KQUEUE
 
 #ifdef EPOLL

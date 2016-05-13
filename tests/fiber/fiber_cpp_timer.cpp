@@ -3,15 +3,21 @@
 void
 func2(void *arg)
 {
-    printf("func2\n");
+    for (;;) {
+        printf("func2\n");
+        lunar::select_fiber(nullptr, 0, nullptr, 0, false, 4000);
+    }
 }
 
 void
 func1(void *arg)
 {
-    printf("func1\n");
     lunar::spawn_fiber(func2);
-    lunar::yield_fiber();
+
+    for (;;) {
+        printf("func1\n");
+        lunar::select_fiber(nullptr, 0, nullptr, 0, false, 2000);
+    }
 }
 
 int
