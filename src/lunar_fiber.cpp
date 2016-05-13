@@ -665,8 +665,8 @@ fiber::select_stream(
         GETTIME(&ts1);
 
         ts2.tv_sec  = timeout * 1e-3;
-        ts2.tv_nsec = (timeout - ts2.tv_sec) * 1000000;
-        
+        ts2.tv_nsec = (timeout - ts2.tv_sec * 1000) * 1000000;
+
         TIMESPECADD(&ts1, &ts2);
 
         m_running->m_state |= context::WAITING_TIMEOUT;

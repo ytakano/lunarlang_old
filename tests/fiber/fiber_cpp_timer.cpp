@@ -1,6 +1,15 @@
 #include "lunar_fiber.hpp"
 
 void
+func3(void *arg)
+{
+    for (;;) {
+        printf("func3\n");
+        lunar::select_fiber(nullptr, 0, nullptr, 0, false, 6000);
+    }
+}
+
+void
 func2(void *arg)
 {
     for (;;) {
@@ -13,6 +22,7 @@ void
 func1(void *arg)
 {
     lunar::spawn_fiber(func2);
+    lunar::spawn_fiber(func3);
 
     for (;;) {
         printf("func1\n");
