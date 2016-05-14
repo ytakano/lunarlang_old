@@ -124,6 +124,12 @@ update_clock()
 
 extern "C" {
 
+uint64_t
+get_clock()
+{
+    return lunar_clock;
+}
+
 void
 init_fiber()
 {

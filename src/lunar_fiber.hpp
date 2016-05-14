@@ -85,6 +85,7 @@ namespace lunar {
 class fiber;
 
 extern "C" {
+    uint64_t get_clock();
     void init_fiber();
     void yield_fiber();
     void spawn_fiber(void (*func)(void*), void *arg = nullptr);
