@@ -74,8 +74,10 @@
         (ts)->tv_sec  = tv.tv_sec;                  \
         (ts)->tv_nsec = tv.tv_usec * 1000;          \
     } while (0)
-#else
-#define GETTIME(ts) clock_gettime(CLOCK_MONOTONIC, ts)
+#elif (defined BSD)
+#define GETTIME(ts) clock_gettime(CLOCK_MONOTONIC_FAST, ts)
+#elif (defined __linux__)
+#define GETTIME(ts) clock_gettime(CLOCK_MONOTONIC_COARSE, ts)
 #endif // __APPLE__
 
 namespace lunar {

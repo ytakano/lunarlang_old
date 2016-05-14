@@ -529,34 +529,36 @@ fiber::yield()
                 }
             } else {
                 // remove the context from wait queues
+                if (! m_running->m_fd.empty()) {
 #ifdef KQUEUE
-                struct kevent *kev = new struct kevent[m_running->m_fd.size()];
+                    struct kevent *kev = new struct kevent[m_running->m_fd.size()];
 #endif // KQUEUE
                 
-                int i = 0;
-                for (auto &ev: m_running->m_fd) {
-                    auto it = m_wait_fd.find(ev);
-                    assert(it != m_wait_fd.end());
-                    it->second.erase(m_running);
+                    int i = 0;
+                    for (auto &ev: m_running->m_fd) {
+                        auto it = m_wait_fd.find(ev);
+                        assert(it != m_wait_fd.end());
+                        it->second.erase(m_running);
                     
-                    if (it->second.empty())
-                        m_wait_fd.erase(it);
+                        if (it->second.empty())
+                            m_wait_fd.erase(it);
 
 #ifdef KQUEUE
-                    EV_SET(&kev[i], ev.m_fd, ev.m_event, EV_DELETE, 0, 0, nullptr);
+                        EV_SET(&kev[i], ev.m_fd, ev.m_event, EV_DELETE, 0, 0, nullptr);
 #endif // KQUEUE
-                }
+                    }
                 
 #ifdef KQUEUE
-                if(kevent(m_kq, kev, m_running->m_fd.size(), nullptr, 0, nullptr) == -1) {
-                    PRINTERR("failed kevent");
-                    exit(-1);
-                }
+                    if(kevent(m_kq, kev, m_running->m_fd.size(), nullptr, 0, nullptr) == -1) {
+                        PRINTERR("failed kevent");
+                        exit(-1);
+                    }
 
-                delete[] kev;
+                    delete[] kev;
 #endif // KQUEUE
-                
-                m_running->m_fd.clear();
+
+                    m_running->m_fd.clear();
+                }
                 
                 for (auto strm: m_running->m_stream) {
                     m_wait_stream.erase(strm);

@@ -31,7 +31,7 @@ func1(void *arg)
 {
     auto rs = new lunar::shared_stream;
     auto ws = new lunar::shared_stream;
-    lunar::make_ptr_stream(rs, ws, 128);
+    lunar::make_ptr_stream(rs, ws, 1);
 
     lunar::spawn_fiber(func2, rs);
     
