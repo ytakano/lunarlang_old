@@ -45,7 +45,7 @@ ringq<T>::pop(T &retval)
     }
 
     retval = *m_head;
-    m_len++;
+    m_len--;
 
     m_head++;
 

@@ -176,6 +176,18 @@ pop_threadq_fiber(void **p)
 }
 
 STRM_RESULT
+pop_ptr(shared_stream *p, void **ret)
+{
+    return lunar_gt->pop_stream<void*>(p, *ret);
+}
+
+STRM_RESULT
+push_ptr(shared_stream *p, void *ret)
+{
+    return lunar_gt->push_stream<void*>(p, ret);
+}
+
+STRM_RESULT
 pop_string(shared_stream *p, std::u32string **ret)
 {
     return lunar_gt->pop_stream<std::u32string*>(p, *ret);
@@ -366,7 +378,7 @@ fiber::select_fd(bool is_block)
         
         assert (it != m_wait_fd.end());
         
-        // invoke the fibers waiting the file descripters
+        // invoke the fibers waiting the file descriptors
         for (auto it2 = it->second.begin(); it2 != it->second.end(); ++it2) {
             if (! ((*it2)->m_state & context::SUSPENDING)) {
                 (*it2)->m_state |= context::SUSPENDING;

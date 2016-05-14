@@ -98,7 +98,8 @@ extern "C" {
     STRM_RESULT push_threadq_fast_unsafe_fiber(fiber *fb, void *p);
     STRM_RESULT pop_string(shared_stream *p, std::u32string **ret);
     STRM_RESULT push_string(shared_stream *p, std::u32string *ret);
-    void push_eof_string(shared_stream *p);
+    STRM_RESULT pop_ptr(shared_stream *p, void **ret);
+    STRM_RESULT push_ptr(shared_stream *p, void *ret);
 }
 
 class fiber {
@@ -171,7 +172,7 @@ private:
         
         uint32_t m_state;
         jmp_buf m_jmp_buf;
-        std::unordered_set<ev_key, ev_key_hasher> m_fd; // waiting file descripters to read
+        std::unordered_set<ev_key, ev_key_hasher> m_fd; // waiting file descriptors to read
         std::unordered_set<void*> m_stream;             // waiting streams to read
         std::unordered_set<void*> m_ev_stream;          // streams are ready to read
         std::unordered_map<ev_key, event_data, ev_key_hasher> m_events; // invoked events
