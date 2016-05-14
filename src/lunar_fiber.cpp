@@ -101,13 +101,18 @@ asm (
 #endif // __APPLE__
 );
 
+void update_clock();
+
 static volatile uint64_t lunar_clock; // milliseconds
+static std::thread thread_clock(update_clock);
 
 void
 update_clock()
 {
     timespec t0;
     GETTIME(&t0);
+    thread_clock.detach();
+
     for (;;) {
         timespec t1;
         GETTIME(&t1);
@@ -116,8 +121,6 @@ update_clock()
         usleep(1000);
     }
 }
-
-static std::thread thread_clock(update_clock);
 
 extern "C" {
 
@@ -337,14 +340,14 @@ fiber::select_fd(bool is_block)
             
             uint64_t clock = lunar_clock;
             
-            if (clock > it->m_clock) {
+            if (clock >= it->m_clock) {
                 ret = kevent(m_kq, nullptr, 0, kev, size, nullptr);
             } else {
                 is_timer = true;
                 size++;
                 
                 struct kevent kevtimer;
-                intptr_t msec = clock - it->m_clock;
+                intptr_t msec = it->m_clock - clock;
                 
                 assert(msec > 0);
                 
