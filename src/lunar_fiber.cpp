@@ -101,6 +101,24 @@ asm (
 #endif // __APPLE__
 );
 
+static volatile uint64_t lunar_clock; // milliseconds
+
+void
+update_clock()
+{
+    timespec t0;
+    GETTIME(&t0);
+    for (;;) {
+        timespec t1;
+        GETTIME(&t1);
+        TIMESPECSUB(&t1, &t0);
+        lunar_clock = t1.tv_sec * 1000 + t1.tv_nsec * 1e-6;
+        usleep(1000);
+    }
+}
+
+static std::thread thread_clock(update_clock);
+
 extern "C" {
 
 void
@@ -317,20 +335,18 @@ fiber::select_fd(bool is_block)
             auto &tout = m_timeout.get<0>();
             auto it = tout.begin();
             
-            timespec ts;
-            GETTIME(&ts);
+            uint64_t clock = lunar_clock;
             
-            if (TIMESPECCMP(&ts, &it->m_time.m_tspec, >)) {
+            if (clock > it->m_clock) {
                 ret = kevent(m_kq, nullptr, 0, kev, size, nullptr);
             } else {
-                timespec ts2 = it->m_time.m_tspec;
-                TIMESPECSUB(&ts2, &ts);
-
                 is_timer = true;
                 size++;
                 
                 struct kevent kevtimer;
-                intptr_t msec = ts2.tv_sec * 1000 + ts2.tv_nsec * 1e-6;
+                intptr_t msec = clock - it->m_clock;
+                
+                assert(msec > 0);
                 
                 EV_SET(&kevtimer, 1, EVFILT_TIMER, EV_ADD | EV_ENABLE | EV_ONESHOT, 0, msec, 0);
 
@@ -455,12 +471,11 @@ fiber::run()
 void
 fiber::resume_timeout()
 {
-    timespec now;
-    GETTIME(&now);
+    uint64_t now = lunar_clock;
 
     auto &tout = m_timeout.get<0>();
     for (auto it = tout.begin(); it != tout.end(); ) {
-        if (TIMESPECCMP(&it->m_time.m_tspec, &now, >=))
+        if (it->m_clock >= now)
             break;
 
         it->m_ctx->m_state |= context::SUSPENDING;
@@ -680,16 +695,8 @@ fiber::select_stream(
     m_running->m_is_ev_timeout = false;
     
     if (timeout) {
-        timespec ts1, ts2;
-        GETTIME(&ts1);
-
-        ts2.tv_sec  = timeout * 1e-3;
-        ts2.tv_nsec = (timeout - ts2.tv_sec * 1000) * 1000000;
-
-        TIMESPECADD(&ts1, &ts2);
-
         m_running->m_state |= context::WAITING_TIMEOUT;
-        m_timeout.insert(ctx_time({ts1}, m_running));
+        m_timeout.insert(ctx_time(lunar_clock + (uint64_t)timeout, m_running));
     }
 
 #ifdef KQUEUE

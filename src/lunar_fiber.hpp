@@ -183,20 +183,12 @@ private:
         int64_t m_id; // m_id must not be less than or equal to 0
         std::vector<uint64_t> m_stack;
     };
-    
-    struct ctx_tspec {
-        timespec m_tspec;
-        
-        bool operator< (const ctx_tspec &rhs) const {
-            return TIMESPECCMP(&m_tspec, &rhs.m_tspec, <);
-        }
-    };
 
     struct ctx_time {
-        ctx_tspec  m_time;
-        context   *m_ctx;
+        uint64_t  m_clock;
+        context  *m_ctx;
         
-        ctx_time(ctx_tspec t, context *ctx) : m_time(t), m_ctx(ctx) { }
+        ctx_time(uint64_t clock, context *ctx) : m_clock(clock), m_ctx(ctx) { }
     };
     
     typedef boost::multi_index::multi_index_container<
@@ -204,7 +196,7 @@ private:
         boost::multi_index::indexed_by<
             boost::multi_index::ordered_non_unique<
                 boost::multi_index::tag<>,
-                boost::multi_index::member<ctx_time, ctx_tspec, &ctx_time::m_time>>,
+                boost::multi_index::member<ctx_time, uint64_t, &ctx_time::m_clock>>,
             boost::multi_index::hashed_unique<
                 boost::multi_index::tag<>,
                 boost::multi_index::member<ctx_time, context*, &ctx_time::m_ctx>>
