@@ -70,6 +70,11 @@
     #define FD_EV_FFLAG_TRAC       0x2000
 #endif // EPOLL
 
+#ifdef __linux__
+#define _setjmp setjmp
+#define _longjmp longjmp
+#endif // __linux__
+
 namespace lunar {
 
 __thread fiber *lunar_gt = nullptr;
@@ -442,7 +447,7 @@ fiber::spawn(void (*func)(void*), void *arg, int stack_size)
 void
 fiber::run()
 {
-    if (setjmp(m_jmp_buf) == 0) {
+    if (_setjmp(m_jmp_buf) == 0) {
         yield();
     }
 }
@@ -505,7 +510,7 @@ fiber::yield()
             
             if (state & context::READY) {
                 if (ctx) {
-                    if (setjmp(ctx->m_jmp_buf) == 0) {
+                    if (_setjmp(ctx->m_jmp_buf) == 0) {
                         auto p = &m_running->m_stack[m_running->m_stack.size() - 4];
                         asm (
                             "movq %0, %%rsp;" // set stack pointer
@@ -588,8 +593,8 @@ fiber::yield()
                 if (ctx == m_running)
                     return;
                 
-                if (setjmp(ctx->m_jmp_buf) == 0) {
-                    longjmp(m_running->m_jmp_buf, 1);
+                if (_setjmp(ctx->m_jmp_buf) == 0) {
+                    _longjmp(m_running->m_jmp_buf, 1);
                 } else {
                     return;
                 }
@@ -655,7 +660,7 @@ fiber::yield()
         select_fd(true);
     }
 
-    longjmp(m_jmp_buf, 1);
+    _longjmp(m_jmp_buf, 1);
 }
 
 #if (defined KQUEUE)
