@@ -7,8 +7,6 @@ volatile int n = 0;
 void
 func1(void *arg)
 {
-    printf("func1\n");
-
     n++;
     while(n != 2); // barrier
 
@@ -29,11 +27,13 @@ func1(void *arg)
             timespec ts1;
             GETTIME(&ts1);
             TIMESPECSUB(&ts1, &ts0);
+            auto sec = ts1.tv_sec + ts1.tv_nsec * 1e-9;
+
             printf("%lf [ops/s], select = %lf\n",
-                   cnt / (ts1.tv_sec + ts1.tv_nsec * 1e-9),
-                   s / (ts1.tv_sec + ts1.tv_nsec * 1e-9));
+                   cnt / sec, s / sec);
 
             cnt = 0;
+            s   = 0;
             GETTIME(&ts0);
         }
     }
@@ -42,14 +42,10 @@ func1(void *arg)
 void
 func2(void *arg)
 {
-    printf("func2\n");
-    
     n++;
     while(n != 2); // barrier
     
     auto fb = lunar::get_fiber(1);
-    printf("fiber = %p\n", fb);
-    
     for (;;) lunar::push_threadq_fast_unsafe_fiber(fb, nullptr);
 }
 
