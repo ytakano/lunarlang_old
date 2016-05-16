@@ -39,6 +39,8 @@
 #include <sys/types.h>
 #include <sys/event.h>
 #include <sys/time.h>
+#elif (defined EPOLL)
+#include <sys/epoll.h>
 #endif // KQUEUE
 
 #define	TIMESPECCMP(tvp, uvp, cmp)                  \
@@ -180,12 +182,12 @@ private:
         
         uint32_t m_state;
         jmp_buf m_jmp_buf;
-        std::unordered_set<ev_key, ev_key_hasher> m_fd; // waiting file descriptors to read
-        std::unordered_set<void*> m_stream;             // waiting streams to read
-        std::unordered_set<void*> m_ev_stream;          // streams are ready to read
-        std::unordered_map<ev_key, event_data, ev_key_hasher> m_events; // invoked events
-        bool m_is_ev_thq;     // the thread queue is ready to read
-        bool m_is_ev_timeout; //
+        std::vector<ev_key> m_fd;        // waiting file descriptors to read
+        std::vector<void*>  m_stream;    // waiting streams to read
+        std::vector<void*>  m_ev_stream; // streams ready to read
+        std::vector<std::pair<ev_key, event_data>> m_events;
+        bool m_is_ev_thq;     // is the thread queue ready to read
+        bool m_is_ev_timeout; // is timeout
         int64_t m_id; // m_id must not be less than or equal to 0
         std::vector<uint64_t> m_stack;
     };
@@ -280,6 +282,8 @@ private:
 
 #ifdef KQUEUE
     int m_kq;
+#elif (defined EPOLL)
+    int m_epoll;
 #endif // KQUEUE
 
     void select_fd(bool is_block);

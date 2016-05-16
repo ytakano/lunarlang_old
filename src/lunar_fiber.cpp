@@ -300,7 +300,7 @@ fiber::pop_stream(shared_stream *p, T &ret)
         auto it = m_wait_stream.find(QUEUE);               \
         if (it != m_wait_stream.end()) {                   \
             it->second->m_state |= context::SUSPENDING;    \
-            it->second->m_ev_stream.insert(STREAM);        \
+            it->second->m_ev_stream.push_back(STREAM);     \
             m_suspend.push_back(it->second);               \
             m_wait_stream.erase(it);                       \
         }                                                  \
@@ -359,6 +359,12 @@ fiber::fiber(int qsize)
         PRINTERR("could not create kqueue!");
         exit(-1);
     }
+#elif (defined EPOLL)
+    epoll_create(32);
+    if (m_epoll == -1) {
+        PRINTERR("could not create epoll!");
+        exit(-1);
+    }
 #endif // KQUEUE
 }
 
@@ -366,13 +372,14 @@ fiber::~fiber()
 {
 #ifdef KQUEUE
     close(m_kq);
+#elif (defined EPOLL)
+    close(m_epoll);
 #endif // KQUEUE
 }
 
 void
 fiber::select_fd(bool is_block)
 {
-#ifdef KQUEUE
     auto size = m_wait_fd.size();
     struct kevent *kev = new struct kevent[size + 1];
     
@@ -389,7 +396,10 @@ fiber::select_fd(bool is_block)
             uint64_t clock = lunar_clock;
             
             if (clock >= it->m_clock) {
-                ret = kevent(m_kq, nullptr, 0, kev, size, nullptr);
+                timespec tm;
+                tm.tv_sec  = 0;
+                tm.tv_nsec = 0;
+                ret = kevent(m_kq, nullptr, 0, kev, size, &tm);
             } else {
                 is_timer = true;
                 size++;
@@ -456,8 +466,7 @@ fiber::select_fd(bool is_block)
                 (*it2)->m_state |= context::SUSPENDING;
                 m_suspend.push_back(*it2);
             }
-            (*it2)->m_events.insert({it->first, {kev[i].flags, kev[i].fflags, kev[i].data}});
-            (*it2)->m_fd.erase(it->first);
+            (*it2)->m_events.push_back({it->first, {kev[i].flags, kev[i].fflags, kev[i].data}});
         }
         
         m_wait_fd.erase(it);
@@ -473,10 +482,6 @@ fiber::select_fd(bool is_block)
     }
 
     delete[] kev;
-#endif // KQUEUE
-
-#ifdef EPOLL
-#endif // EPOLL
 }
 
 int
@@ -760,7 +765,7 @@ fiber::select_stream(
 
         for (int i = 0; i < num_kev; i++) {
             m_wait_fd[{kev[i].ident, kev[i].filter}].insert(m_running);
-            m_running->m_fd.insert({kev[i].ident, kev[i].filter});
+            m_running->m_fd.push_back({kev[i].ident, kev[i].filter});
         }
     }
 #endif // KQUEUE
@@ -773,7 +778,7 @@ fiber::select_stream(
         for (int i = 0; i < num_stream; i++) {
             void *s = stream[i];
             m_wait_stream[s] = m_running;
-            m_running->m_stream.insert(s);
+            m_running->m_stream.push_back(s);
         }
     }
     
