@@ -86,11 +86,12 @@ class fiber;
 
 extern "C" {
     uint64_t get_clock();
-    void init_fiber();
+    bool init_fiber(uint64_t thid); // thid is user defined thread ID
     void yield_fiber();
     void spawn_fiber(void (*func)(void*), void *arg = nullptr);
     void run_fiber();
-    size_t get_thread_id();
+    uint64_t get_thread_id();
+    void* get_fiber(uint64_t thid);
 
 #ifdef KQUEUE
     void select_fiber(struct kevent *kev, int num_kev,
@@ -98,10 +99,11 @@ extern "C" {
                       bool is_threadq, int64_t timeout);
 #endif // KQUEUE
 
-    STRM_RESULT push_threadq_fiber(size_t id, void *p);
-    STRM_RESULT push_threadq_fast_unsafe_fiber(fiber *fb, void *p);
-    STRM_RESULT pop_string(shared_stream *p, std::u32string **ret);
-    STRM_RESULT push_string(shared_stream *p, std::u32string *ret);
+    STRM_RESULT push_threadq_fiber(uint64_t id, void *p);
+    STRM_RESULT push_threadq_fast_unsafe_fiber(void *fb, void *p);
+    STRM_RESULT pop_threadq_fiber(void **p);
+    STRM_RESULT pop_string(shared_stream *p, void **ret);
+    STRM_RESULT push_string(shared_stream *p, void *ret);
     STRM_RESULT pop_ptr(shared_stream *p, void **ret);
     STRM_RESULT push_ptr(shared_stream *p, void *ret);
 }

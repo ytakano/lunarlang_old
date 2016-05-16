@@ -78,9 +78,10 @@
 namespace lunar {
 
 __thread fiber *lunar_gt = nullptr;
+__thread uint64_t thread_id;
 
 rtm_lock lock_thread2gt;
-std::unordered_map<size_t, fiber*> thread2gt;
+std::unordered_map<uint64_t, fiber*> thread2gt;
 
 // stack layout:
 //    [empty]
@@ -130,20 +131,48 @@ get_clock()
     return lunar_clock;
 }
 
-size_t
+uint64_t
 get_thread_id()
 {
-    return std::hash<std::thread::id>()(std::this_thread::get_id());
+    return thread_id;
 }
 
-void
-init_fiber()
+void*
+get_fiber(uint64_t thid)
 {
+    {
+        rtm_transaction tr(lock_thread2gt);
+        auto it = thread2gt.find(thid);
+        if (it == thread2gt.end())
+            return nullptr;
+        else
+            return it->second;
+    }
+}
+
+bool
+init_fiber(uint64_t thid)
+{
+    bool result;
     if (lunar_gt == nullptr) {
         lunar_gt = new fiber;
         rtm_transaction tr(lock_thread2gt);
-        thread2gt[get_thread_id()] = lunar_gt;
+        if (thread2gt.find(thid) != thread2gt.end()) {
+            result = false;
+        } else {
+            thread2gt[thid] = lunar_gt;
+            result = true;
+        }
+    } else {
+        return false;
     }
+    
+    if (! result) {
+        delete lunar_gt;
+        return false;
+    }
+    
+    return true;
 }
 
 void
@@ -180,7 +209,7 @@ select_fiber(struct kevent *kev, int num_kev,
 }
 
 STRM_RESULT
-push_threadq_fiber(size_t id, void *p)
+push_threadq_fiber(uint64_t id, void *p)
 {
     fiber *fb;
 
@@ -202,9 +231,9 @@ push_threadq_fiber(size_t id, void *p)
 }
 
 STRM_RESULT
-push_threadq_fast_unsafe_fiber(fiber *fb, void *p)
+push_threadq_fast_unsafe_fiber(void *fb, void *p)
 {
-    return fb->push_threadq(p);
+    return ((fiber*)fb)->push_threadq(p);
 }
 
 STRM_RESULT
@@ -226,15 +255,15 @@ push_ptr(shared_stream *p, void *ret)
 }
 
 STRM_RESULT
-pop_string(shared_stream *p, std::u32string **ret)
+pop_string(shared_stream *p, void **ret)
 {
-    return lunar_gt->pop_stream<std::u32string*>(p, *ret);
+    return lunar_gt->pop_stream<std::u32string*>(p, *(std::u32string**)ret);
 }
 
 STRM_RESULT
-push_string(shared_stream *p, std::u32string *ret)
+push_string(shared_stream *p, void *ret)
 {
-    return lunar_gt->push_stream<std::u32string*>(p, ret);
+    return lunar_gt->push_stream<std::u32string*>(p, (std::u32string*)ret);
 }
 
 void
@@ -616,7 +645,6 @@ fiber::yield()
 #endif // KQUEUE
                     }
                     
-                    assert(m_wait_thq == m_running);
                     m_wait_thq = nullptr;
                 }
                 
@@ -824,8 +852,11 @@ fiber::threadq::push(void *p)
 STRM_RESULT
 fiber::threadq::pop(void **p)
 {
-    if (m_qlen == 0)
-        return STRM_NO_MORE_DATA;
+    int n = 0;
+    while (m_qlen == 0) {
+        if (n++ > 1000)
+            return STRM_NO_MORE_DATA;
+    }
 
     *p = *m_qhead;
 

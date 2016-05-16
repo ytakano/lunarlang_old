@@ -46,7 +46,7 @@ func1(void *arg)
 int
 main(int argc, char *argv[])
 {
-    lunar::init_fiber();
+    lunar::init_fiber(0);
     lunar::spawn_fiber(timer_func);
     lunar::spawn_fiber(func1);
     lunar::run_fiber();
