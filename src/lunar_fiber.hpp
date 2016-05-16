@@ -32,7 +32,7 @@
 #elif (defined __linux__)
     #define EPOLL
 #else
-    #error unsupported platform! 
+    #error unsupported platform!
 #endif
 
 #ifdef KQUEUE
@@ -92,6 +92,7 @@ extern "C" {
     void run_fiber();
     uint64_t get_thread_id();
     void* get_fiber(uint64_t thid);
+    bool is_timeout_fiber();
 
 #ifdef KQUEUE
     void select_fiber(struct kevent *kev, int num_kev,
@@ -116,6 +117,7 @@ public:
     void yield();
     int  spawn(void (*func)(void*), void *arg = nullptr, int stack_size = 0x80000);
     void run();
+    bool is_timeout() { return m_running->m_is_ev_timeout; }
     void inc_refcnt_threadq() { m_threadq.inc_refcnt(); }
     void dec_refcnt_threadq() { m_threadq.dec_refcnt(); }
     STRM_RESULT push_threadq(void *p) { return m_threadq.push(p); }

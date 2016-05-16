@@ -175,6 +175,12 @@ init_fiber(uint64_t thid)
     return true;
 }
 
+bool
+is_timeout_fiber()
+{
+    return lunar_gt->is_timeout();
+}
+
 void
 yield_fiber()
 {
