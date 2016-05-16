@@ -90,14 +90,15 @@ extern "C" {
     void yield_fiber();
     void spawn_fiber(void (*func)(void*), void *arg = nullptr);
     void run_fiber();
+    size_t get_thread_id();
 
 #ifdef KQUEUE
     void select_fiber(struct kevent *kev, int num_kev,
                       void * const *stream, int num_stream,
                       bool is_threadq, int64_t timeout);
-#endif // kQUEUE
+#endif // KQUEUE
 
-    STRM_RESULT push_threadq_fiber(std::thread::id id, void *p);
+    STRM_RESULT push_threadq_fiber(size_t id, void *p);
     STRM_RESULT push_threadq_fast_unsafe_fiber(fiber *fb, void *p);
     STRM_RESULT pop_string(shared_stream *p, std::u32string **ret);
     STRM_RESULT push_string(shared_stream *p, std::u32string *ret);

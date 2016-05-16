@@ -80,7 +80,7 @@ namespace lunar {
 __thread fiber *lunar_gt = nullptr;
 
 rtm_lock lock_thread2gt;
-std::unordered_map<std::thread::id, fiber*> thread2gt;
+std::unordered_map<size_t, fiber*> thread2gt;
 
 // stack layout:
 //    [empty]
@@ -130,13 +130,19 @@ get_clock()
     return lunar_clock;
 }
 
+size_t
+get_thread_id()
+{
+    return std::hash<std::thread::id>()(std::this_thread::get_id());
+}
+
 void
 init_fiber()
 {
     if (lunar_gt == nullptr) {
         lunar_gt = new fiber;
         rtm_transaction tr(lock_thread2gt);
-        thread2gt[std::this_thread::get_id()] = lunar_gt;
+        thread2gt[get_thread_id()] = lunar_gt;
     }
 }
 
@@ -159,7 +165,7 @@ run_fiber()
 
     {
         rtm_transaction tr(lock_thread2gt);
-        thread2gt.erase(std::this_thread::get_id());
+        thread2gt.erase(get_thread_id());
     }
 
     delete lunar_gt;
@@ -174,7 +180,7 @@ select_fiber(struct kevent *kev, int num_kev,
 }
 
 STRM_RESULT
-push_threadq_fiber(std::thread::id id, void *p)
+push_threadq_fiber(size_t id, void *p)
 {
     fiber *fb;
 
