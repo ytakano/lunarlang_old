@@ -1,5 +1,5 @@
-#ifndef LUNAR_FIBER_HPP
-#define LUNAR_FIBER_HPP
+#ifndef LUNAR_GREEN_THREAD_HPP
+#define LUNAR_GREEN_THREAD_HPP
 
 #include "lunar_common.hpp"
 #include "lunar_spin_lock.hpp"
@@ -84,39 +84,39 @@
 
 namespace lunar {
 
-class fiber;
+class green_thread;
 
 extern "C" {
     uint64_t get_clock();
-    bool init_fiber(uint64_t thid); // thid is user defined thread ID
-    void yield_fiber();
-    void spawn_fiber(void (*func)(void*), void *arg = nullptr);
-    void run_fiber();
+    bool init_green_thread(uint64_t thid); // thid is user defined thread ID
+    void schedule_green_thread();
+    void spawn_green_thread(void (*func)(void*), void *arg = nullptr);
+    void run_green_thread();
     uint64_t get_thread_id();
-    void* get_fiber(uint64_t thid);
-    bool is_timeout_fiber();
+    void* get_green_thread(uint64_t thid);
+    bool is_timeout_green_thread();
 
 #ifdef KQUEUE
-    void select_fiber(struct kevent *kev, int num_kev,
+    void select_green_thread(struct kevent *kev, int num_kev,
                       void * const *stream, int num_stream,
                       bool is_threadq, int64_t timeout);
 #endif // KQUEUE
 
-    STRM_RESULT push_threadq_fiber(uint64_t id, void *p);
-    STRM_RESULT push_threadq_fast_unsafe_fiber(void *fb, void *p);
-    STRM_RESULT pop_threadq_fiber(void **p);
+    STRM_RESULT push_threadq_green_thread(uint64_t id, void *p);
+    STRM_RESULT push_threadq_fast_unsafe_green_thread(void *fb, void *p);
+    STRM_RESULT pop_threadq_green_thread(void **p);
     STRM_RESULT pop_string(shared_stream *p, void **ret);
     STRM_RESULT push_string(shared_stream *p, void *ret);
     STRM_RESULT pop_ptr(shared_stream *p, void **ret);
     STRM_RESULT push_ptr(shared_stream *p, void *ret);
 }
 
-class fiber {
+class green_thread {
 public:
-    fiber(int qsize = 4096);
-    virtual ~fiber();
+    green_thread(int qsize = 4096);
+    virtual ~green_thread();
 
-    void yield();
+    void schedule();
     int  spawn(void (*func)(void*), void *arg = nullptr, int stack_size = 0x80000);
     void run();
     bool is_timeout() { return m_running->m_is_ev_timeout; }
@@ -275,7 +275,7 @@ private:
         std::mutex m_qmutex;
         std::condition_variable m_qcond;
         
-        friend void fiber::yield();
+        friend void green_thread::schedule();
     };
 
     threadq m_threadq;
@@ -292,4 +292,4 @@ private:
 
 }
 
-#endif // LUNAR_FIBER_HPP
+#endif // LUNAR_GREEN_THREAD_HPP

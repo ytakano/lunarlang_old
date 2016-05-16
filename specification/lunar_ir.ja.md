@@ -334,18 +334,18 @@ type 式は真偽値を返す式であり、多相型変数の型を動的に検
 
 ## マルチタスキング
 
-### fiber
+### green thread
 
 構文：
-- FIBER := ( fiber EXPRIDENT EXPRIDENT* )
+- SPAWN := ( spawn EXPRIDENT EXPRIDENT* )
 
 セマンティクス：
-- ( fiber 呼び出す関数 関数へ渡す引数* )
+- ( spawn 呼び出す関数 関数へ渡す引数* )
 
-### yield
+### schedule
 
 構文：
-- YIELD := ( yield )
+- SCHEDULE := ( schedule )
 
 ### thread
 

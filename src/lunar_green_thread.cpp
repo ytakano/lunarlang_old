@@ -1,4 +1,4 @@
-#include "lunar_fiber.hpp"
+#include "lunar_green_thread.hpp"
 #include "lunar_rtm_lock.hpp"
 
 // currentry, this code can run on X86_64 System V ABI
@@ -77,11 +77,11 @@
 
 namespace lunar {
 
-__thread fiber *lunar_gt = nullptr;
+__thread green_thread *lunar_gt = nullptr;
 __thread uint64_t thread_id;
 
 rtm_lock lock_thread2gt;
-std::unordered_map<uint64_t, fiber*> thread2gt;
+std::unordered_map<uint64_t, green_thread*> thread2gt;
 
 // stack layout:
 //    [empty]
@@ -96,9 +96,9 @@ asm (
     "movq 16(%rsp), %rax;"
     "movl $6, (%rax);"    // context.m_state = STOP
 #ifdef __APPLE__
-    "call _yield_fiber;"  // call _yeild_fiber
+    "call _schedule_green_thread;"  // call _schedule_green_thread
 #else  // *BSD, Linux
-    "call yield_fiber;"   // call yeild_fiber
+    "call schedule_green_thread;"   // call schedule_green_thread
 #endif // __APPLE__
 );
 
@@ -138,7 +138,7 @@ get_thread_id()
 }
 
 void*
-get_fiber(uint64_t thid)
+get_green_thread(uint64_t thid)
 {
     {
         rtm_transaction tr(lock_thread2gt);
@@ -151,11 +151,11 @@ get_fiber(uint64_t thid)
 }
 
 bool
-init_fiber(uint64_t thid)
+init_green_thread(uint64_t thid)
 {
     bool result;
     if (lunar_gt == nullptr) {
-        lunar_gt = new fiber;
+        lunar_gt = new green_thread;
         rtm_transaction tr(lock_thread2gt);
         if (thread2gt.find(thid) != thread2gt.end()) {
             result = false;
@@ -176,25 +176,25 @@ init_fiber(uint64_t thid)
 }
 
 bool
-is_timeout_fiber()
+is_timeout_green_thread()
 {
     return lunar_gt->is_timeout();
 }
 
 void
-yield_fiber()
+schedule_green_thread()
 {
-    lunar_gt->yield();
+    lunar_gt->schedule();
 }
 
 void
-spawn_fiber(void (*func)(void*), void *arg)
+spawn_green_thread(void (*func)(void*), void *arg)
 {
     lunar_gt->spawn(func, arg);
 }
 
 void
-run_fiber()
+run_green_thread()
 {
     lunar_gt->run();
 
@@ -207,7 +207,7 @@ run_fiber()
 }
 
 void
-select_fiber(struct kevent *kev, int num_kev,
+select_green_thread(struct kevent *kev, int num_kev,
              void * const *stream, int num_stream,
              bool is_threadq, int64_t timeout)
 {
@@ -215,9 +215,9 @@ select_fiber(struct kevent *kev, int num_kev,
 }
 
 STRM_RESULT
-push_threadq_fiber(uint64_t id, void *p)
+push_threadq_green_thread(uint64_t id, void *p)
 {
-    fiber *fb;
+    green_thread *fb;
 
     {
         rtm_transaction tr(lock_thread2gt);
@@ -237,13 +237,13 @@ push_threadq_fiber(uint64_t id, void *p)
 }
 
 STRM_RESULT
-push_threadq_fast_unsafe_fiber(void *fb, void *p)
+push_threadq_fast_unsafe_green_thread(void *fb, void *p)
 {
-    return ((fiber*)fb)->push_threadq(p);
+    return ((green_thread*)fb)->push_threadq(p);
 }
 
 STRM_RESULT
-pop_threadq_fiber(void **p)
+pop_threadq_green_thread(void **p)
 {
     return lunar_gt->pop_threadq(p);
 }
@@ -282,7 +282,7 @@ push_eof_string(shared_stream *p)
 
 template<typename T>
 STRM_RESULT
-fiber::pop_stream(shared_stream *p, T &ret)
+green_thread::pop_stream(shared_stream *p, T &ret)
 {
     assert(p->flag & shared_stream::READ);
     
@@ -308,7 +308,7 @@ fiber::pop_stream(shared_stream *p, T &ret)
 
 template<typename T>
 STRM_RESULT
-fiber::push_stream(shared_stream *p, T data)
+green_thread::push_stream(shared_stream *p, T data)
 {
     assert(p->flag & shared_stream::WRITE);
     
@@ -329,7 +329,7 @@ fiber::push_stream(shared_stream *p, T data)
 
 template<typename T>
 void
-fiber::push_eof_stream(shared_stream *p)
+green_thread::push_eof_stream(shared_stream *p)
 {
     assert(p->flag & shared_stream::WRITE);
     
@@ -347,7 +347,7 @@ fiber::push_eof_stream(shared_stream *p)
     }
 }
 
-fiber::fiber(int qsize)
+green_thread::green_thread(int qsize)
     : m_count(0),
       m_running(nullptr),
       m_wait_thq(nullptr),
@@ -368,7 +368,7 @@ fiber::fiber(int qsize)
 #endif // KQUEUE
 }
 
-fiber::~fiber()
+green_thread::~green_thread()
 {
 #ifdef KQUEUE
     close(m_kq);
@@ -378,7 +378,7 @@ fiber::~fiber()
 }
 
 void
-fiber::select_fd(bool is_block)
+green_thread::select_fd(bool is_block)
 {
     auto size = m_wait_fd.size();
     struct kevent *kev = new struct kevent[size + 1];
@@ -438,7 +438,7 @@ fiber::select_fd(bool is_block)
             continue;
         }
         
-        // invoke the fiber waiting the thread queue
+        // invoke the green_thread waiting the thread queue
         if (m_wait_thq && m_threadq.get_wait_type() == threadq::QWAIT_PIPE &&
             kev[i].ident == (uintptr_t)m_threadq.get_read_fd() && kev[i].filter == EVFILT_READ) {
             
@@ -460,7 +460,7 @@ fiber::select_fd(bool is_block)
         
         assert (it != m_wait_fd.end());
         
-        // invoke the fibers waiting the file descriptors
+        // invoke the green_threads waiting the file descriptors
         for (auto it2 = it->second.begin(); it2 != it->second.end(); ++it2) {
             if (! ((*it2)->m_state & context::SUSPENDING)) {
                 (*it2)->m_state |= context::SUSPENDING;
@@ -485,7 +485,7 @@ fiber::select_fd(bool is_block)
 }
 
 int
-fiber::spawn(void (*func)(void*), void *arg, int stack_size)
+green_thread::spawn(void (*func)(void*), void *arg, int stack_size)
 {
     auto ctx = llvm::make_unique<context>();
 
@@ -517,15 +517,15 @@ fiber::spawn(void (*func)(void*), void *arg, int stack_size)
 }
 
 void
-fiber::run()
+green_thread::run()
 {
     if (_setjmp(m_jmp_buf) == 0) {
-        yield();
+        schedule();
     }
 }
 
 void
-fiber::resume_timeout()
+green_thread::resume_timeout()
 {
     uint64_t now = lunar_clock;
 
@@ -543,7 +543,7 @@ fiber::resume_timeout()
 }
 
 void
-fiber::yield()
+green_thread::schedule()
 {
     for (;;) {
         context *ctx = nullptr;
@@ -739,11 +739,11 @@ fiber::yield()
 
 #if (defined KQUEUE)
 void
-fiber::select_stream(struct kevent *kev, int num_kev,
+green_thread::select_stream(struct kevent *kev, int num_kev,
                      void * const *stream, int num_stream,
                      bool is_threadq, int64_t timeout)
 #elif (defined EPOLL) // #if (defined KQUEUE)
-fiber::select_stream(
+green_thread::select_stream(
                      void * const *stream, int num_stream,
                      bool is_threadq, int64_t timeout)
 #endif // #if (defined KQUEUE)
@@ -797,10 +797,10 @@ fiber::select_stream(
         m_suspend.push_back(m_running);
     }
     
-    yield();
+    schedule();
 }
 
-fiber::threadq::threadq(int qsize)
+green_thread::threadq::threadq(int qsize)
     : m_qlen(0),
       m_refcnt(0),
       m_is_qnotified(true),
@@ -817,7 +817,7 @@ fiber::threadq::threadq(int qsize)
     }
 }
 
-fiber::threadq::~threadq()
+green_thread::threadq::~threadq()
 {
     while (m_refcnt);
     
@@ -828,7 +828,7 @@ fiber::threadq::~threadq()
 }
 
 STRM_RESULT
-fiber::threadq::push(void *p)
+green_thread::threadq::push(void *p)
 {
     if (m_qlen == m_max_qlen) 
         return STRM_NO_VACANCY;
@@ -867,7 +867,7 @@ fiber::threadq::push(void *p)
 }
 
 STRM_RESULT
-fiber::threadq::pop(void **p)
+green_thread::threadq::pop(void **p)
 {
     int n = 0;
     while (m_qlen == 0) {

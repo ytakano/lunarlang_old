@@ -1,4 +1,4 @@
-#include "lunar_fiber.hpp"
+#include "lunar_green_thread.hpp"
 
 #include <thread>
 
@@ -16,9 +16,9 @@ func1(void *arg)
     GETTIME(&ts0);
     for (;;) {
         void *data;
-        if (lunar::pop_threadq_fiber(&data) == lunar::STRM_NO_MORE_DATA) {
+        if (lunar::pop_threadq_green_thread(&data) == lunar::STRM_NO_MORE_DATA) {
             s++;
-            lunar::select_fiber(nullptr, 0, nullptr, 0, true, 0);
+            lunar::select_green_thread(nullptr, 0, nullptr, 0, true, 0);
             continue;
         }
 
@@ -45,24 +45,24 @@ func2(void *arg)
     n++;
     while(n != 2); // barrier
     
-    auto fb = lunar::get_fiber(1);
-    for (;;) lunar::push_threadq_fast_unsafe_fiber(fb, nullptr);
+    auto fb = lunar::get_green_thread(1);
+    for (;;) lunar::push_threadq_fast_unsafe_green_thread(fb, nullptr);
 }
 
 void
 thread2()
 {
-    lunar::init_fiber(2);
-    lunar::spawn_fiber(func2);
-    lunar::run_fiber();
+    lunar::init_green_thread(2);
+    lunar::spawn_green_thread(func2);
+    lunar::run_green_thread();
 }
 
 void
 thread1()
 {
-    lunar::init_fiber(1);
-    lunar::spawn_fiber(func1);
-    lunar::run_fiber();
+    lunar::init_green_thread(1);
+    lunar::spawn_green_thread(func1);
+    lunar::run_green_thread();
 }
 
 int
