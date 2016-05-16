@@ -289,11 +289,12 @@ fiber::pop_stream(shared_stream *p, T &ret)
     return result;
 }
 
-#define NOTIFY_STREAM(QUEUE)                               \
+#define NOTIFY_STREAM(STREAM, QUEUE)                       \
     do {                                                   \
         auto it = m_wait_stream.find(QUEUE);               \
         if (it != m_wait_stream.end()) {                   \
             it->second->m_state |= context::SUSPENDING;    \
+            it->second->m_ev_stream.insert(STREAM);        \
             m_suspend.push_back(it->second);               \
             m_wait_stream.erase(it);                       \
         }                                                  \
@@ -308,13 +309,13 @@ fiber::push_stream(shared_stream *p, T data)
     ringq<T> *q = (ringq<T>*)p->shared_data->stream.ptr;
     
     if (p->shared_data->flag_shared & shared_stream::CLOSED_READ || q->is_eof()) {
-        NOTIFY_STREAM(q);
+        NOTIFY_STREAM(p, q);
         return STRM_CLOSED;
     }
     
     auto result = q->push(data);
     if (result == STRM_SUCCESS) {
-        NOTIFY_STREAM(q);
+        NOTIFY_STREAM(p, q);
     }
 
     return result;
@@ -336,7 +337,7 @@ fiber::push_eof_stream(shared_stream *p)
 
     if (p->flag & shared_stream::WRITE) {
         p->shared_data->flag_shared |= shared_stream::CLOSED_WRITE;
-        NOTIFY_STREAM(q);
+        NOTIFY_STREAM(p, q);
     }
 }
 
@@ -734,6 +735,7 @@ fiber::select_stream(
 {
     m_running->m_state = 0;
     m_running->m_events.clear();
+    m_running->m_ev_stream.clear();
     m_running->m_is_ev_thq = false;
     m_running->m_is_ev_timeout = false;
     
