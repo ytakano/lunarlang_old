@@ -125,6 +125,24 @@ update_clock()
 
 extern "C" {
 
+void
+get_streams_ready_green_thread(void ***streams, ssize_t *len)
+{
+    return lunar_gt->get_streams_ready(streams, len);
+}
+    
+bool
+is_timeout_green_thread()
+{
+    return lunar_gt->is_timeout();
+}
+
+bool
+is_ready_threadq_green_thread()
+{
+    return lunar_gt->is_ready_threadq();
+}
+
 uint64_t
 get_clock()
 {
@@ -173,12 +191,6 @@ init_green_thread(uint64_t thid)
     }
     
     return true;
-}
-
-bool
-is_timeout_green_thread()
-{
-    return lunar_gt->is_timeout();
 }
 
 void
@@ -295,15 +307,15 @@ green_thread::pop_stream(shared_stream *p, T &ret)
     return result;
 }
 
-#define NOTIFY_STREAM(STREAM, QUEUE)                       \
-    do {                                                   \
-        auto it = m_wait_stream.find(QUEUE);               \
-        if (it != m_wait_stream.end()) {                   \
-            it->second->m_state |= context::SUSPENDING;    \
-            it->second->m_ev_stream.push_back(STREAM);     \
-            m_suspend.push_back(it->second);               \
-            m_wait_stream.erase(it);                       \
-        }                                                  \
+#define NOTIFY_STREAM(STREAM, QUEUE)                                           \
+    do {                                                                       \
+        auto it = m_wait_stream.find(QUEUE);                                   \
+        if (it != m_wait_stream.end()) {                                       \
+            it->second->m_state |= context::SUSPENDING;                        \
+            it->second->m_ev_stream.push_back(STREAM->shared_data->readstrm);  \
+            m_suspend.push_back(it->second);                                   \
+            m_wait_stream.erase(it);                                           \
+        }                                                                      \
     } while (0)
 
 template<typename T>
@@ -529,9 +541,10 @@ green_thread::resume_timeout()
 {
     uint64_t now = lunar_clock;
 
+    int n = 0;
     auto &tout = m_timeout.get<0>();
     for (auto it = tout.begin(); it != tout.end(); ) {
-        if (it->m_clock >= now)
+        if (it->m_clock > now)
             break;
 
         it->m_ctx->m_state |= context::SUSPENDING;
@@ -545,6 +558,9 @@ green_thread::resume_timeout()
 void
 green_thread::schedule()
 {
+    if (! m_wait_fd.empty())
+        select_fd(false);
+
     for (;;) {
         context *ctx = nullptr;
         
@@ -555,9 +571,6 @@ green_thread::schedule()
                 m_suspend.push_back(m_running);
             }
         }
-        
-        if (! m_wait_fd.empty())
-            select_fd(false);
         
         if (! m_timeout.empty())
             resume_timeout();
@@ -659,6 +672,7 @@ green_thread::schedule()
                             exit(-1);
                         }
 #endif // KQUEUE
+                        m_threadq.m_qwait_type = threadq::QWAIT_NONE;
                     }
                     
                     m_wait_thq = nullptr;
@@ -731,7 +745,13 @@ green_thread::schedule()
             break;
         }
 
-        select_fd(true);
+        for (;;) {
+            select_fd(true);
+            if (! m_timeout.empty())
+                resume_timeout();
+            if (! m_suspend.empty())
+                break;
+        }
     }
 
     _longjmp(m_jmp_buf, 1);
@@ -780,7 +800,8 @@ green_thread::select_stream(
     if (num_stream) {
         m_running->m_state |= context::WAITING_STREAM;
         for (int i = 0; i < num_stream; i++) {
-            void *s = stream[i];
+            void *s = ((shared_stream*)stream[i])->shared_data->stream.ptr;
+            assert(((shared_stream*)stream[i])->flag & shared_stream::READ);
             m_wait_stream[s] = m_running;
             m_running->m_stream.push_back(s);
         }

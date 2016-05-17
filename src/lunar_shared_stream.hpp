@@ -31,6 +31,7 @@ struct shared_stream {
         uint32_t  wrefcnt; // for write strean
         spin_lock lock;
         stream_t  stream;
+        shared_stream *readstrm;
     } *shared_data;
 };
 

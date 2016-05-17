@@ -109,6 +109,10 @@ extern "C" {
     STRM_RESULT push_string(shared_stream *p, void *ret);
     STRM_RESULT pop_ptr(shared_stream *p, void **ret);
     STRM_RESULT push_ptr(shared_stream *p, void *ret);
+    
+    void get_streams_ready_green_thread(void ***streams, ssize_t *len); 
+    bool is_timeout_green_thread();
+    bool is_ready_threadq_green_thread();
 }
 
 class green_thread {
@@ -119,7 +123,6 @@ public:
     void schedule();
     int  spawn(void (*func)(void*), void *arg = nullptr, int stack_size = 0x80000);
     void run();
-    bool is_timeout() { return m_running->m_is_ev_timeout; }
     void inc_refcnt_threadq() { m_threadq.inc_refcnt(); }
     void dec_refcnt_threadq() { m_threadq.dec_refcnt(); }
     STRM_RESULT push_threadq(void *p) { return m_threadq.push(p); }
@@ -138,7 +141,6 @@ public:
     template<typename T> STRM_RESULT push_stream(shared_stream *p, T data);
     template<typename T> void        push_eof_stream(shared_stream *p);
 
-private:
     struct ev_key {
         uintptr_t m_fd;
         int16_t   m_event;
@@ -159,7 +161,36 @@ private:
             return hash<uintptr_t>()(k.m_fd) ^ hash<int16_t>()(k.m_event);
         }
     };
+        
+    struct event_data {
+        uint16_t m_flags;
+        uint32_t m_fflags;
+        intptr_t m_data;
+        
+        event_data(uint16_t flags, uint32_t fflags, intptr_t data)
+            : m_flags(flags), m_fflags(fflags), m_data(data) { }
+    };
     
+    struct fdevent {
+        ev_key     m_ev;
+        event_data m_ev_data;
+    };
+    
+    // get functions for invoked events
+    void get_fds_ready(fdevent **events, ssize_t *len) {
+        *events = &m_running->m_events[0];
+        *len    = m_running->m_events.size();
+    }
+    
+    void get_streams_ready(void ***streams, ssize_t *len) {
+        *streams = &m_running->m_ev_stream[0];
+        *len    =   m_running->m_ev_stream.size();
+    }
+    
+    bool is_timeout() { return m_running->m_is_ev_timeout; }
+    bool is_ready_threadq() { return m_running->m_is_ev_thq; }
+
+private:
     struct context {
         // states of contexts
         static const int READY           = 0x0001;
@@ -171,23 +202,19 @@ private:
         static const int WAITING_TIMEOUT = 0x0040;
         static const int STOP            = 0x0080;
         
-        struct event_data {
-            uint16_t m_flags;
-            uint32_t m_fflags;
-            intptr_t m_data;
-            
-            event_data(uint16_t flags, uint32_t fflags, intptr_t data)
-                : m_flags(flags), m_fflags(fflags), m_data(data) { }
-        };
-        
         uint32_t m_state;
         jmp_buf m_jmp_buf;
+        
+        // waiting events
         std::vector<ev_key> m_fd;        // waiting file descriptors to read
         std::vector<void*>  m_stream;    // waiting streams to read
-        std::vector<void*>  m_ev_stream; // streams ready to read
-        std::vector<std::pair<ev_key, event_data>> m_events;
+        
+        // invoked events
+        std::vector<void*>   m_ev_stream; // streams ready to read
+        std::vector<fdevent> m_events;    // file descriptors ready to read
         bool m_is_ev_thq;     // is the thread queue ready to read
         bool m_is_ev_timeout; // is timeout
+
         int64_t m_id; // m_id must not be less than or equal to 0
         std::vector<uint64_t> m_stack;
     };

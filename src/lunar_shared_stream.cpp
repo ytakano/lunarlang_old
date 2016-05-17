@@ -17,6 +17,7 @@ make_stream(shared_stream *ronly, shared_stream *wonly, int bufsize)
     p->refcnt      = 2;
     p->wrefcnt     = 1;
     p->stream.ptr  = new ringq<T>(bufsize);
+    p->readstrm    = ronly;
     
     ronly->flag        = shared_stream::READ;
     ronly->shared_data = p;

@@ -18,7 +18,7 @@ func2(void *arg)
     auto rs = (lunar::shared_stream*)arg;
     
     for (;;) {
-        lunar::select_green_thread(nullptr, 0, (void**)&rs->shared_data->stream.ptr, 1, false, 0);
+        lunar::select_green_thread(nullptr, 0, (void**)&rs, 1, false, 0);
         uint64_t n = 0;
         void *ret;
         while (lunar::pop_ptr(rs, &ret) != lunar::STRM_NO_MORE_DATA) n++;
