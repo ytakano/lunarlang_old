@@ -3,73 +3,6 @@
 
 // currentry, this code can run on X86_64 System V ABI
 
-#ifdef KQUEUE
-    #define FD_EV_READ             EVFILT_READ
-    #define FD_EV_WRITE            EVFILT_WRITE
-    #define FD_EV_VNODE            EVFILT_VNODE
-    #define FD_EV_PROC             EVFILT_PROC
-    #define FD_EV_SIGNAL           EVFILT_SIGNAL
-    #define FD_EV_USER             EVFILT_USER
-#ifdef __APPLE__
-    #define FD_EV_MACHPORT         EVFILT_MACHPORT
-#endif // __APPLE__
-    
-    // for read or write events
-    #define FD_EV_FLAG_EOF         EV_EOF
-
-    // for files
-    #define FD_EV_FFLAG_DELETE     NOTE_DELETE
-    #define FD_EV_FFLAG_WRITE      NOTE_WRITE
-    #define FD_EV_FFLAG_EXTEND     NOTE_EXTEND
-    #define FD_EV_FFLAG_ATTRIB     NOTE_ATTRIB
-    #define FD_EV_FFLAG_LINK       NOTE_LINK
-    #define FD_EV_FFLAG_RENAME     NOTE_RENAME
-    #define FD_EV_FFLAG_REVOKE     NOTE_REVOKE
-
-    // for processes
-    #define FD_EV_FFLAG_EXIT       NOTE_EXIT
-    #define FD_EV_FFLAG_FORK       NOTE_FORK
-    #define FD_EV_FFLAG_EXEC       NOTE_EXEC
-#ifdef __APPLE__
-    #define FD_EV_FFLAG_EXITSTATUS NOTE_EXITSTATUS
-    #define FD_EV_FFLAG_SIGNAL     NOTE_SIGNAL
-    #define FD_EV_FFLAG_REAP       NOTE_REAP
-#else
-    #define FD_EV_FFLAG_TRAC       NOTE_TRACK
-#endif // __APPLE__
-
-#endif // KQUEUE
-
-#ifdef EPOLL
-    #define FD_EV_READ             1
-    #define FD_EV_WRITE            2
-    #define FD_EV_VNODE            3
-    #define FD_EV_PROC             4
-    #define FD_EV_SIGNAL           5
-    #define FD_EV_USER             6
-    
-    // for read or write events
-    #define FD_EV_FLAG_EOF         1
-
-    // for files
-    #define FD_EV_FFLAG_DELETE     0x0001
-    #define FD_EV_FFLAG_WRITE      0x0002
-    #define FD_EV_FFLAG_EXTEND     0x0004
-    #define FD_EV_FFLAG_ATTRIB     0x0008
-    #define FD_EV_FFLAG_LINK       0x0010
-    #define FD_EV_FFLAG_RENAME     0x0020
-    #define FD_EV_FFLAG_REVOKE     0x0040
-
-    // for processes
-    #define FD_EV_FFLAG_EXIT       0x0080
-    #define FD_EV_FFLAG_FORK       0x0100
-    #define FD_EV_FFLAG_EXEC       0x0200
-    #define FD_EV_FFLAG_EXITSTATUS 0x0400
-    #define FD_EV_FFLAG_SIGNAL     0x0800
-    #define FD_EV_FFLAG_REAP       0x1000
-    #define FD_EV_FFLAG_TRAC       0x2000
-#endif // EPOLL
-
 #ifdef __linux__
 #define _setjmp setjmp
 #define _longjmp longjmp
@@ -287,7 +220,13 @@ push_string(shared_stream *p, void *ret)
 void
 push_eof_string(shared_stream *p)
 {
-    return lunar_gt->push_eof_stream<std::u32string*>(p);
+    lunar_gt->push_eof_stream<std::u32string*>(p);
+}
+
+void
+get_fds_ready_green_thread(fdevent_green_thread **events, ssize_t *len)
+{
+    lunar_gt->get_fds_ready(events, len);
 }
 
 } // extern "C"
@@ -478,7 +417,7 @@ green_thread::select_fd(bool is_block)
                 (*it2)->m_state |= context::SUSPENDING;
                 m_suspend.push_back(*it2);
             }
-            (*it2)->m_events.push_back({it->first, {kev[i].flags, kev[i].fflags, kev[i].data}});
+            (*it2)->m_events.push_back({it->first.m_fd, it->first.m_event, kev[i].flags, kev[i].fflags, kev[i].data});
         }
         
         m_wait_fd.erase(it);
@@ -541,7 +480,6 @@ green_thread::resume_timeout()
 {
     uint64_t now = lunar_clock;
 
-    int n = 0;
     auto &tout = m_timeout.get<0>();
     for (auto it = tout.begin(); it != tout.end(); ) {
         if (it->m_clock > now)

@@ -82,6 +82,73 @@
 #define GETTIME(ts) clock_gettime(CLOCK_MONOTONIC_COARSE, ts)
 #endif // __APPLE__
 
+#ifdef KQUEUE
+    #define FD_EV_READ             EVFILT_READ
+    #define FD_EV_WRITE            EVFILT_WRITE
+    #define FD_EV_VNODE            EVFILT_VNODE
+    #define FD_EV_PROC             EVFILT_PROC
+    #define FD_EV_SIGNAL           EVFILT_SIGNAL
+    #define FD_EV_USER             EVFILT_USER
+#ifdef __APPLE__
+    #define FD_EV_MACHPORT         EVFILT_MACHPORT
+#endif // __APPLE__
+    
+    // for read or write events
+    #define FD_EV_FLAG_EOF         EV_EOF
+
+    // for files
+    #define FD_EV_FFLAG_DELETE     NOTE_DELETE
+    #define FD_EV_FFLAG_WRITE      NOTE_WRITE
+    #define FD_EV_FFLAG_EXTEND     NOTE_EXTEND
+    #define FD_EV_FFLAG_ATTRIB     NOTE_ATTRIB
+    #define FD_EV_FFLAG_LINK       NOTE_LINK
+    #define FD_EV_FFLAG_RENAME     NOTE_RENAME
+    #define FD_EV_FFLAG_REVOKE     NOTE_REVOKE
+
+    // for processes
+    #define FD_EV_FFLAG_EXIT       NOTE_EXIT
+    #define FD_EV_FFLAG_FORK       NOTE_FORK
+    #define FD_EV_FFLAG_EXEC       NOTE_EXEC
+#ifdef __APPLE__
+    #define FD_EV_FFLAG_EXITSTATUS NOTE_EXITSTATUS
+    #define FD_EV_FFLAG_SIGNAL     NOTE_SIGNAL
+    #define FD_EV_FFLAG_REAP       NOTE_REAP
+#else
+    #define FD_EV_FFLAG_TRAC       NOTE_TRACK
+#endif // __APPLE__
+
+#endif // KQUEUE
+
+#ifdef EPOLL
+    #define FD_EV_READ             1
+    #define FD_EV_WRITE            2
+    #define FD_EV_VNODE            3
+    #define FD_EV_PROC             4
+    #define FD_EV_SIGNAL           5
+    #define FD_EV_USER             6
+    
+    // for read or write events
+    #define FD_EV_FLAG_EOF         1
+
+    // for files
+    #define FD_EV_FFLAG_DELETE     0x0001
+    #define FD_EV_FFLAG_WRITE      0x0002
+    #define FD_EV_FFLAG_EXTEND     0x0004
+    #define FD_EV_FFLAG_ATTRIB     0x0008
+    #define FD_EV_FFLAG_LINK       0x0010
+    #define FD_EV_FFLAG_RENAME     0x0020
+    #define FD_EV_FFLAG_REVOKE     0x0040
+
+    // for processes
+    #define FD_EV_FFLAG_EXIT       0x0080
+    #define FD_EV_FFLAG_FORK       0x0100
+    #define FD_EV_FFLAG_EXEC       0x0200
+    #define FD_EV_FFLAG_EXITSTATUS 0x0400
+    #define FD_EV_FFLAG_SIGNAL     0x0800
+    #define FD_EV_FFLAG_REAP       0x1000
+    #define FD_EV_FFLAG_TRAC       0x2000
+#endif // EPOLL
+
 namespace lunar {
 
 class green_thread;
@@ -110,9 +177,18 @@ extern "C" {
     STRM_RESULT pop_ptr(shared_stream *p, void **ret);
     STRM_RESULT push_ptr(shared_stream *p, void *ret);
     
+    struct fdevent_green_thread {
+        uintptr_t fd;
+        int16_t   event;
+        uint16_t  flags;
+        uint32_t  fflags;
+        intptr_t  data;
+    };
+    
     void get_streams_ready_green_thread(void ***streams, ssize_t *len); 
     bool is_timeout_green_thread();
     bool is_ready_threadq_green_thread();
+    void get_fds_ready_green_thread(fdevent_green_thread **events, ssize_t *len);
 }
 
 class green_thread {
@@ -171,13 +247,8 @@ public:
             : m_flags(flags), m_fflags(fflags), m_data(data) { }
     };
     
-    struct fdevent {
-        ev_key     m_ev;
-        event_data m_ev_data;
-    };
-    
     // get functions for invoked events
-    void get_fds_ready(fdevent **events, ssize_t *len) {
+    void get_fds_ready(fdevent_green_thread **events, ssize_t *len) {
         *events = &m_running->m_events[0];
         *len    = m_running->m_events.size();
     }
@@ -206,12 +277,12 @@ private:
         jmp_buf m_jmp_buf;
         
         // waiting events
-        std::vector<ev_key> m_fd;        // waiting file descriptors to read
-        std::vector<void*>  m_stream;    // waiting streams to read
+        std::vector<ev_key> m_fd;       // waiting file descriptors to read
+        std::vector<void*>  m_stream;   // waiting streams to read
         
         // invoked events
-        std::vector<void*>   m_ev_stream; // streams ready to read
-        std::vector<fdevent> m_events;    // file descriptors ready to read
+        std::vector<void*> m_ev_stream; // streams ready to read
+        std::vector<fdevent_green_thread> m_events; // file descriptors ready to read
         bool m_is_ev_thq;     // is the thread queue ready to read
         bool m_is_ev_timeout; // is timeout
 
