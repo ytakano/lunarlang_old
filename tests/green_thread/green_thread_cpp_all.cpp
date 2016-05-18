@@ -1,12 +1,14 @@
 #include "lunar_green_thread.hpp"
 
+#include <iostream>
+
 volatile int n = 0;
 
 void
 func3(void *arg) {
     auto ws = (lunar::shared_stream*)arg;
     for (;;) {
-        lunar::select_green_thread(nullptr, 0, nullptr, 0, false, 110);
+        lunar::select_green_thread(nullptr, 0, nullptr, 0, false, 11000);
         auto ret = lunar::push_ptr(ws, nullptr);
         assert(ret == lunar::STRM_SUCCESS);
         fflush(stdout);
@@ -34,7 +36,7 @@ func1(void *arg)
     fflush(stdout);
 
     for (;;) {
-        lunar::select_green_thread(&kev, 1, (void**)&rs, 1, true, 50);
+        lunar::select_green_thread(&kev, 1, (void**)&rs, 1, true, 5000);
         
         if (lunar::is_timeout_green_thread()) {
             printf("timeout!\n> ");
@@ -60,6 +62,17 @@ func1(void *arg)
             printf("recv stream!\n> ");
             fflush(stdout);
         }
+        
+        lunar::fdevent_green_thread *fdev;
+        lunar::get_fds_ready_green_thread(&fdev, &len);
+        for (int i = 0; i < len; i++) {
+            if (fdev[i].fd == STDIN_FILENO && fdev[i].event == FD_EV_READ) {
+                std::string s;
+                std::cin >> s;
+                printf("input = %s\n> ", s.c_str());
+                fflush(stdout);
+            }
+        }
     }
 }
 
@@ -71,7 +84,7 @@ func2(void *arg)
     
     auto fb = lunar::get_green_thread(1);
     for (;;) {
-        lunar::select_green_thread(nullptr, 0, nullptr, 0, false, 130);
+        lunar::select_green_thread(nullptr, 0, nullptr, 0, false, 13000);
         lunar::push_threadq_fast_unsafe_green_thread(fb, nullptr);
     }
 }
