@@ -172,10 +172,10 @@ extern "C" {
     STRM_RESULT push_threadq_green_thread(uint64_t id, void *p);
     STRM_RESULT push_threadq_fast_unsafe_green_thread(void *fb, void *p);
     STRM_RESULT pop_threadq_green_thread(void **p);
-    STRM_RESULT pop_string(shared_stream *p, void **ret);
-    STRM_RESULT push_string(shared_stream *p, void *ret);
-    STRM_RESULT pop_ptr(shared_stream *p, void **ret);
-    STRM_RESULT push_ptr(shared_stream *p, void *ret);
+    STRM_RESULT pop_string(void *p, void **ret);
+    STRM_RESULT push_string(void *p, void *ret);
+    STRM_RESULT pop_ptr(void *p, void **ret);
+    STRM_RESULT push_ptr(void *p, void *ret);
     
     struct fdevent_green_thread {
         uintptr_t fd;

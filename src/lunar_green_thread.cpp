@@ -1,6 +1,8 @@
 #include "lunar_green_thread.hpp"
 #include "lunar_rtm_lock.hpp"
 
+#include <sys/ioctl.h>
+
 // currentry, this code can run on X86_64 System V ABI
 
 #ifdef __linux__
@@ -194,27 +196,27 @@ pop_threadq_green_thread(void **p)
 }
 
 STRM_RESULT
-pop_ptr(shared_stream *p, void **ret)
+pop_ptr(void *p, void **ret)
 {
-    return lunar_gt->pop_stream<void*>(p, *ret);
+    return lunar_gt->pop_stream<void*>((shared_stream*)p, *ret);
 }
 
 STRM_RESULT
-push_ptr(shared_stream *p, void *ret)
+push_ptr(void *p, void *ret)
 {
-    return lunar_gt->push_stream<void*>(p, ret);
+    return lunar_gt->push_stream<void*>((shared_stream*)p, ret);
 }
 
 STRM_RESULT
-pop_string(shared_stream *p, void **ret)
+pop_string(void *p, void **ret)
 {
-    return lunar_gt->pop_stream<std::u32string*>(p, *(std::u32string**)ret);
+    return lunar_gt->pop_stream<std::u32string*>((shared_stream*)p, *(std::u32string**)ret);
 }
 
 STRM_RESULT
-push_string(shared_stream *p, void *ret)
+push_string(void *p, void *ret)
 {
-    return lunar_gt->push_stream<std::u32string*>(p, (std::u32string*)ret);
+    return lunar_gt->push_stream<std::u32string*>((shared_stream*)p, (std::u32string*)ret);
 }
 
 void
@@ -601,7 +603,17 @@ green_thread::schedule()
                     m_timeout.get<1>().erase(m_running);
 
                 if (state & context::WAITING_THQ) {
+                    
+                    spin_lock_acquire_unsafe lock(m_threadq.m_qlock);
                     if (m_threadq.m_qwait_type == threadq::QWAIT_PIPE) {
+                        m_threadq.m_qwait_type = threadq::QWAIT_NONE;
+                        lock.unlock();
+                        
+                        if (m_threadq.m_qlen > 0) {
+                            m_running->m_is_ev_thq = true;
+                            uint8_t buf[32];
+                            while (read(m_threadq.m_qpipe[0], buf, sizeof(buf)) > 0);
+                        }
 #ifdef KQUEUE
                         struct kevent kev;
                         EV_SET(&kev, m_threadq.m_qpipe[0], EVFILT_READ, EV_DELETE, 0, 0, nullptr);
@@ -610,7 +622,8 @@ green_thread::schedule()
                             exit(-1);
                         }
 #endif // KQUEUE
-                        m_threadq.m_qwait_type = threadq::QWAIT_NONE;
+                    } else {
+                        lock.unlock();
                     }
                     
                     m_wait_thq = nullptr;
@@ -774,6 +787,9 @@ green_thread::threadq::threadq(int qsize)
         PRINTERR("could not create pipe!");
         exit(-1);
     }
+
+    int val = 1;
+    ioctl(m_qpipe[0], FIONBIO, &val);
 }
 
 green_thread::threadq::~threadq()
