@@ -340,6 +340,7 @@ green_thread::~green_thread()
 void
 green_thread::select_fd(bool is_block)
 {
+#ifdef KQUEUE
     auto size = m_wait_fd.size();
     struct kevent *kev = new struct kevent[size + 1];
     
@@ -363,7 +364,7 @@ green_thread::select_fd(bool is_block)
             } else {
                 is_timer = true;
                 size++;
-                
+
                 struct kevent kevtimer;
                 intptr_t msec = it->m_clock - clock;
                 
@@ -442,6 +443,7 @@ green_thread::select_fd(bool is_block)
     }
 
     delete[] kev;
+#endif // KQUEUE
 }
 
 int
@@ -592,6 +594,38 @@ green_thread::schedule()
 
                     delete[] kev;
 #elif (defined EPOLL)
+                    std::vector<int> fds;
+                    
+                    for (auto &ev: m_running->m_fd) {
+                        auto it = m_wait_fd.find(ev);
+                        if (it == m_wait_fd.end())
+                            continue;
+                        
+                        it->second.erase(m_running);
+                        
+                        if (it->second.empty)
+                            m_wait_fd.erase(it);
+                        
+                        fds.push_back(ev.m_fd);
+                    }
+                    
+                    for (int fd: fds) {
+                        auto it_in  = m_wait_fd.find({fd, EPOLLIN});
+                        auto it_out = m_wait_fd.find({fd, EPOLLOUT});
+                        
+                        epoll_event eev;
+                        if (it_in == m_wait_fd.end() && it_out == m_wait_fd.end()) {
+                            epoll_ctl(m_epoll, EPOLL_CTL_DEL, fd, nullptr); 
+                        } else if (it_in != m_wait_fd.end())
+                            eev.events  = EPOLLIN;
+                            eev.data.fd = fd;
+                            epoll_ctl(m_epoll, EPOLL_CTL_MOD, fd, &eev); 
+                        } else {
+                            eev.events  = EPOLLOUT;
+                            eev.data.fd = fd;
+                            epoll_ctl(m_epoll, EPOLL_CTL_MOD, fd, &eev); 
+                        }
+                    }
 #endif // KQUEUE
 
                     m_running->m_fd.clear();
@@ -748,6 +782,25 @@ green_thread::select_stream(epoll_event *eev, int num_eev,
         }
     }
 #elif (defined EPOLL)
+    if (num_eev > 0) {
+        m_running->m_state |= context::WAITING_FD;
+        for (int i = 0; i < num_eev; i++) {
+            auto it_in  = m_wait_fd.find({eev[i].data.fd, EPOLLIN});
+            auto it_out = m_wait_fd.find({eev[i].data.fd, EPOLLOUT});
+
+            if (it_in == m_wait_fd.end() && it_out == m_wait_fd.end()) {
+                epoll_ctl(m_epoll, EPOLL_CTL_ADD, eev[i].data.fd, &eev[i]);
+            } else if (it_out != m_wait_fd.end() && eev[i].events == EPOLLIN ||
+                       it_in != m_wait_fd.end() && eev[i].events == EPOLLOUT) {
+                epoll_event e = eev[i];
+                e.events = EPOLLIN | EPOLLOUT;
+                epoll_ctl(m_epoll, EPOLL_CTL_MOD, e.data.fd, &e);
+            }
+
+            m_wait_fd[{eev[i].data.fd, eev[i].events}].insert(m_running);
+            m_running->m_fd.push_back({eev[i].data.fd, eev[i].events});
+        }
+    }
 #endif // KQUEUE
 
     if (num_stream) {
