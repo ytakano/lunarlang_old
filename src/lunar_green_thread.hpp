@@ -41,6 +41,7 @@
 #include <sys/time.h>
 #elif (defined EPOLL)
 #include <sys/epoll.h>
+#include <sys/timerfd.h>
 #endif // KQUEUE
 
 #define	TIMESPECCMP(tvp, uvp, cmp)                  \
@@ -120,12 +121,8 @@
 #endif // KQUEUE
 
 #ifdef EPOLL
-    #define FD_EV_READ             1
-    #define FD_EV_WRITE            2
-    #define FD_EV_VNODE            3
-    #define FD_EV_PROC             4
-    #define FD_EV_SIGNAL           5
-    #define FD_EV_USER             6
+    #define FD_EV_READ             EPOLLIN
+    #define FD_EV_WRITE            EPOLLOUT
     
     // for read or write events
     #define FD_EV_FLAG_EOF         1
@@ -165,6 +162,10 @@ extern "C" {
 
 #ifdef KQUEUE
     void select_green_thread(struct kevent *kev, int num_kev,
+                      void * const *stream, int num_stream,
+                      bool is_threadq, int64_t timeout);
+#elif (define EPOLL)
+    void select_green_thread(epoll_event *eev, int num_eev,
                       void * const *stream, int num_stream,
                       bool is_threadq, int64_t timeout);
 #endif // KQUEUE
@@ -208,10 +209,11 @@ public:
     void select_stream(struct kevent *kev, int num_kev,
                        void * const *stream, int num_stream,
                        bool is_threadq, int64_t timeout);
+#elif (define EPOLL)
+    void select_stream(epoll_event *kev, int num_eev,
+                       void * const *stream, int num_stream,
+                       bool is_threadq, int64_t timeout);
 #endif // KQUEUE
-
-#ifdef EPOLL
-#endif
 
     template<typename T> STRM_RESULT pop_stream(shared_stream *p, T &ret);
     template<typename T> STRM_RESULT push_stream(shared_stream *p, T data);
@@ -382,6 +384,7 @@ private:
     int m_kq;
 #elif (defined EPOLL)
     int m_epoll;
+    int m_timerfd;
 #endif // KQUEUE
 
     void select_fd(bool is_block);

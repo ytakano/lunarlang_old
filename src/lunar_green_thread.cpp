@@ -313,9 +313,15 @@ green_thread::green_thread(int qsize)
         exit(-1);
     }
 #elif (defined EPOLL)
-    epoll_create(32);
+    m_epoll = epoll_create(32);
     if (m_epoll == -1) {
         PRINTERR("could not create epoll!");
+        exit(-1);
+    }
+    
+    m_timerfd = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK);
+    if (m_timerfd < 0) {
+        PRINTERR("could not create timerfd!");
         exit(-1);
     }
 #endif // KQUEUE
@@ -326,6 +332,7 @@ green_thread::~green_thread()
 #ifdef KQUEUE
     close(m_kq);
 #elif (defined EPOLL)
+    close(m_timerfd);
     close(m_epoll);
 #endif // KQUEUE
 }
@@ -561,8 +568,7 @@ green_thread::schedule()
                 if (! m_running->m_fd.empty()) {
 #ifdef KQUEUE
                     struct kevent *kev = new struct kevent[m_running->m_fd.size()];
-#endif // KQUEUE
-                
+
                     int i = 0;
                     for (auto &ev: m_running->m_fd) {
                         auto it = m_wait_fd.find(ev);
@@ -573,13 +579,10 @@ green_thread::schedule()
                         
                         if (it->second.empty()) {
                             m_wait_fd.erase(it);
-#ifdef KQUEUE
                             EV_SET(&kev[i++], ev.m_fd, ev.m_event, EV_DELETE, 0, 0, nullptr);
-#endif // KQUEUE
                         }
                     }
-                
-#ifdef KQUEUE
+                    
                     if (i > 0) {
                         if(kevent(m_kq, kev, i, nullptr, 0, nullptr) == -1) {
                             PRINTERR("failed kevent");
@@ -588,6 +591,7 @@ green_thread::schedule()
                     }
 
                     delete[] kev;
+#elif (defined EPOLL)
 #endif // KQUEUE
 
                     m_running->m_fd.clear();
@@ -714,7 +718,7 @@ green_thread::select_stream(struct kevent *kev, int num_kev,
                      void * const *stream, int num_stream,
                      bool is_threadq, int64_t timeout)
 #elif (defined EPOLL) // #if (defined KQUEUE)
-green_thread::select_stream(
+green_thread::select_stream(epoll_event *eev, int num_eev,
                      void * const *stream, int num_stream,
                      bool is_threadq, int64_t timeout)
 #endif // #if (defined KQUEUE)
@@ -743,10 +747,8 @@ green_thread::select_stream(
             m_running->m_fd.push_back({kev[i].ident, kev[i].filter});
         }
     }
+#elif (defined EPOLL)
 #endif // KQUEUE
-
-#ifdef EPOLL
-#endif // EPOLL
 
     if (num_stream) {
         m_running->m_state |= context::WAITING_STREAM;
