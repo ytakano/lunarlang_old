@@ -782,6 +782,7 @@ green_thread::select_stream(struct kevent *kev, int num_kev,
                      void * const *stream, int num_stream,
                      bool is_threadq, int64_t timeout)
 #elif (defined EPOLL) // #if (defined KQUEUE)
+void
 green_thread::select_stream(epoll_event *eev, int num_eev,
                      void * const *stream, int num_stream,
                      bool is_threadq, int64_t timeout)
@@ -823,8 +824,8 @@ green_thread::select_stream(epoll_event *eev, int num_eev,
                     PRINTERR("failed epoll_ctl!");
                     exit(-1);
                 }
-            } else if (it_out != m_wait_fd.end() && eev[i].events == EPOLLIN ||
-                       it_in != m_wait_fd.end() && eev[i].events == EPOLLOUT) {
+            } else if ((it_out != m_wait_fd.end() && eev[i].events == EPOLLIN) ||
+                       (it_in != m_wait_fd.end() && eev[i].events == EPOLLOUT)) {
                 epoll_event e = eev[i];
                 e.events = EPOLLIN | EPOLLOUT;
                 if (epoll_ctl(m_epoll, EPOLL_CTL_MOD, e.data.fd, &e) < -1) {

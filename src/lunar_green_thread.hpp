@@ -226,15 +226,16 @@ public:
     struct ev_key {
 #ifdef KQUEUE
         uintptr_t m_fd;
+        int16_t   m_event;
 #elif (defined EPOLL)
         int       m_fd;
+        uint32_t  m_event;
 #endif // KQUEUE
-        int16_t   m_event;
 
 #ifdef KQUEUE
         ev_key(uintptr_t fd, int16_t event) : m_fd(fd), m_event(event) { }
 #elif (defined EPOLL)
-        ev_key(int fd, int16_t event) : m_fd(fd), m_event(event) { }
+        ev_key(int fd, uint32_t event) : m_fd(fd), m_event(event) { }
 #endif // KQUEUE
         
         bool operator== (const ev_key &rhs) const {
