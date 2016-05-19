@@ -179,7 +179,11 @@ extern "C" {
     STRM_RESULT push_ptr(void *p, void *ret);
     
     struct fdevent_green_thread {
+#ifdef KQUEUE
         uintptr_t fd;
+#elif (defined EPOLL)
+        int       fd;
+#endif // KQUEUE
         int16_t   event;
         uint16_t  flags;
         uint32_t  fflags;

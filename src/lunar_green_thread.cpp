@@ -153,6 +153,7 @@ run_green_thread()
     delete lunar_gt;
 }
 
+#ifdef KQUEUE
 void
 select_green_thread(struct kevent *kev, int num_kev,
              void * const *stream, int num_stream,
@@ -160,6 +161,15 @@ select_green_thread(struct kevent *kev, int num_kev,
 {
     lunar_gt->select_stream(kev, num_kev, stream, num_stream, is_threadq, timeout);
 }
+#elif (defined EPOLL)
+void
+select_green_thread(epoll_event *eev, int num_eev,
+             void * const *stream, int num_stream,
+             bool is_threadq, int64_t timeout)
+{
+    lunar_gt->select_stream(eev, num_eev, stream, num_stream, is_threadq, timeout);
+}
+#endif // KQUEUE
 
 STRM_RESULT
 push_threadq_green_thread(uint64_t id, void *p)
@@ -603,7 +613,7 @@ green_thread::schedule()
                         
                         it->second.erase(m_running);
                         
-                        if (it->second.empty)
+                        if (it->second.empty())
                             m_wait_fd.erase(it);
                         
                         fds.push_back(ev.m_fd);
@@ -619,7 +629,7 @@ green_thread::schedule()
                                 PRINTERR("failed epoll_ctl!");
                                 exit(-1);
                             }
-                        } else if (it_in != m_wait_fd.end())
+                        } else if (it_in != m_wait_fd.end()) {
                             eev.events  = EPOLLIN;
                             eev.data.fd = fd;
                             if (epoll_ctl(m_epoll, EPOLL_CTL_MOD, fd, &eev) < -1) {
