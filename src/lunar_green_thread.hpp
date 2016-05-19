@@ -41,7 +41,6 @@
 #include <sys/time.h>
 #elif (defined EPOLL)
 #include <sys/epoll.h>
-#include <sys/timerfd.h>
 #endif // KQUEUE
 
 #define	TIMESPECCMP(tvp, uvp, cmp)                  \
@@ -397,7 +396,6 @@ private:
     int m_kq;
 #elif (defined EPOLL)
     int m_epoll;
-    int m_timerfd;
 #endif // KQUEUE
 
     void select_fd(bool is_block);

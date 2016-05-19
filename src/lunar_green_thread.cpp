@@ -328,12 +328,6 @@ green_thread::green_thread(int qsize)
         PRINTERR("could not create epoll!");
         exit(-1);
     }
-    
-    m_timerfd = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK);
-    if (m_timerfd < 0) {
-        PRINTERR("could not create timerfd!");
-        exit(-1);
-    }
 #endif // KQUEUE
 }
 
@@ -342,7 +336,6 @@ green_thread::~green_thread()
 #ifdef KQUEUE
     close(m_kq);
 #elif (defined EPOLL)
-    close(m_timerfd);
     close(m_epoll);
 #endif // KQUEUE
 }
@@ -355,7 +348,6 @@ green_thread::select_fd(bool is_block)
     struct kevent *kev = new struct kevent[size + 1];
     
     int ret;
-    int is_timer = false;
     
     if (is_block) {
         if (m_timeout.empty()) {
@@ -372,17 +364,19 @@ green_thread::select_fd(bool is_block)
                 tm.tv_nsec = 0;
                 ret = kevent(m_kq, nullptr, 0, kev, size, &tm);
             } else {
-                is_timer = true;
-                size++;
-
-                struct kevent kevtimer;
                 intptr_t msec = it->m_clock - clock;
                 
                 assert(msec > 0);
                 
-                EV_SET(&kevtimer, 1, EVFILT_TIMER, EV_ADD | EV_ENABLE | EV_ONESHOT, 0, msec, 0);
-
-                ret = kevent(m_kq, &kevtimer, 1, kev, size, nullptr);
+                if (size > 0) {
+                    timespec tm;
+                    tm.tv_sec = msec * 1e-3;
+                    tm.tv_nsec = (msec - tm.tv_sec * 1e3) * 1e-6;
+                    ret = kevent(m_kq, nullptr, 0, kev, size, &tm);
+                } else {
+                    ret = 0;
+                    usleep(msec * 1000);
+                }
             }
         }
     } else {
@@ -400,12 +394,6 @@ green_thread::select_fd(bool is_block)
     for (int i = 0; i < ret; i++) {
         if (kev[i].flags & EV_ERROR) { // report any error
             fprintf(stderr, "error on kevent: %s\n", strerror(kev[i].data));
-            continue;
-        }
-        
-        if (kev[i].filter == EVFILT_TIMER) {
-            is_timer = false;
-            assert(kev[i].ident == 1);
             continue;
         }
         
@@ -442,17 +430,43 @@ green_thread::select_fd(bool is_block)
         
         m_wait_fd.erase(it);
     }
-    
-    if (is_timer) {
-        struct kevent kevdel;
-        EV_SET(&kevdel, 1, EVFILT_TIMER, EV_ADD | EV_DELETE, 0, 0, 0);
-        if (kevent(m_kq, &kevdel, 1, nullptr, 0, nullptr) < 0) {
-            PRINTERR("failed kevent!");
-            exit(-1);
-        }
-    }
 
     delete[] kev;
+#elif (defined EPOLL)
+    auto size = m_wait_fd.size();
+    epoll_event *eev = new epoll_event[size];
+    
+    int ret;
+    int is_timer = false;
+    
+    if (is_block) {
+        if (m_timeout.empty()) {
+            ret = epoll_wait(m_epoll, eev, size, -1);
+        } else {
+            auto &tout = m_timeout.get<0>();
+            auto it = tout.begin();
+            
+            uint64_t clock = lunar_clock;
+            
+            if (clock >= it->m_clock) {
+                ret = epoll_wait(m_epoll, eev, size, 0);
+            } else {
+                is_timer = true;
+                size++;
+
+                struct kevent kevtimer;
+                intptr_t msec = it->m_clock - clock;
+                
+                assert(msec > 0);
+                
+                EV_SET(&kevtimer, 1, EVFILT_TIMER, EV_ADD | EV_ENABLE | EV_ONESHOT, 0, msec, 0);
+
+                ret = kevent(m_kq, &kevtimer, 1, kev, size, nullptr);
+            }
+        }
+    } else {
+        ret = epoll_wait(m_epoll, eev, size, 0);
+    }
 #endif // KQUEUE
 }
 
