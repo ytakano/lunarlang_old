@@ -383,7 +383,7 @@ green_thread::select_fd(bool is_block)
     }
 
     if (ret == -1) {
-        PRINTERR("failed kevent");
+        PRINTERR("failed kevent!");
         exit(-1);
     }
     
@@ -437,7 +437,7 @@ green_thread::select_fd(bool is_block)
         struct kevent kevdel;
         EV_SET(&kevdel, 1, EVFILT_TIMER, EV_ADD | EV_DELETE, 0, 0, 0);
         if (kevent(m_kq, &kevdel, 1, nullptr, 0, nullptr) < 0) {
-            PRINTERR("failed kevent");
+            PRINTERR("failed kevent!");
             exit(-1);
         }
     }
@@ -587,7 +587,7 @@ green_thread::schedule()
                     
                     if (i > 0) {
                         if(kevent(m_kq, kev, i, nullptr, 0, nullptr) == -1) {
-                            PRINTERR("failed kevent");
+                            PRINTERR("failed kevent!");
                             exit(-1);
                         }
                     }
@@ -615,15 +615,24 @@ green_thread::schedule()
                         
                         epoll_event eev;
                         if (it_in == m_wait_fd.end() && it_out == m_wait_fd.end()) {
-                            epoll_ctl(m_epoll, EPOLL_CTL_DEL, fd, nullptr); 
+                            if (epoll_ctl(m_epoll, EPOLL_CTL_DEL, fd, nullptr) < -1) {
+                                PRINTERR("failed epoll_ctl!");
+                                exit(-1);
+                            }
                         } else if (it_in != m_wait_fd.end())
                             eev.events  = EPOLLIN;
                             eev.data.fd = fd;
-                            epoll_ctl(m_epoll, EPOLL_CTL_MOD, fd, &eev); 
+                            if (epoll_ctl(m_epoll, EPOLL_CTL_MOD, fd, &eev) < -1) {
+                                PRINTERR("failed epoll_ctl!");
+                                exit(-1);
+                            }
                         } else {
                             eev.events  = EPOLLOUT;
                             eev.data.fd = fd;
-                            epoll_ctl(m_epoll, EPOLL_CTL_MOD, fd, &eev); 
+                            if (epoll_ctl(m_epoll, EPOLL_CTL_MOD, fd, &eev) < -1) {
+                                PRINTERR("failed epoll_ctl!");
+                                exit(-1);
+                            }
                         }
                     }
 #endif // KQUEUE
@@ -656,7 +665,12 @@ green_thread::schedule()
                         struct kevent kev;
                         EV_SET(&kev, m_threadq.m_qpipe[0], EVFILT_READ, EV_DELETE, 0, 0, nullptr);
                         if (kevent(m_kq, &kev, 1, nullptr, 0, nullptr) == -1) {
-                            PRINTERR("failed kevent");
+                            PRINTERR("failed kevent!");
+                            exit(-1);
+                        }
+#elif (defined EPOLL)
+                        if (epoll_ctl(m_epoll, EPOLL_CTL_DEL, m_threadq.m_qpipe[0], nullptr) < -1) {
+                            PRINTERR("failed epoll_ctl!");
                             exit(-1);
                         }
 #endif // KQUEUE
@@ -696,7 +710,7 @@ green_thread::schedule()
                 if (m_wait_fd.empty() && m_timeout.empty()) {
                     m_threadq.m_qwait_type = threadq::QWAIT_COND;
                     lock.unlock();
-                    // condition wait
+                    // wait the notification via condition wait
                     {
                         std::unique_lock<std::mutex> mlock(m_threadq.m_qmutex);
                         if (m_threadq.m_qlen == 0)
@@ -714,6 +728,7 @@ green_thread::schedule()
                     m_wait_thq = nullptr;
                     continue;
                 } else {
+                    // wait the notificication via pipe
                     m_threadq.m_qwait_type = threadq::QWAIT_PIPE;
                     lock.unlock();
                     
@@ -721,13 +736,18 @@ green_thread::schedule()
                     struct kevent kev;
                     EV_SET(&kev, m_threadq.m_qpipe[0], EVFILT_READ, EV_ADD | EV_ENABLE | EV_ONESHOT, 0, 0, NULL);
                     if (kevent(m_kq, &kev, 1, nullptr, 0, nullptr) == -1) {
-                        PRINTERR("failed kevent");
+                        PRINTERR("failed kevent!");
+                        exit(-1);
+                    }
+#elif (defined EPOLL)
+                    epoll_event eev;
+                    eev.data.fd = m_threadq.m_qpipe[0];
+                    eev.events  = EPOLLIN;
+                    if (epoll_ctl(m_epoll, EPOLL_CTL_ADD, m_threadq.m_qpipe[0], &eev) < -1) {
+                        PRINTERR("failed epoll_ctl!");
                         exit(-1);
                     }
 #endif // KQUEUE
-
-#ifdef EPOLL
-#endif // EPOLL
                 }
             }
         } else if (m_wait_fd.empty() && m_timeout.empty()) {
@@ -789,12 +809,18 @@ green_thread::select_stream(epoll_event *eev, int num_eev,
             auto it_out = m_wait_fd.find({eev[i].data.fd, EPOLLOUT});
 
             if (it_in == m_wait_fd.end() && it_out == m_wait_fd.end()) {
-                epoll_ctl(m_epoll, EPOLL_CTL_ADD, eev[i].data.fd, &eev[i]);
+                if (epoll_ctl(m_epoll, EPOLL_CTL_ADD, eev[i].data.fd, &eev[i]) < 0) {
+                    PRINTERR("failed epoll_ctl!");
+                    exit(-1);
+                }
             } else if (it_out != m_wait_fd.end() && eev[i].events == EPOLLIN ||
                        it_in != m_wait_fd.end() && eev[i].events == EPOLLOUT) {
                 epoll_event e = eev[i];
                 e.events = EPOLLIN | EPOLLOUT;
-                epoll_ctl(m_epoll, EPOLL_CTL_MOD, e.data.fd, &e);
+                if (epoll_ctl(m_epoll, EPOLL_CTL_MOD, e.data.fd, &e) < -1) {
+                    PRINTERR("failed epoll_ctl");
+                    exit(-1);
+                }
             }
 
             m_wait_fd[{eev[i].data.fd, eev[i].events}].insert(m_running);
