@@ -471,7 +471,7 @@ green_thread::select_fd(bool is_block)
         exit(-1);
     }
     
-    auto func = [&](int fd, uint32_t event, epoll_event &eev) {
+    auto func = [&](int fd, uint32_t event) {
         auto it = m_wait_fd.find({fd, event});
         assert(it != m_wait_fd.end());
 
@@ -500,21 +500,21 @@ green_thread::select_fd(bool is_block)
         
         epoll_event eev2;
         if (it_in == m_wait_fd.end() && it_out == m_wait_fd.end()) {
-            if (epoll_ctl(m_epoll, EPOLL_CTL_DEL, fd, nullptr) < -1) {
+            if (epoll_ctl(m_epoll, EPOLL_CTL_DEL, eev[i].data.fd, nullptr) < -1) {
                 PRINTERR("failed epoll_ctl!");
                 exit(-1);
             }
         } else if (it_in != m_wait_fd.end()) {
             eev2.events  = EPOLLIN;
             eev2.data.fd = fd;
-            if (epoll_ctl(m_epoll, EPOLL_CTL_MOD, fd, &eev2) < -1) {
+            if (epoll_ctl(m_epoll, EPOLL_CTL_MOD, eev[i].data.fd, &eev2) < -1) {
                 PRINTERR("failed epoll_ctl!");
                 exit(-1);
             }
         } else {
             eev2.events  = EPOLLOUT;
             eev2.data.fd = fd;
-            if (epoll_ctl(m_epoll, EPOLL_CTL_MOD, fd, &eev2) < -1) {
+            if (epoll_ctl(m_epoll, EPOLL_CTL_MOD, eev[i].data.fd, &eev2) < -1) {
                 PRINTERR("failed epoll_ctl!");
                 exit(-1);
             }
