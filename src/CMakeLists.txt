@@ -47,6 +47,8 @@ FILE(GLOB CPPSources *.cpp)
 FILE(GLOB CPPHeaders *.hpp)
 FILE(GLOB CPPMain lunar_main.cpp)
 
+list(REMOVE_ITEM CPPSources ${CPPMain})
+
 add_library(lunarlang_static STATIC ${CPPSources})
 add_executable(lunar ${CPPMain} ${CPPSources})
 
