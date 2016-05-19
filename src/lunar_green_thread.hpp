@@ -213,7 +213,7 @@ public:
     void select_stream(struct kevent *kev, int num_kev,
                        void * const *stream, int num_stream,
                        bool is_threadq, int64_t timeout);
-#elif (define EPOLL)
+#elif (defined EPOLL)
     void select_stream(epoll_event *kev, int num_eev,
                        void * const *stream, int num_stream,
                        bool is_threadq, int64_t timeout);
