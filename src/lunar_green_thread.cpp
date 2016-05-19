@@ -506,14 +506,14 @@ green_thread::select_fd(bool is_block)
             }
         } else if (it_in != m_wait_fd.end()) {
             eev2.events  = EPOLLIN;
-            eev2.data.fd = fd;
+            eev2.data.fd = eev[i].data.fd;
             if (epoll_ctl(m_epoll, EPOLL_CTL_MOD, eev[i].data.fd, &eev2) < -1) {
                 PRINTERR("failed epoll_ctl!");
                 exit(-1);
             }
         } else {
             eev2.events  = EPOLLOUT;
-            eev2.data.fd = fd;
+            eev2.data.fd = eev[i].data.fd;
             if (epoll_ctl(m_epoll, EPOLL_CTL_MOD, eev[i].data.fd, &eev2) < -1) {
                 PRINTERR("failed epoll_ctl!");
                 exit(-1);
