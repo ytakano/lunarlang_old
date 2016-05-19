@@ -180,10 +180,11 @@ extern "C" {
     struct fdevent_green_thread {
 #ifdef KQUEUE
         uintptr_t fd;
+        int16_t   event;
 #elif (defined EPOLL)
         int       fd;
+        uint32_t  event;
 #endif // KQUEUE
-        int16_t   event;
         uint16_t  flags;
         uint32_t  fflags;
         intptr_t  data;

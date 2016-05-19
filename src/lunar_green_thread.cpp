@@ -471,7 +471,7 @@ green_thread::select_fd(bool is_block)
         exit(-1);
     }
     
-    auto func = [](int fd, uint32_t event, epoll_event &eev) {
+    auto func = [&](int fd, uint32_t event, epoll_event &eev) {
         auto it = m_wait_fd.find({fd, event});
         assert(it != m_wait_fd.end());
 
@@ -495,8 +495,8 @@ green_thread::select_fd(bool is_block)
             func(eev[i].data.fd, EPOLLOUT);
         }
 
-        auto it_in  = m_wait_fd.find({eev[i].fd, EPOLLIN});
-        auto it_out = m_wait_fd.find({eev[i].fd, EPOLLOUT});
+        auto it_in  = m_wait_fd.find({eev[i].data.fd, EPOLLIN});
+        auto it_out = m_wait_fd.find({eev[i].data.fd, EPOLLOUT});
         
         epoll_event eev2;
         if (it_in == m_wait_fd.end() && it_out == m_wait_fd.end()) {
