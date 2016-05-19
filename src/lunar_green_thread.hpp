@@ -224,7 +224,11 @@ public:
     template<typename T> void        push_eof_stream(shared_stream *p);
 
     struct ev_key {
+#ifdef KQUEUE
         uintptr_t m_fd;
+#elif (defined EPOLL)
+        int       m_fd;
+#endif // KQUEUE
         int16_t   m_event;
         
         ev_key(uintptr_t fd, int16_t event) : m_fd(fd), m_event(event) { }
