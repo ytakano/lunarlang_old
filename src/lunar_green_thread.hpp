@@ -164,7 +164,7 @@ extern "C" {
     void select_green_thread(struct kevent *kev, int num_kev,
                       void * const *stream, int num_stream,
                       bool is_threadq, int64_t timeout);
-#elif (define EPOLL)
+#elif (defined EPOLL)
     void select_green_thread(epoll_event *eev, int num_eev,
                       void * const *stream, int num_stream,
                       bool is_threadq, int64_t timeout);
