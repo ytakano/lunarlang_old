@@ -437,7 +437,6 @@ green_thread::select_fd(bool is_block)
     epoll_event *eev = new epoll_event[size];
     
     int ret;
-    int is_timer = false;
     
     if (is_block) {
         if (m_timeout.empty()) {
@@ -451,22 +450,78 @@ green_thread::select_fd(bool is_block)
             if (clock >= it->m_clock) {
                 ret = epoll_wait(m_epoll, eev, size, 0);
             } else {
-                is_timer = true;
-                size++;
-
-                struct kevent kevtimer;
                 intptr_t msec = it->m_clock - clock;
                 
                 assert(msec > 0);
                 
-                EV_SET(&kevtimer, 1, EVFILT_TIMER, EV_ADD | EV_ENABLE | EV_ONESHOT, 0, msec, 0);
-
-                ret = kevent(m_kq, &kevtimer, 1, kev, size, nullptr);
+                if (size > 0) {
+                    ret = epoll_wait(m_epoll, eev, size, msec);
+                } else {
+                    ret = 0;
+                    usleep(msec * 1000);
+                }
             }
         }
     } else {
         ret = epoll_wait(m_epoll, eev, size, 0);
     }
+
+    if (ret == -1) {
+        PRINTERR("failed epoll_wait!");
+        exit(-1);
+    }
+    
+    auto func = [](int fd, uint32_t event, epoll_event &eev) {
+        auto it = m_wait_fd.find({fd, event});
+        assert(it != m_wait_fd.end());
+
+        for (auto it2 = it->second.begin(); it2 != it->second.end(); ++it2) {
+            if (! ((*it2)->m_state & context::SUSPENDING)) {
+                (*it2)->m_state |= context::SUSPENDING;
+                m_suspend.push_back(*it2);
+            }
+            (*it2)->m_events.push_back({it->first.m_fd, it->first.m_event, 0, 0, 0});
+        }
+        
+        m_wait_fd.erase(it);
+    };
+
+    for (int i = 0; i < ret; i++) {
+        if (eev[i].events & EPOLLIN) {
+            func(eev[i].data.fd, EPOLLIN);
+        }
+        
+        if (eev[i].events & EPOLLOUT) {
+            func(eev[i].data.fd, EPOLLOUT);
+        }
+
+        auto it_in  = m_wait_fd.find({eev[i].fd, EPOLLIN});
+        auto it_out = m_wait_fd.find({eev[i].fd, EPOLLOUT});
+        
+        epoll_event eev2;
+        if (it_in == m_wait_fd.end() && it_out == m_wait_fd.end()) {
+            if (epoll_ctl(m_epoll, EPOLL_CTL_DEL, fd, nullptr) < -1) {
+                PRINTERR("failed epoll_ctl!");
+                exit(-1);
+            }
+        } else if (it_in != m_wait_fd.end()) {
+            eev2.events  = EPOLLIN;
+            eev2.data.fd = fd;
+            if (epoll_ctl(m_epoll, EPOLL_CTL_MOD, fd, &eev2) < -1) {
+                PRINTERR("failed epoll_ctl!");
+                exit(-1);
+            }
+        } else {
+            eev2.events  = EPOLLOUT;
+            eev2.data.fd = fd;
+            if (epoll_ctl(m_epoll, EPOLL_CTL_MOD, fd, &eev2) < -1) {
+                PRINTERR("failed epoll_ctl!");
+                exit(-1);
+            }
+        }
+    }
+    
+    delete[] eev;
 #endif // KQUEUE
 }
 
