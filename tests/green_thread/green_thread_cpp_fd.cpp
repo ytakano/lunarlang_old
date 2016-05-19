@@ -12,6 +12,11 @@ func(void *arg)
     struct kevent kev;
     EV_SET(&kev, STDIN_FILENO, EVFILT_READ, EV_ADD | EV_ENABLE, 0, 0, 0);
     lunar::select_green_thread(&kev, 1, nullptr, 0, false, 10000);
+#elif (defined EPOLL)
+    epoll_event eev;
+    eev.data.fd = STDIN_FILENO;
+    eev.events  = EPOLLIN;
+    lunar::select_green_thread(&eev, 1, nullptr, 0, false, 10000);
 #endif // KQUEUE
 
     if (lunar::is_timeout_green_thread()) {
