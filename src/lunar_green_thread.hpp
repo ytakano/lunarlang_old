@@ -153,7 +153,7 @@ extern "C" {
     uint64_t get_clock();
     bool init_green_thread(uint64_t thid); // thid is user defined thread ID
     void schedule_green_thread();
-    void spawn_green_thread(void (*func)(void*), void *arg = nullptr);
+    void spawn_green_thread(void (*func)(void*), void *arg = nullptr, int stack_size = 128 * 400);
     void run_green_thread();
     uint64_t get_thread_id();
     void* get_green_thread(uint64_t thid);
@@ -202,7 +202,7 @@ public:
     virtual ~green_thread();
 
     void schedule();
-    int  spawn(void (*func)(void*), void *arg = nullptr, int stack_size = 0x80000);
+    int  spawn(void (*func)(void*), void *arg = nullptr, int stack_size = 128 * 400);
     void run();
     void inc_refcnt_threadq() { m_threadq.inc_refcnt(); }
     void dec_refcnt_threadq() { m_threadq.dec_refcnt(); }
