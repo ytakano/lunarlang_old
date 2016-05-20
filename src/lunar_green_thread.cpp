@@ -487,6 +487,24 @@ green_thread::select_fd(bool is_block)
     };
 
     for (int i = 0; i < ret; i++) {
+        // invoke the green_thread waiting the thread queue
+        if (m_wait_thq && m_threadq.get_wait_type() == threadq::QWAIT_PIPE &&
+            eev[i].data.fd == m_threadq.get_read_fd() && (eev[i].events & EPOLLIN)) {
+            
+            if (! (m_wait_thq->m_state & context::SUSPENDING)) {
+                m_wait_thq->m_state |= context::SUSPENDING;
+                m_suspend.push_back(m_wait_thq);
+            }
+
+            m_threadq.set_wait_type(threadq::QWAIT_NONE);
+            m_wait_thq = nullptr;
+            
+            assert(! (kev[i].flags & EV_EOF));
+            m_threadq.pop_pipe(kev[i].data);
+            
+            continue;
+        }
+        
         if (eev[i].events & EPOLLIN) {
             func(eev[i].data.fd, EPOLLIN);
         }
