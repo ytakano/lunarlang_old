@@ -419,6 +419,11 @@ private:
             do {
                 n = read(m_qpipe[0], buf, sizeof(buf));
                 if (n < 0) {
+                    if (errno == EINTR)
+                        continue;
+                    else if (errno == EAGAIN)
+                        break;
+
                     PRINTERR("could not read data from pipe");
                     exit(-1);
                 }

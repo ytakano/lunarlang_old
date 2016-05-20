@@ -317,16 +317,26 @@ green_thread::green_thread(int qsize)
       m_threadq(qsize)
 {
 #ifdef KQUEUE
-    m_kq = kqueue();
-    if (m_kq == -1) {
-        PRINTERR("could not create kqueue!");
-        exit(-1);
+    for (;;) {
+        m_kq = kqueue();
+        if (m_kq == -1) {
+            if (errno == EINTR) continue;
+            PRINTERR("could not create kqueue!");
+            exit(-1);
+        } else {
+            break;
+        }
     }
 #elif (defined EPOLL)
-    m_epoll = epoll_create(32);
-    if (m_epoll == -1) {
-        PRINTERR("could not create epoll!");
-        exit(-1);
+    for (;;) {
+        m_epoll = epoll_create(32);
+        if (m_epoll == -1) {
+            if (errno == EINTR) continue;
+            PRINTERR("could not create epoll!");
+            exit(-1);
+        } else {
+            break;
+        }
     }
 #endif // KQUEUE
 }
@@ -334,9 +344,25 @@ green_thread::green_thread(int qsize)
 green_thread::~green_thread()
 {
 #ifdef KQUEUE
-    close(m_kq);
+    for (;;) {
+        if (close(m_kq) == -1) {
+            if (errno == EINTR) continue;
+            PRINTERR("failed close!");
+            exit(-1);
+        } else {
+            break;
+        }
+    } 
 #elif (defined EPOLL)
-    close(m_epoll);
+    for (;;) {
+        if (close(m_epoll) == -1) {
+            if (errno == EINTR) continue;
+            PRINTERR("failed clsoe!");
+            exit(-1);
+        } else {
+            break;
+        }
+    }
 #endif // KQUEUE
 }
 
@@ -362,7 +388,16 @@ green_thread::select_fd(bool is_block)
                 timespec tm;
                 tm.tv_sec  = 0;
                 tm.tv_nsec = 0;
-                ret = kevent(m_kq, nullptr, 0, kev, size, &tm);
+                for (;;) {
+                    ret = kevent(m_kq, nullptr, 0, kev, size, &tm);
+                    if (ret == -1) {
+                        if (errno == EINTR) continue;
+                        PRINTERR("failed kevent!");
+                        exit(-1);
+                    } else {
+                        break;
+                    }
+                }
             } else {
                 intptr_t msec = it->m_clock - clock;
                 
@@ -372,7 +407,16 @@ green_thread::select_fd(bool is_block)
                     timespec tm;
                     tm.tv_sec = msec * 1e-3;
                     tm.tv_nsec = (msec - tm.tv_sec * 1e3) * 1e-6;
-                    ret = kevent(m_kq, nullptr, 0, kev, size, &tm);
+                    for (;;) {
+                        ret = kevent(m_kq, nullptr, 0, kev, size, &tm);
+                        if (ret == -1) {
+                            if (errno == EINTR) continue;
+                            PRINTERR("failed kevent!");
+                            exit(-1);
+                        } else {
+                            break;
+                        }
+                    }
                 } else {
                     ret = 0;
                     usleep(msec * 1000);
@@ -383,14 +427,18 @@ green_thread::select_fd(bool is_block)
         timespec tm;
         tm.tv_sec  = 0;
         tm.tv_nsec = 0;
-        ret = kevent(m_kq, nullptr, 0, kev, size, &tm);
+        for (;;) {
+            ret = kevent(m_kq, nullptr, 0, kev, size, &tm);
+            if (ret == -1) {
+                if (errno == EINTR) continue;
+                PRINTERR("failed kevent!");
+                exit(-1);
+            } else {
+                break;
+            }
+        }
     }
 
-    if (ret == -1) {
-        PRINTERR("failed kevent!");
-        exit(-1);
-    }
-    
     for (int i = 0; i < ret; i++) {
         if (kev[i].flags & EV_ERROR) { // report any error
             fprintf(stderr, "error on kevent: %s\n", strerror(kev[i].data));
@@ -448,14 +496,32 @@ green_thread::select_fd(bool is_block)
             uint64_t clock = lunar_clock;
             
             if (clock >= it->m_clock) {
-                ret = epoll_wait(m_epoll, eev, size, 0);
+                for (;;) {
+                    ret = epoll_wait(m_epoll, eev, size, 0);
+                    if (ret == -1) {
+                        if (errno == EINTR) continue;
+                        PRINTERR("failed kevent!");
+                        exit(-1);
+                    } else {
+                        break;
+                    }
+                }
             } else {
                 intptr_t msec = it->m_clock - clock;
                 
                 assert(msec > 0);
                 
                 if (size > 0) {
-                    ret = epoll_wait(m_epoll, eev, size, msec);
+                    for (;;) {
+                        ret = epoll_wait(m_epoll, eev, size, msec);
+                        if (ret == -1) {
+                            if (errno == EINTR) continue;
+                            PRINTERR("failed kevent!");
+                            exit(-1);
+                        } else {
+                            break;
+                        }
+                    }
                 } else {
                     ret = 0;
                     usleep(msec * 1000);
@@ -463,12 +529,16 @@ green_thread::select_fd(bool is_block)
             }
         }
     } else {
-        ret = epoll_wait(m_epoll, eev, size, 0);
-    }
-
-    if (ret == -1) {
-        PRINTERR("failed epoll_wait!");
-        exit(-1);
+        for (;;) {
+            ret = epoll_wait(m_epoll, eev, size, 0);
+            if (ret == -1) {
+                if (errno == EINTR) continue;
+                PRINTERR("failed kevent!");
+                exit(-1);
+            } else {
+                break;
+            }
+        }
     }
     
     auto func = [&](int fd, uint32_t event) {
@@ -711,23 +781,38 @@ green_thread::schedule()
                         
                         epoll_event eev;
                         if (it_in == m_wait_fd.end() && it_out == m_wait_fd.end()) {
-                            if (epoll_ctl(m_epoll, EPOLL_CTL_DEL, fd, nullptr) < -1) {
-                                PRINTERR("failed epoll_ctl!");
-                                exit(-1);
+                            for (;;) {
+                                if (epoll_ctl(m_epoll, EPOLL_CTL_DEL, fd, nullptr) < -1) {
+                                    if (errno == EINTR) continue;
+                                    PRINTERR("failed epoll_ctl!");
+                                    exit(-1);
+                                } else {
+                                    break; 
+                                }
                             }
                         } else if (it_in != m_wait_fd.end()) {
                             eev.events  = EPOLLIN;
                             eev.data.fd = fd;
-                            if (epoll_ctl(m_epoll, EPOLL_CTL_MOD, fd, &eev) < -1) {
-                                PRINTERR("failed epoll_ctl!");
-                                exit(-1);
+                            for (;;) {
+                                if (epoll_ctl(m_epoll, EPOLL_CTL_MOD, fd, &eev) < -1) {
+                                    if (errno == EINTR) continue;
+                                    PRINTERR("failed epoll_ctl!");
+                                    exit(-1);
+                                } else {
+                                    break;
+                                }
                             }
                         } else {
                             eev.events  = EPOLLOUT;
                             eev.data.fd = fd;
-                            if (epoll_ctl(m_epoll, EPOLL_CTL_MOD, fd, &eev) < -1) {
-                                PRINTERR("failed epoll_ctl!");
-                                exit(-1);
+                            for (;;) {
+                                if (epoll_ctl(m_epoll, EPOLL_CTL_MOD, fd, &eev) < -1) {
+                                    if (errno == EINTR) continue;
+                                    PRINTERR("failed epoll_ctl!");
+                                    exit(-1);
+                                } else {
+                                    break;
+                                }
                             }
                         }
                     }
@@ -831,17 +916,27 @@ green_thread::schedule()
 #ifdef KQUEUE
                     struct kevent kev;
                     EV_SET(&kev, m_threadq.m_qpipe[0], EVFILT_READ, EV_ADD | EV_ENABLE | EV_ONESHOT, 0, 0, NULL);
-                    if (kevent(m_kq, &kev, 1, nullptr, 0, nullptr) == -1) {
-                        PRINTERR("failed kevent!");
-                        exit(-1);
+                    for (;;) {
+                        if (kevent(m_kq, &kev, 1, nullptr, 0, nullptr) == -1) {
+                            if (errno == EINTR) continue;
+                            PRINTERR("failed kevent!");
+                            exit(-1);
+                        } else {
+                            break;
+                        }
                     }
 #elif (defined EPOLL)
                     epoll_event eev;
                     eev.data.fd = m_threadq.m_qpipe[0];
                     eev.events  = EPOLLIN;
-                    if (epoll_ctl(m_epoll, EPOLL_CTL_ADD, m_threadq.m_qpipe[0], &eev) < -1) {
-                        PRINTERR("failed epoll_ctl!");
-                        exit(-1);
+                    for (;;) {
+                        if (epoll_ctl(m_epoll, EPOLL_CTL_ADD, m_threadq.m_qpipe[0], &eev) < -1) {
+                            if (errno == EINTR) continue;
+                            PRINTERR("failed epoll_ctl!");
+                            exit(-1);
+                        } else {
+                            break;
+                        }
                     }
 #endif // KQUEUE
                 }
@@ -888,9 +983,14 @@ green_thread::select_stream(epoll_event *eev, int num_eev,
 #ifdef KQUEUE
     if (num_kev > 0) {
         m_running->m_state |= context::WAITING_FD;
-        if (kevent(m_kq, kev, num_kev, NULL, 0, NULL) == -1) {
-            PRINTERR("could not set events to kqueue!");
-            exit(-1);
+        for (;;) {
+            if (kevent(m_kq, kev, num_kev, NULL, 0, NULL) == -1) {
+                if (errno == EINTR) continue;
+                PRINTERR("could not set events to kqueue!");
+                exit(-1);
+            } else {
+                break;
+            }
         }
 
         for (int i = 0; i < num_kev; i++) {
@@ -906,17 +1006,25 @@ green_thread::select_stream(epoll_event *eev, int num_eev,
             auto it_out = m_wait_fd.find({eev[i].data.fd, EPOLLOUT});
 
             if (it_in == m_wait_fd.end() && it_out == m_wait_fd.end()) {
-                if (epoll_ctl(m_epoll, EPOLL_CTL_ADD, eev[i].data.fd, &eev[i]) < 0) {
-                    PRINTERR("failed epoll_ctl!");
-                    exit(-1);
+                for (;;) {
+                    if (epoll_ctl(m_epoll, EPOLL_CTL_ADD, eev[i].data.fd, &eev[i]) < 0) {
+                        if (errno == EINTR) continue;
+                        PRINTERR("failed epoll_ctl!");
+                        exit(-1);
+                    } else {
+                        break;
+                    }
                 }
             } else if ((it_out != m_wait_fd.end() && eev[i].events == EPOLLIN) ||
                        (it_in != m_wait_fd.end() && eev[i].events == EPOLLOUT)) {
                 epoll_event e = eev[i];
                 e.events = EPOLLIN | EPOLLOUT;
-                if (epoll_ctl(m_epoll, EPOLL_CTL_MOD, e.data.fd, &e) < -1) {
-                    PRINTERR("failed epoll_ctl");
-                    exit(-1);
+                for (;;) {
+                    if (epoll_ctl(m_epoll, EPOLL_CTL_MOD, e.data.fd, &e) < -1) {
+                        if (errno == EINTR) continue;
+                        PRINTERR("failed epoll_ctl");
+                        exit(-1);
+                    }
                 }
             }
 
@@ -976,8 +1084,25 @@ green_thread::threadq::~threadq()
     
     delete[] m_q;
 
-    close(m_qpipe[0]);
-    close(m_qpipe[1]);
+    for (;;) {
+        if (close(m_qpipe[0]) < 0) {
+            if (errno == EINTR) continue;
+            PRINTERR("failed close!\n");
+            exit(-1);
+        } else {
+            break;
+        }
+    }
+
+    for (;;) {
+        if (close(m_qpipe[1]) < 0) {
+            if (errno == EINTR) continue;
+            PRINTERR("failed colse!\n");
+            exit(-1);
+        } else {
+            break;
+        }
+    }
 }
 
 }
