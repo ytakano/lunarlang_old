@@ -11,6 +11,9 @@ find_package(Boost COMPONENTS REQUIRED)
 find_package(LLVM REQUIRED CONFIG)
 add_definitions(${LLVM_DEFINITIONS})
 
+# for threading library
+find_package(Threads REQUIRED)
+
 include_directories(${LLVM_INCLUDE_DIRS} ${Boost_INCLUDE_DIR})
 
 execute_process(
@@ -52,7 +55,12 @@ list(REMOVE_ITEM CPPSources ${CPPMain})
 add_library(lunarlang_static STATIC ${CPPSources})
 add_executable(lunar ${CPPMain} ${CPPSources})
 
-set(LIBS ${LLVM_AVAILABLE_LIBS})
+if(CMAKE_THREAD_LIBS_INIT)
+    set(LIBS ${LLVM_AVAILABLE_LIBS} ${CMAKE_THREAD_LIBS_INIT})
+else()
+    set(LIBS ${LLVM_AVAILABLE_LIBS})
+endif()
+
 
 target_link_libraries(lunarlang_static ${LIBS})
 target_link_libraries(lunar ${LIBS})
