@@ -587,23 +587,34 @@ green_thread::select_fd(bool is_block)
         
         epoll_event eev2;
         if (it_in == m_wait_fd.end() && it_out == m_wait_fd.end()) {
-            if (epoll_ctl(m_epoll, EPOLL_CTL_DEL, eev[i].data.fd, nullptr) < -1) {
-                PRINTERR("failed epoll_ctl!");
-                exit(-1);
+            for (;;) {
+                if (epoll_ctl(m_epoll, EPOLL_CTL_DEL, eev[i].data.fd, nullptr) < -1) {
+                    if (errno == EINTR) continue;
+                    PRINTERR("failed epoll_ctl!");
+                    exit(-1);
+                } else {
+                    break;
+                }
             }
         } else if (it_in != m_wait_fd.end()) {
             eev2.events  = EPOLLIN;
             eev2.data.fd = eev[i].data.fd;
-            if (epoll_ctl(m_epoll, EPOLL_CTL_MOD, eev[i].data.fd, &eev2) < -1) {
-                PRINTERR("failed epoll_ctl!");
-                exit(-1);
+            for (;;) {
+                if (epoll_ctl(m_epoll, EPOLL_CTL_MOD, eev[i].data.fd, &eev2) < -1) {
+                    if (errno == EINTR) continue;
+                    PRINTERR("failed epoll_ctl!");
+                    exit(-1);
+                }
             }
         } else {
             eev2.events  = EPOLLOUT;
             eev2.data.fd = eev[i].data.fd;
-            if (epoll_ctl(m_epoll, EPOLL_CTL_MOD, eev[i].data.fd, &eev2) < -1) {
-                PRINTERR("failed epoll_ctl!");
-                exit(-1);
+            for (;;) {
+                if (epoll_ctl(m_epoll, EPOLL_CTL_MOD, eev[i].data.fd, &eev2) < -1) {
+                    if (errno == EINTR) continue;
+                    PRINTERR("failed epoll_ctl!");
+                    exit(-1);
+                }
             }
         }
     }
@@ -752,9 +763,14 @@ green_thread::schedule()
                     }
                     
                     if (i > 0) {
-                        if(kevent(m_kq, kev, i, nullptr, 0, nullptr) == -1) {
-                            PRINTERR("failed kevent!");
-                            exit(-1);
+                        for (;;) {
+                            if(kevent(m_kq, kev, i, nullptr, 0, nullptr) == -1) {
+                                if (errno == EINTR) continue;
+                                PRINTERR("failed kevent!");
+                                exit(-1);
+                            } else {
+                                break;
+                            }
                         }
                     }
 
@@ -845,14 +861,24 @@ green_thread::schedule()
 #ifdef KQUEUE
                         struct kevent kev;
                         EV_SET(&kev, m_threadq.m_qpipe[0], EVFILT_READ, EV_DELETE, 0, 0, nullptr);
-                        if (kevent(m_kq, &kev, 1, nullptr, 0, nullptr) == -1) {
-                            PRINTERR("failed kevent!");
-                            exit(-1);
+                        for (;;) {
+                            if (kevent(m_kq, &kev, 1, nullptr, 0, nullptr) == -1) {
+                                if (errno == EINTR) continue;
+                                PRINTERR("failed kevent!");
+                                exit(-1);
+                            } else {
+                                break;
+                            }
                         }
 #elif (defined EPOLL)
-                        if (epoll_ctl(m_epoll, EPOLL_CTL_DEL, m_threadq.m_qpipe[0], nullptr) < -1) {
-                            PRINTERR("failed epoll_ctl!");
-                            exit(-1);
+                        for (;;) {
+                            if (epoll_ctl(m_epoll, EPOLL_CTL_DEL, m_threadq.m_qpipe[0], nullptr) < -1) {
+                                if (errno == EINTR) continue;
+                                PRINTERR("failed epoll_ctl!");
+                                exit(-1);
+                            } else {
+                                break;
+                            }
                         }
 #endif // KQUEUE
                     } else {
