@@ -641,18 +641,19 @@ green_thread::spawn(void (*func)(void*), void *arg, int stack_size)
         }
     }
     
-    stack_size -= stack_size % 128;
+    int pagesize = sysconf(_SC_PAGE_SIZE);
+    stack_size -= stack_size % pagesize;
     
     ctx->m_id    = m_count;
     ctx->m_state = context::READY;
-    ctx->m_stack.resize(stack_size);
+    ctx->m_stack.resize(stack_size / sizeof(uint64_t));
     
     auto s = ctx->m_stack.size();
     ctx->m_stack[s - 2] = (uint64_t)ctx.get(); // push context
     ctx->m_stack[s - 3] = (uint64_t)arg;       // push argument
     ctx->m_stack[s - 4] = (uint64_t)func;      // push func
     
-    if (mprotect(&ctx->m_stack[ctx->m_stack.size() - 2560], 2560, PROT_NONE) < 0) {
+    if (mprotect(&ctx->m_stack[ctx->m_stack.size() - pagesize], pagesize, PROT_NONE) < 0) {
         PRINTERR("failed mprotect!: %s", strerror(errno));
         exit(-1);
     }
