@@ -2,6 +2,7 @@
 #include "lunar_rtm_lock.hpp"
 
 #include <sys/ioctl.h>
+#include <sys/mman.h>
 
 // currentry, this code can run on X86_64 System V ABI
 
@@ -648,6 +649,11 @@ green_thread::spawn(void (*func)(void*), void *arg, int stack_size)
     ctx->m_stack[s - 2] = (uint64_t)ctx.get(); // push context
     ctx->m_stack[s - 3] = (uint64_t)arg;       // push argument
     ctx->m_stack[s - 4] = (uint64_t)func;      // push func
+    
+    if (mprotect(&m_stack[m_stack.size() - 4000], 4000, PROT_NONE) < 0) {
+        PRINTERR("failed mprotect!");
+        exit(-1);
+    }
     
     m_suspend.push_back(ctx.get());
     m_id2context[m_count] = std::move(ctx);
