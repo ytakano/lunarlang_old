@@ -653,7 +653,7 @@ green_thread::spawn(void (*func)(void*), void *arg, int stack_size)
     ctx->m_stack[s - 3] = (uint64_t)arg;       // push argument
     ctx->m_stack[s - 4] = (uint64_t)func;      // push func
     
-    if (mprotect(&ctx->m_stack[ctx->m_stack.size() - pagesize], pagesize, PROT_NONE) < 0) {
+    if (mprotect(&ctx->m_stack[0], pagesize, PROT_NONE) < 0) {
         PRINTERR("failed mprotect!: %s", strerror(errno));
         exit(-1);
     }
@@ -742,9 +742,10 @@ green_thread::schedule()
                         );
                     } else {
                         if (! m_stop.empty()) {
+                            int pagesize = sysconf(_SC_PAGE_SIZE);
                             for (auto ctx2: m_stop) {
                                 m_id2context.erase(ctx2->m_id);
-                                if (mprotect(&ctx->m_stack[ctx->m_stack.size() - 2560], 2560, PROT_READ | PROT_WRITE) < 0) {
+                                if (mprotect(&ctx->m_stack[0], pagesize, PROT_READ | PROT_WRITE) < 0) {
                                     PRINTERR("failed mprotect!: %s", strerror(errno));
                                     exit(-1);
                                 }
@@ -918,9 +919,10 @@ green_thread::schedule()
                     _longjmp(m_running->m_jmp_buf, 1);
                 } else {
                     if (! m_stop.empty()) {
+                        int pagesize = sysconf(_SC_PAGE_SIZE);
                         for (auto ctx2: m_stop) {
                             m_id2context.erase(ctx2->m_id);
-                            if (mprotect(&ctx->m_stack[ctx->m_stack.size() - 2560], 2560, PROT_READ | PROT_WRITE) < 0) {
+                            if (mprotect(&ctx->m_stack[0], pagesize, PROT_READ | PROT_WRITE) < 0) {
                                 PRINTERR("failed mprotect!: %s", strerror(errno));
                                 exit(-1);
                             }
