@@ -499,7 +499,7 @@ green_thread::select_fd(bool is_block)
             m_threadq.set_wait_type(threadq::QWAIT_NONE);
             m_wait_thq = nullptr;
             
-            m_threadq.pop_pipe(eev[i].data.fd);
+            m_threadq.pop_pipe(1);
             
             continue;
         }
