@@ -30,14 +30,22 @@ func1(void *arg)
 #ifdef KQUEUE
     struct kevent kev;
     EV_SET(&kev, STDIN_FILENO, EVFILT_READ, EV_ADD | EV_ENABLE, 0, 0, 0);
+#elif (defined EPOLL)
+    epoll_event eev;
+    eev.data.fd = STDIN_FILENO;
+    eev.events  = EPOLLIN;
 #endif // KQUEUE
 
     printf("> ");
     fflush(stdout);
 
     for (;;) {
+#ifdef KQUEUE
         lunar::select_green_thread(&kev, 1, (void**)&rs, 1, true, 5000);
-        
+#elif (defined EPOLL)
+        lunar::select_green_thread(&eev, 1, (void**)&rs, 1, true, 5000);
+#endif // KQUEUE
+
         if (lunar::is_timeout_green_thread()) {
             printf("timeout!\n> ");
             fflush(stdout);
