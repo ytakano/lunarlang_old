@@ -11,6 +11,9 @@ find_package(Boost COMPONENTS REQUIRED)
 find_package(LLVM REQUIRED CONFIG)
 add_definitions(${LLVM_DEFINITIONS})
 
+# for threading library
+find_package(Threads REQUIRED)
+
 include_directories(${LLVM_INCLUDE_DIRS} ${Boost_INCLUDE_DIR})
 
 execute_process(
@@ -51,7 +54,13 @@ add_executable(green_thread_cpp_stream green_thread_cpp_stream.cpp)
 add_executable(green_thread_cpp_threadq green_thread_cpp_threadq.cpp)
 add_executable(green_thread_cpp_all green_thread_cpp_all.cpp)
 
-set(LIBS ${LLVM_AVAILABLE_LIBS} ${CMAKE_CURRENT_LIST_DIR}/../../src/liblunarlang_static.a)
+if(CMAKE_THREAD_LIBS_INIT)
+    set(LIBS ${LLVM_AVAILABLE_LIBS}
+             ${CMAKE_CURRENT_LIST_DIR}/../../src/liblunarlang_static.a
+             ${CMAKE_THREAD_LIBS_INIT})
+else()
+    set(LIBS ${LLVM_AVAILABLE_LIBS} ${CMAKE_CURRENT_LIST_DIR}/../../src/liblunarlang_static.a)
+endif()
 
 target_link_libraries(green_thread_cpp ${LIBS})
 target_link_libraries(green_thread_cpp_timer ${LIBS})
