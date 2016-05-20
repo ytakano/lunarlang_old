@@ -646,9 +646,13 @@ green_thread::spawn(void (*func)(void*), void *arg, int stack_size)
     
     ctx->m_id    = m_count;
     ctx->m_state = context::READY;
-    ctx->m_stack.resize(stack_size / sizeof(uint64_t));
     
-    auto s = ctx->m_stack.size();
+    void *addr;
+    posix_memalign(&addr, pagesize, stack_size);
+    ctx->m_stack = (uint64_t*)addr;
+    ctx->m_stack_size = stack_size / sizeof(uint64_t);
+    
+    auto s = ctx->m_stack_size;
     ctx->m_stack[s - 2] = (uint64_t)ctx.get(); // push context
     ctx->m_stack[s - 3] = (uint64_t)arg;       // push argument
     ctx->m_stack[s - 4] = (uint64_t)func;      // push func
@@ -669,6 +673,9 @@ green_thread::run()
 {
     if (_setjmp(m_jmp_buf) == 0) {
         schedule();
+    } else {
+        if (! m_stop.empty())
+            remove_stopped();
     }
 }
 
@@ -732,7 +739,7 @@ green_thread::schedule()
             if (state & context::READY) {
                 if (ctx) {
                     if (_setjmp(ctx->m_jmp_buf) == 0) {
-                        auto p = &m_running->m_stack[m_running->m_stack.size() - 4];
+                        auto p = &m_running->m_stack[m_running->m_stack_size - 4];
                         asm (
                             "movq %0, %%rsp;" // set stack pointer
                             "movq %0, %%rbp;" // set frame pointer
@@ -741,23 +748,13 @@ green_thread::schedule()
                             : "r" (p)
                         );
                     } else {
-                        if (! m_stop.empty()) {
-                            int pagesize = sysconf(_SC_PAGE_SIZE);
-                            for (auto ctx2: m_stop) {
-                                m_id2context.erase(ctx2->m_id);
-                                if (mprotect(&ctx->m_stack[0], pagesize, PROT_READ | PROT_WRITE) < 0) {
-                                    PRINTERR("failed mprotect!: %s", strerror(errno));
-                                    exit(-1);
-                                }
-                            }
-                            
-                            m_stop.clear();
-                        }
+                        if (! m_stop.empty())
+                            remove_stopped();
 
                         return;
                     }
                 } else {
-                    auto p = &m_running->m_stack[m_running->m_stack.size() - 4];
+                    auto p = &m_running->m_stack[m_running->m_stack_size - 4];
                     asm (
                         "movq %0, %%rsp;" // set stack pointer
                         "movq %0, %%rbp;" // set frame pointer
@@ -918,18 +915,8 @@ green_thread::schedule()
                 if (_setjmp(ctx->m_jmp_buf) == 0) {
                     _longjmp(m_running->m_jmp_buf, 1);
                 } else {
-                    if (! m_stop.empty()) {
-                        int pagesize = sysconf(_SC_PAGE_SIZE);
-                        for (auto ctx2: m_stop) {
-                            m_id2context.erase(ctx2->m_id);
-                            if (mprotect(&ctx->m_stack[0], pagesize, PROT_READ | PROT_WRITE) < 0) {
-                                PRINTERR("failed mprotect!: %s", strerror(errno));
-                                exit(-1);
-                            }
-                        }
-                        
-                        m_stop.clear();
-                    }
+                    if (! m_stop.empty())
+                        remove_stopped();
 
                     return;
                 }
@@ -1119,6 +1106,22 @@ green_thread::select_stream(epoll_event *eev, int num_eev,
     }
     
     schedule();
+}
+
+void
+green_thread::remove_stopped()
+{
+    int pagesize = sysconf(_SC_PAGE_SIZE);
+    for (auto ctx: m_stop) {
+        if (mprotect(&ctx->m_stack[0], pagesize, PROT_READ | PROT_WRITE) < 0) {
+            PRINTERR("failed mprotect!: %s", strerror(errno));
+            exit(-1);
+        }
+        free(ctx->m_stack);
+        m_id2context.erase(ctx->m_id);
+    }
+    
+    m_stop.clear();
 }
 
 green_thread::threadq::threadq(int qsize)

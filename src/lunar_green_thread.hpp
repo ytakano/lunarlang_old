@@ -302,7 +302,8 @@ private:
         bool m_is_ev_timeout; // is timeout
 
         int64_t m_id; // m_id must not be less than or equal to 0
-        std::vector<uint64_t> m_stack;
+        uint64_t *m_stack;
+        int m_stack_size;
     };
 
     struct ctx_time {
@@ -464,6 +465,7 @@ private:
 
     void select_fd(bool is_block);
     void resume_timeout();
+    void remove_stopped();
 };
 
 }
