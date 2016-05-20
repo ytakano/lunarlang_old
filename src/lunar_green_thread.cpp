@@ -499,8 +499,7 @@ green_thread::select_fd(bool is_block)
             m_threadq.set_wait_type(threadq::QWAIT_NONE);
             m_wait_thq = nullptr;
             
-            assert(! (kev[i].flags & EV_EOF));
-            m_threadq.pop_pipe(kev[i].data);
+            m_threadq.pop_pipe(eev[i].data.fd);
             
             continue;
         }
