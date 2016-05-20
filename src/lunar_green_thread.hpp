@@ -346,8 +346,65 @@ private:
         threadq(int qsize);
         virtual ~threadq();
         
-        STRM_RESULT push(void *p);
-        STRM_RESULT pop(void **p);
+        inline STRM_RESULT push(void *p) {
+            if (m_qlen == m_max_qlen) 
+                return STRM_NO_VACANCY;
+            
+            spin_lock_acquire_unsafe lock(m_qlock);
+        
+            *m_qtail = p;
+            m_qlen++;
+            m_qtail++;
+        
+            if (m_qtail == m_qend) {
+                m_qtail = m_q;
+            }
+            
+            if (! m_is_qnotified) {
+                m_is_qnotified = true;
+                if (m_qwait_type == QWAIT_COND) {
+                    lock.unlock();
+                    std::unique_lock<std::mutex> mlock(m_qmutex);
+                    m_qcond.notify_one();
+                } else {
+                    lock.unlock();
+                    char c = '\0';
+                    if (write(m_qpipe[1], &c, sizeof(c)) < 0) {
+                        PRINTERR("could not write data to pipe");
+                        exit(-1);
+                    }
+                }
+                
+                return STRM_SUCCESS;
+            }
+            
+            lock.unlock();
+            
+            return STRM_SUCCESS;
+        }
+
+        inline STRM_RESULT pop(void **p) {
+            int n = 0;
+            while (m_qlen == 0) {
+                if (n++ > 1000)
+                    return STRM_NO_MORE_DATA;
+            }
+            
+            *p = *m_qhead;
+            
+            {
+                spin_lock_acquire lock(m_qlock);
+                m_qlen--;
+            }
+            
+            m_qhead++;
+            
+            if (m_qhead == m_qend) {
+                m_qhead = m_q;
+            }
+            
+            return STRM_SUCCESS;
+        }
         
         int get_len() { return m_qlen; }
         int get_read_fd() { return m_qpipe[0]; }
