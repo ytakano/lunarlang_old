@@ -330,6 +330,7 @@ private:
     context*  m_wait_thq;
     timeout_t m_timeout;
     std::deque<context*> m_suspend;
+    std::deque<context*> m_stop;
     std::unordered_map<int64_t, std::unique_ptr<context>> m_id2context;
     std::unordered_map<ev_key, std::unordered_set<context*>, ev_key_hasher> m_wait_fd;
     std::unordered_map<void*, context*> m_wait_stream;

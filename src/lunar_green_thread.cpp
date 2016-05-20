@@ -30,7 +30,7 @@ asm (
     "movq 8(%rsp), %rdi;" // set the argument
     "callq *(%rsp);"      // call func()
     "movq 16(%rsp), %rax;"
-    "movl $6, (%rax);"    // context.m_state = STOP
+    "movl $128, (%rax);"    // context.m_state = STOP
 #ifdef __APPLE__
     "call _schedule_green_thread;"  // call _schedule_green_thread
 #else  // *BSD, Linux
@@ -650,10 +650,10 @@ green_thread::spawn(void (*func)(void*), void *arg, int stack_size)
     ctx->m_stack[s - 3] = (uint64_t)arg;       // push argument
     ctx->m_stack[s - 4] = (uint64_t)func;      // push func
     
-    if (mprotect(&m_stack[m_stack.size() - 4000], 4000, PROT_NONE) < 0) {
-        PRINTERR("failed mprotect!");
-        exit(-1);
-    }
+//    if (mprotect(&ctx->m_stack[ctx->m_stack.size() - 4000], 4000, PROT_NONE) < 0) {
+//        PRINTERR("failed mprotect!");
+//        exit(-1);
+//    }
     
     m_suspend.push_back(ctx.get());
     m_id2context[m_count] = std::move(ctx);
@@ -698,7 +698,9 @@ green_thread::schedule()
         
         if (m_running) {
             ctx = m_running;
-            if (m_running->m_state == context::RUNNING) {
+            if (m_running->m_state == context::STOP) {
+                m_stop.push_back(m_running);
+            } else if (m_running->m_state == context::RUNNING) {
                 m_running->m_state = context::SUSPENDING;
                 m_suspend.push_back(m_running);
             }
@@ -736,6 +738,11 @@ green_thread::schedule()
                             : "r" (p)
                         );
                     } else {
+                        for (auto ctx2: m_stop)
+                            m_id2context.erase(ctx2->m_id);
+
+                        m_stop.clear();
+
                         return;
                     }
                 } else {
@@ -896,10 +903,15 @@ green_thread::schedule()
                 
                 if (ctx == m_running)
                     return;
-                
+
                 if (_setjmp(ctx->m_jmp_buf) == 0) {
                     _longjmp(m_running->m_jmp_buf, 1);
                 } else {
+                    for (auto ctx2: m_stop)
+                        m_id2context.erase(ctx2->m_id);
+
+                    m_stop.clear();
+
                     return;
                 }
             }
