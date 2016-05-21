@@ -1,10 +1,7 @@
 #include "lunar_common.hpp"
-#include "lunar_parsec2.hpp"
+#include "lunar_parsec.hpp"
 #include "lunar_green_thread.hpp"
 #include "lunar_shared_stream.hpp"
-
-#include <locale>
-#include <codecvt>
 
 int
 main(int argc, char *argv[])
@@ -13,7 +10,7 @@ main(int argc, char *argv[])
     
     lunar::make_ptr_stream(&rs, &ws);
     
-    lunar::parsec2<char32_t> parsec(&rs);
+    lunar::parsec<char> parsec(&rs);
 
     return 0;
 }
