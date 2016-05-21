@@ -33,6 +33,28 @@ public:
         operator bool() const { return m_is_result; }
     };
     
+    class parser_space {
+    public:
+        parser_space(const std::unordered_set<T> &spaces) : m_spaces(spaces) { }
+
+        char_t operator() (T c)
+        {
+            char_t ret;
+            auto it = m_spaces.find(c);
+            if (c != m_spaces.end()) {
+                ret.m_is_result = true;
+                ret.m_char = c;
+            } else {
+                ret.m_is_result = false;
+            }
+            
+            return ret;
+        }
+    
+    private:
+        const std::unordered_set<T> &m_spaces;
+    };
+    
     class parser_char {
     public:
         parser_char(T c) : m_char(c) { }
@@ -52,6 +74,32 @@ public:
     
     private:
         T m_char;
+    };
+
+    class parser_digit {
+    public:
+        bool operator() (T c)
+        {
+            return (T)'0' <= c && c <= (T)'9';
+        }
+    };
+    
+    class parser_hex_digit {
+    public:
+        bool operator() (T c)
+        {
+            return ((T)'0' <= c && c <= (T)'9') ||
+                   ((T)'a' <= c && c <= (T)'f') ||
+                   ((T)'A' <= c && c <= (T)'F');
+        }
+    };
+    
+    class parser_oct_digit {
+    public:
+        bool operator() (T c)
+        {
+            return (T)'0' <= c && c <= (T)'7';
+        }
     };
     
     class parser_satisfy {
@@ -215,7 +263,49 @@ public:
           m_line(1),
           m_num(0),
           m_is_look_ahead(false),
-          m_is_try(false) { }
+          m_is_try(false)
+    {
+        m_spaces.insert((T)U'\u0009');
+        m_spaces.insert((T)U'\u000A');
+        m_spaces.insert((T)U'\u000B');
+        m_spaces.insert((T)U'\u000C');
+        m_spaces.insert((T)U'\u000D');
+        m_spaces.insert((T)U'\u001C');
+        m_spaces.insert((T)U'\u001D');
+        m_spaces.insert((T)U'\u001E');
+        m_spaces.insert((T)U'\u001F');
+        m_spaces.insert((T)U'\u0020');
+        m_spaces.insert((T)U'\u00A0');
+        
+        if (sizeof(T) == 1)
+            return;
+        
+        m_spaces.insert((T)U'\u11A3');
+        m_spaces.insert((T)U'\u11A4');
+        m_spaces.insert((T)U'\u11A5');
+        m_spaces.insert((T)U'\u11A6');
+        m_spaces.insert((T)U'\u11A7');
+        m_spaces.insert((T)U'\u1689');
+        m_spaces.insert((T)U'\u2000');
+        m_spaces.insert((T)U'\u2001');
+        m_spaces.insert((T)U'\u2002');
+        m_spaces.insert((T)U'\u2003');
+        m_spaces.insert((T)U'\u2004');
+        m_spaces.insert((T)U'\u2005');
+        m_spaces.insert((T)U'\u2006');
+        m_spaces.insert((T)U'\u2007');
+        m_spaces.insert((T)U'\u2008');
+        m_spaces.insert((T)U'\u2009');
+        m_spaces.insert((T)U'\u200A');
+        m_spaces.insert((T)U'\u200B');
+        m_spaces.insert((T)U'\u202F');
+        m_spaces.insert((T)U'\u205F');
+        m_spaces.insert((T)U'\u2060');
+        m_spaces.insert((T)U'\u3000');
+        m_spaces.insert((T)U'\u3164');
+        m_spaces.insert((T)U'\uFEFF');
+    }
+
     virtual ~parsec2() { }
     
     void set_err(STRM_RESULT result, int line, int col)
@@ -237,9 +327,26 @@ public:
     parser_satisfy parse_string(const T *str) {
         return parser_string(str);
     }
+    
+    parser_satisfy parse_space() {
+        return parser_satisfy(parser_space(m_spaces));
+    }
+    
+    parser_satisfy parse_digit() {
+        return parser_satisfy(parser_digit());
+    }
+    
+    parser_satisfy parse_hex_digit() {
+        return parser_satisfy(parser_hex_digit());
+    }
+    
+    parser_satisfy parse_oct_digit() {
+        return parser_satisfy(parser_oct_digit());
+    }
 
 private:
     shared_stream *m_shared_stream;
+    std::unordered_set<T> m_spaces;
     bytes_t  m_bytes;
     message  m_err;
     bool     m_is_result;
