@@ -218,18 +218,6 @@ push_ptr(void *p, void *ret)
     return lunar_gt->push_stream<void*>((shared_stream*)p, ret);
 }
 
-STRM_RESULT
-pop_string(void *p, void **ret)
-{
-    return lunar_gt->pop_stream<std::u32string*>((shared_stream*)p, *(std::u32string**)ret);
-}
-
-STRM_RESULT
-push_string(void *p, void *ret)
-{
-    return lunar_gt->push_stream<std::u32string*>((shared_stream*)p, (std::u32string*)ret);
-}
-
 void
 push_eof_string(shared_stream *p)
 {

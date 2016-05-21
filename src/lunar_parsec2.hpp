@@ -5,7 +5,7 @@
 #include "lunar_bytestream.hpp"
 #include "lunar_string.hpp"
 #include "lunar_ringq.hpp"
-#include "lunar_fiber.hpp"
+#include "lunar_green_thread.hpp"
 
 #include <string>
 #include <unordered_set>
@@ -67,14 +67,14 @@ public:
                 if (result == STRM_SUCCESS) {
                     break;
                 } else if (result == STRM_NO_MORE_DATA) {
-                    std::u32string *ptr;
-                    auto result2 = pop_string(&m_parsec.m_shared_stream, &ptr);
+                    string_t *ptr;
+                    auto result2 = pop_ptr(m_parsec.m_shared_stream, (void**)&ptr);
                     if (result2 == STRM_SUCCESS) {
                         m_parsec.m_bytes.push_back(ptr);
                     } else if (result2 == STRM_CLOSED) {
                         m_parsec.m_bytes.push_eof();
                     } else {
-                        yield_fiber();
+                        schedule_green_thread();
                     }
                 } else {
                     m_parsec.m_result = false;
@@ -184,24 +184,15 @@ public:
     
     class parser_string {
     public:
-        parser_string(parsec2 &p, ptr_string_t str)
-            : m_parsec(p),
-              m_str_std(std::move(str)),
-              m_str_arr(m_str_std.c_str()),
-              m_len(m_str_std.size()) { }
-
-        parser_string(parsec2 &p, const T *str) : m_parsec(p), m_str_arr(str) {
-            m_len = 0;
-            while (*str != (T)0) m_len++;
-        }
+        parser_string(parsec2 &p, const T *str) : m_parsec(p), m_str(str) { }
 
         virtual ~parser_string() { }
         
         ptr_string_t operator() () {
             ptr_string_t ret = llvm::make_unique<string_t>();
             
-            for (uint64_t i = 0; i < m_len; i++) {
-                auto c = m_parsec.character(m_str_arr[i]);
+            while (*m_str != 0) {
+                auto c = m_parsec.character(*m_str)();
                 if (c) {
                     ret->push_back(c.m_char);
                 } else {
@@ -213,39 +204,11 @@ public:
         }
         
     private:
-        parsec2     &m_parsec;
-        ptr_string_t m_str_std;
-        const T     *m_str_arr;
-        uint64_t     m_len;
-    };
-    
-    template <typename RET>
-    class parser_many {
-    public:
-        parser_many(parsec2 &p, std::function<RET()> func) : m_parsec(p), m_func(func) { }
-        virtual ~parser_many() { }
-        
-        std::unique_ptr<std::vector<RET>> operator() () {
-            auto vals = llvm::make_unique<std::vector<RET>>();
-            
-            for (;;) {
-                RET ret = m_func();
-                if (ret) {
-                    vals.push_back(ret);
-                } else {
-                    break;
-                }
-            }
-            
-            return vals;
-        }
-    
-    private:
         parsec2 &m_parsec;
-        std::function<RET()> m_func;
+        const T *m_str;
     };
     
-    parsec2(shared_stream s)
+    parsec2(shared_stream *s)
         : m_shared_stream(s),
           m_is_result(true),
           m_col(1),
@@ -271,13 +234,12 @@ public:
         return parser_satisfy(*this, parser_char(c));
     }
     
-    template <typename RET>
-    parser_many<RET> many(std::function<RET()> func) {
-        return parser_many<RET>(*this, func);
+    parser_satisfy parse_string(const T *str) {
+        return parser_string(str);
     }
 
 private:
-    shared_stream m_shared_stream;
+    shared_stream *m_shared_stream;
     bytes_t  m_bytes;
     message  m_err;
     bool     m_is_result;
