@@ -205,7 +205,7 @@ MCJITHelper::compileModule(llvm::Module *M)
 
     //FPM->add(new llvm::DataLayout(*NewEngine->getDataLayout()));
     // Provide basic AliasAnalysis support for GVN.
-#if LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR == 8
+#if LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR >= 8
     FPM->add(llvm::createBasicAAWrapperPass());
 #else
     FPM->add(llvm::createBasicAliasAnalysisPass());
