@@ -5,6 +5,7 @@
 #include <vector>
 #include <memory>
 
+#include <llvm/Analysis/BasicAliasAnalysis.h>
 #include <llvm/Analysis/Passes.h>
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Module.h>
@@ -196,15 +197,19 @@ MCJITHelper::compileModule(llvm::Module *M)
 
     // Set up the optimizer pipeline.  Start with registering info about how the
     // target lays out data structures.
-#if LLVM_VERSION_MINOR >= 7
+#if LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR == 7
     M->setDataLayout(*NewEngine->getDataLayout());
 #else
     M->setDataLayout(NewEngine->getDataLayout());
-#endif // LLVM_VERSION_MINOR >= 7
+#endif // LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR == 7
 
     //FPM->add(new llvm::DataLayout(*NewEngine->getDataLayout()));
     // Provide basic AliasAnalysis support for GVN.
+#if LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR == 8
+    FPM->add(llvm::createBasicAAWrapperPass());
+#else
     FPM->add(llvm::createBasicAliasAnalysisPass());
+#endif // LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR == 8
     // Promote allocas to registers.
     FPM->add(llvm::createPromoteMemoryToRegisterPass());
     // Do simple "peephole" optimizations and bit-twiddling optzns.

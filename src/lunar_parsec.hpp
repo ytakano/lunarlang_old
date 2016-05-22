@@ -122,7 +122,7 @@ public:
                     } else if (result2 == STRM_CLOSED) {
                         m_parsec.m_bytes.push_eof();
                     } else {
-                        schedule_green_thread();
+                        select_green_thread(nullptr, 0, &m_parsec.m_shared_stream, 1, false, 0);
                     }
                 } else {
                     m_parsec.m_result = false;
