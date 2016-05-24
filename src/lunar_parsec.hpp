@@ -78,9 +78,9 @@ public:
 
     class parser_digit {
     public:
-        bool operator() (T c)
+        char_t operator() (T c)
         {
-            return (T)'0' <= c && c <= (T)'9';
+            return {c, (T)'0' <= c && c <= (T)'9'};
         }
     };
     
@@ -122,10 +122,10 @@ public:
                     } else if (result2 == STRM_CLOSED) {
                         m_parsec.m_bytes.push_eof();
                     } else {
-                        select_green_thread(nullptr, 0, &m_parsec.m_shared_stream, 1, false, 0);
+                        select_green_thread(nullptr, 0, (void**)&m_parsec.m_shared_stream, 1, false, 0);
                     }
                 } else {
-                    m_parsec.m_result = false;
+                    m_parsec.m_is_result = false;
                     m_parsec.set_err(result, m_parsec.m_line, m_parsec.m_col);
 
                     char_t ret;
@@ -136,7 +136,7 @@ public:
             
             auto ret = m_func(c);
             if (ret) {
-                m_parsec.m_result = true;
+                m_parsec.m_is_result = true;
                 m_parsec.m_num++;
                 
                 if (c == (T)'\n') {
@@ -155,7 +155,7 @@ public:
                 return ret;
             }
             
-            m_parsec.m_result = false;
+            m_parsec.m_is_result = false;
             m_parsec.set_err(STRM_SUCCESS, m_parsec.m_line, m_parsec.m_col);
             
             return ret;
@@ -179,7 +179,7 @@ public:
         }
 
         virtual ~parser_try() {
-            if (m_parsec.m_result) {
+            if (m_parsec.m_is_result) {
                 if (! m_is_try && ! m_parsec.m_is_look_ahead) {
                    	auto n = m_parsec.m_num - m_num;
                     m_parsec.m_bytes.restore_tmp_pos(m_pos);
@@ -353,20 +353,23 @@ public:
     }
     
     parser_satisfy parse_space() {
-        return parser_satisfy(parser_space(m_spaces));
+        return parser_satisfy(*this, parser_space(m_spaces));
     }
     
     parser_satisfy parse_digit() {
-        return parser_satisfy(parser_digit());
+        return parser_satisfy(*this, parser_digit());
     }
     
     parser_satisfy parse_hex_digit() {
-        return parser_satisfy(parser_hex_digit());
+        return parser_satisfy(*this, parser_hex_digit());
     }
     
     parser_satisfy parse_oct_digit() {
-        return parser_satisfy(parser_oct_digit());
+        return parser_satisfy(*this, parser_oct_digit());
     }
+    
+    bool get_is_result() { return m_is_result; }
+    void set_is_result(bool is_result) { m_is_result = is_result; }
 
 private:
     shared_stream *m_shared_stream;

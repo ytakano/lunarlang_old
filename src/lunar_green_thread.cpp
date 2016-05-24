@@ -219,9 +219,9 @@ push_ptr(void *p, void *ret)
 }
 
 void
-push_eof_string(shared_stream *p)
+push_eof(void *p)
 {
-    lunar_gt->push_eof_stream<std::u32string*>(p);
+    lunar_gt->push_eof_stream<void*>((shared_stream*)p);
 }
 
 void
@@ -700,6 +700,7 @@ green_thread::schedule()
                 m_running->m_state = context::SUSPENDING;
                 m_suspend.push_back(m_running);
             } else if (m_running->m_state == context::STOP) {
+                m_running->m_state = 0;
                 m_stop.push_back(m_running);
             }
         }
