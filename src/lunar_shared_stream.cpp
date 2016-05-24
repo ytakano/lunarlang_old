@@ -30,8 +30,8 @@ template <typename T>
 void
 deref_stream(shared_stream *ptr)
 {
-    ptr->shared_data--;
-    if (ptr->shared_data == 0) {
+    ptr->shared_data->refcnt--;
+    if (ptr->shared_data->refcnt == 0) {
         auto p = (ringq<T>*)ptr->shared_data->stream.ptr;
         delete p;
     } else {

@@ -174,6 +174,7 @@ extern "C" {
     STRM_RESULT pop_threadq_green_thread(void **p);
     STRM_RESULT pop_ptr(void *p, void **ret);
     STRM_RESULT push_ptr(void *p, void *ret);
+    void        push_eof(void *p);
     
     struct fdevent_green_thread {
 #ifdef KQUEUE
