@@ -236,24 +236,48 @@ public:
 
         virtual ~parser_string() { }
         
-        ptr_string_t operator() () {
-            ptr_string_t ret = llvm::make_unique<string_t>();
+        string_t* operator() () {
+            string_t *ret = new string_t;
             
             while (*m_str != 0) {
                 auto c = m_parsec.character(*m_str)();
                 if (c) {
                     ret->push_back(c.m_char);
                 } else {
+                    delete ret;
                     return nullptr;
                 }
             }
             
-            return std::move(ret);
+            return ret;
         }
         
     private:
         parsec  &m_parsec;
         const T *m_str;
+    };
+    
+    template<typename RT>
+    class parser_many {
+    public:
+        parser_many(parsec &p, std::function<RT()> func) : m_parsec(p), m_func(func) { }
+        
+        virtual ~parser_many() { }
+        
+        std::vector<RT>* operator() () {
+            std::vector<RT> *ret = new std::vector<RT>;
+            
+            for (;;) {
+                parser_try ptry(m_parsec);
+                if (m_parsec.get_) {
+                    
+                }
+            }
+        }
+
+    private:
+        parsec &m_parsec;
+        std::function<RT()> m_func;
     };
     
     parsec(shared_stream *s)
@@ -324,7 +348,7 @@ public:
         return parser_satisfy(*this, parser_char(c));
     }
     
-    parser_satisfy parse_string(const T *str) {
+    parser_string parse_string(const T *str) {
         return parser_string(str);
     }
     
