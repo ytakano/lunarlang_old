@@ -31,6 +31,7 @@ public:
         bool m_is_result;
         
         operator bool() const { return m_is_result; }
+        operator T() const { return m_char; }
     };
     
     class parser_space {
@@ -236,8 +237,8 @@ public:
 
         virtual ~parser_string() { }
         
-        string_t* operator() () {
-            string_t *ret = new string_t;
+        string_t operator() () {
+            string_t ret;
             
             while (*m_str != 0) {
                 auto c = m_parsec.character(*m_str)();
@@ -264,15 +265,62 @@ public:
         
         virtual ~parser_many() { }
         
-        std::vector<RT>* operator() () {
-            std::vector<RT> *ret = new std::vector<RT>;
+        std::unique_ptr<std::vector<RT>> operator() () {
+            auto ret = llvm::make_unique(std::vector<RT>());
             
             for (;;) {
                 parser_try ptry(m_parsec);
-                if (m_parsec.get_) {
-                    
+                
+                auto val = m_func();
+                
+                if (m_parsec.m_is_result) {
+                    ret->push_back(val);
+                } else {
+                    break;
                 }
             }
+            
+            m_parsec.m_is_result = true;
+            
+            return ret;
+        }
+
+    private:
+        parsec &m_parsec;
+        std::function<RT()> m_func;
+    };
+    
+    template<typename RT>
+    class parser_many1 {
+    public:
+        parser_many1(parsec &p, std::function<RT()> func) : m_parsec(p), m_func(func) { }
+        
+        virtual ~parser_many1() { }
+        
+        std::unique_ptr<std::vector<RT>> operator() () {
+            auto ret = llvm::make_unique(std::vector<RT>());
+            
+            auto val = m_func();
+            if (! m_parsec.m_is_result)
+                return ret;
+
+            ret.push_back(val);
+            
+            for (;;) {
+                parser_try ptry(m_parsec);
+                
+                auto val = m_func();
+                
+                if (m_parsec.m_is_result) {
+                    ret->push_back(val);
+                } else {
+                    break;
+                }
+            }
+            
+            m_parsec.m_is_result = true;
+            
+            return ret;
         }
 
     private:
@@ -368,8 +416,25 @@ public:
         return parser_satisfy(*this, parser_oct_digit());
     }
     
-    bool get_is_result() { return m_is_result; }
-    void set_is_result(bool is_result) { m_is_result = is_result; }
+    template<typename RT>
+    parser_many<RT> parse_many(std::function<RT()> func) {
+        return parser_many<RT>(*this, func);
+    }
+    
+    parser_many<char_t> parse_many_char(std::function<char_t()> func) {
+        return parser_many<char_t>(*this, func);
+    }
+
+    template<typename RT>
+    parser_many1<RT> parse_many1(std::function<RT()> func) {
+        return parser_many1<RT>(*this, func);
+    }
+    
+    parser_many1<char_t> parse_many1_char(std::function<char_t()> func) {
+        return parser_many1<char_t>(*this, func);
+    }
+    
+    bool is_success() { return m_is_result; }
 
 private:
     shared_stream *m_shared_stream;
@@ -382,6 +447,150 @@ private:
     uint64_t m_num;
     bool     m_is_look_ahead;
     bool     m_is_try;
+};
+
+template<>
+template<>
+class parsec<char>::parser_many<parsec<char>::char_t> {
+    public:
+        parser_many(parsec &p, std::function<char_t()> func) : m_parsec(p), m_func(func) { }
+        
+        virtual ~parser_many() { }
+        
+        std::string operator() () {
+            std::string ret;
+            
+            for (;;) {
+                parser_try ptry(m_parsec);
+                
+                auto c = m_func();
+                
+                if (m_parsec.m_is_result) {
+                    ret += c;
+                } else {
+                    break;
+                }
+            }
+            
+            m_parsec.m_is_result = true;
+            
+            return ret;
+        }
+
+    private:
+        parsec &m_parsec;
+        std::function<char_t()> m_func;
+};
+
+template<>
+template<>
+class parsec<char32_t>::parser_many<parsec<char32_t>::char_t> {
+    public:
+        parser_many(parsec &p, std::function<char_t()> func) : m_parsec(p), m_func(func) { }
+        
+        virtual ~parser_many() { }
+        
+        parsec<char32_t>::string_t operator() () {
+            parsec<char32_t>::string_t ret;
+            
+            for (;;) {
+                parser_try ptry(m_parsec);
+                
+                auto c = m_func();
+                
+                if (m_parsec.m_is_result) {
+                    ret += c;
+                } else {
+                    break;
+                }
+            }
+            
+            m_parsec.m_is_result = true;
+            
+            return ret;
+        }
+
+    private:
+        parsec &m_parsec;
+        std::function<char_t()> m_func;
+};
+
+template<>
+template<>
+class parsec<char>::parser_many1<parsec<char>::char_t> {
+    public:
+        parser_many1(parsec &p, std::function<char_t()> func) : m_parsec(p), m_func(func) { }
+        
+        virtual ~parser_many1() { }
+        
+        std::string operator() () {
+            std::string ret;
+            
+            auto c = m_func();
+            if (! m_parsec.m_is_result)
+                return ret;
+
+            ret += c;
+            
+            for (;;) {
+                parser_try ptry(m_parsec);
+                
+                auto c = m_func();
+                
+                if (m_parsec.m_is_result) {
+                    ret += c;
+                } else {
+                    break;
+                }
+            }
+            
+            m_parsec.m_is_result = true;
+            
+            return ret;
+        }
+
+    private:
+        parsec &m_parsec;
+        std::function<char_t()> m_func;
+};
+
+template<>
+template<>
+class parsec<char32_t>::parser_many1<parsec<char32_t>::char_t> {
+    public:
+        parser_many1(parsec &p, std::function<char_t()> func) : m_parsec(p), m_func(func) { }
+        
+        virtual ~parser_many1() { }
+        
+        parsec<char32_t>::string_t operator() () {
+            parsec<char32_t>::string_t ret;
+
+            auto c = m_func();
+            if (! m_parsec.m_is_result)
+                return ret;
+
+            ret += c;
+            
+            for (;;) {
+                parser_try ptry(m_parsec);
+                
+                auto c = m_func();
+                
+                if (m_parsec.m_is_result) {
+                    ret += c;
+                } else {
+                    break;
+                }
+            }
+            
+            m_parsec.m_is_result = true;
+            
+            return ret;
+        }
+
+    private:
+        parsec &m_parsec;
+        std::function<char_t()> m_func;
 };
 
 }

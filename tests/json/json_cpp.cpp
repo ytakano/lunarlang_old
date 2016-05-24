@@ -24,47 +24,17 @@ public:
     std::string m_str;
 };
 
-std::string parse_many_digit(lunar::parsec<char> &ps);
-
 std::string
 parse_frac(lunar::parsec<char> &ps)
 {
     std::string s;
 
     auto dot = ps.character('.')();
-    
     if (! dot)
         return s;
     
-    auto c = ps.parse_digit()();
-    
-    if (! c)
-        return s;
-    
     s  = ".";
-    s += c.m_char;
-    s += parse_many_digit(ps);
-    
-    return s;
-}
-
-std::string
-parse_many_digit(lunar::parsec<char> &ps)
-{
-    std::string s;
-
-    // many digit
-    for (;;) {
-        lunar::parsec<char>::parser_try t(ps);
-        auto c = ps.parse_digit()();
-
-        if (! c)
-            break;
-
-        s += c.m_char;
-    }
-    
-    ps.set_is_result(true);
+    s += ps.parse_many1_char(ps.parse_digit())();
     
     return s;
 }
@@ -83,7 +53,7 @@ parse_digit1_9(lunar::parsec<char> &ps)
         return s;
 
     s += c.m_char;
-    s += parse_many_digit(ps);
+    s += ps.parse_many_char(ps.parse_digit())();
 
     return s;
 }
@@ -95,7 +65,7 @@ parse_number(lunar::parsec<char> &ps)
     std::string s;
 
     {
-        lunar::parsec<char>::parser_try t(ps);
+        lunar::parsec<char>::parser_try ptry(ps);
         auto sign = ps.character('-')();
         
         if (sign)
@@ -103,7 +73,7 @@ parse_number(lunar::parsec<char> &ps)
     }
     
     {
-        lunar::parsec<char>::parser_try t(ps);
+        lunar::parsec<char>::parser_try ptry(ps);
         auto zero = ps.character('0')();
         
         if (zero) {
@@ -115,15 +85,15 @@ parse_number(lunar::parsec<char> &ps)
     
     std::cout << s << std::endl;
     
-    if (! ps.get_is_result()) {
+    if (! ps.is_success()) {
         return json_double(0);
     }
     
     {
-        lunar::parsec<char>::parser_try t(ps);
+        lunar::parsec<char>::parser_try ptry(ps);
         auto frac = parse_frac(ps);
         
-        if (ps.get_is_result())
+        if (ps.is_success())
             s += frac;
     }
     
@@ -140,7 +110,7 @@ parser_json(void *arg)
     lunar::parsec<char> ps(rs);
     
     json_double d = parse_number(ps);
-    if (ps.get_is_result()) {
+    if (ps.is_success()) {
         std::cout << "input = " << d.m_num << "\n> " << std::flush;
     } else {
         std::cout << "failed to parse\n> " << std::flush;
