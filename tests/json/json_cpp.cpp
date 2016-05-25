@@ -1,6 +1,11 @@
 #include <lunar_parsec.hpp>
+
 #include <iostream>
+#include <limits>
+
 #include <stdlib.h>
+
+typedef std::numeric_limits< double > dbl;
 
 class json_val {
 public:
@@ -30,7 +35,7 @@ parse_frac(lunar::parsec<char> &ps)
     std::string s;
 
     auto dot = ps.character('.')();
-    if (! dot)
+    if (! ps.is_success())
         return s;
     
     s  = ".";
@@ -42,17 +47,17 @@ parse_frac(lunar::parsec<char> &ps)
 std::string
 parse_digit1_9(lunar::parsec<char> &ps)
 {
-    auto one2nine = [](char c) -> lunar::parsec<char>::char_t {
-        return {c, '1' <= c && c <= '9'};
+    auto one2nine = [](char c) -> bool {
+        return '1' <= c && c <= '9';
     };
     
     std::string s;
     
     auto c = ps.satisfy(one2nine)();
-    if (! c)
+    if (! ps.is_success())
         return s;
 
-    s += c.m_char;
+    s += c;
     s += ps.parse_many_char(ps.parse_digit())();
 
     return s;
@@ -67,24 +72,19 @@ parse_number(lunar::parsec<char> &ps)
     {
         lunar::parsec<char>::parser_try ptry(ps);
         auto sign = ps.character('-')();
-        
-        if (sign)
+        if (ps.is_success())
             s += "-";
     }
     
     {
         lunar::parsec<char>::parser_try ptry(ps);
         auto zero = ps.character('0')();
-        
-        if (zero) {
+        if (ps.is_success()) {
             return json_double(0);
         }
     }
     
     s += parse_digit1_9(ps);
-    
-    std::cout << s << std::endl;
-    
     if (! ps.is_success()) {
         return json_double(0);
     }
@@ -92,12 +92,11 @@ parse_number(lunar::parsec<char> &ps)
     {
         lunar::parsec<char>::parser_try ptry(ps);
         auto frac = parse_frac(ps);
-        
         if (ps.is_success())
             s += frac;
     }
     
-    ps.set_is_result(true);
+    ps.set_is_success(true);
     
     return json_double(strtod(s.c_str(), nullptr));
 }
@@ -111,6 +110,7 @@ parser_json(void *arg)
     
     json_double d = parse_number(ps);
     if (ps.is_success()) {
+        std::cout.precision(dbl::max_digits10);
         std::cout << "input = " << d.m_num << "\n> " << std::flush;
     } else {
         std::cout << "failed to parse\n> " << std::flush;

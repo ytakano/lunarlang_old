@@ -25,31 +25,18 @@ public:
         int         line;
         int         col;
     };
-
-    struct char_t {
-        T    m_char;
-        bool m_is_result;
-        
-        operator bool() const { return m_is_result; }
-        operator T() const { return m_char; }
-    };
     
     class parser_space {
     public:
         parser_space(const std::unordered_set<T> &spaces) : m_spaces(spaces) { }
 
-        char_t operator() (T c)
+        bool operator() (T c)
         {
-            char_t ret;
             auto it = m_spaces.find(c);
-            if (c != m_spaces.end()) {
-                ret.m_is_result = true;
-                ret.m_char = c;
-            } else {
-                ret.m_is_result = false;
-            }
+            if (c != m_spaces.end())
+                return true;
             
-            return ret;
+            return false;
         }
     
     private:
@@ -60,18 +47,7 @@ public:
     public:
         parser_char(T c) : m_char(c) { }
         
-        char_t operator() (T c)
-        {
-            char_t ret;
-            if (c == m_char) {
-                ret.m_is_result = true;
-                ret.m_char = c;
-            } else {
-                ret.m_is_result = false;
-            }
-            
-            return ret;
-        }
+        bool operator() (T c) { return c == m_char; }
     
     private:
         T m_char;
@@ -79,10 +55,7 @@ public:
 
     class parser_digit {
     public:
-        char_t operator() (T c)
-        {
-            return {c, (T)'0' <= c && c <= (T)'9'};
-        }
+        bool operator() (T c) { return (T)'0' <= c && c <= (T)'9'; }
     };
     
     class parser_hex_digit {
@@ -105,10 +78,10 @@ public:
     
     class parser_satisfy {
     public:
-        parser_satisfy(parsec &p, std::function<char_t(T)> func) : m_parsec(p), m_func(func) { }
+        parser_satisfy(parsec &p, std::function<bool(T)> func) : m_parsec(p), m_func(func) { }
         virtual ~parser_satisfy() { }
 
-        char_t operator() () {
+        T operator() () {
             T c;
             for (;;) {
                 auto result = m_parsec.m_bytes.front(c);
@@ -129,14 +102,11 @@ public:
                     m_parsec.m_is_result = false;
                     m_parsec.set_err(result, m_parsec.m_line, m_parsec.m_col);
 
-                    char_t ret;
-                    ret.m_is_result = false;
-                    return ret;
+                    return 0;
                 }
             }
             
-            auto ret = m_func(c);
-            if (ret) {
+            if (m_func(c)) {
                 m_parsec.m_is_result = true;
                 m_parsec.m_num++;
                 
@@ -153,17 +123,17 @@ public:
                     m_parsec.m_bytes.consume(1);
                 }
                 
-                return ret;
+                return c;
             }
             
             m_parsec.m_is_result = false;
             m_parsec.set_err(STRM_SUCCESS, m_parsec.m_line, m_parsec.m_col);
             
-            return ret;
+            return c;
         }
     
     private:
-        std::function<char_t(T)> m_func;
+        std::function<bool(T)> m_func;
         parsec &m_parsec;
     };
 
@@ -387,7 +357,7 @@ public:
         m_err.col    = col;
     }
     
-    parser_satisfy satisfy(std::function<char_t(T)> f)
+    parser_satisfy satisfy(std::function<bool(T)> f)
     {
         return parser_satisfy(*this, f);
     }
@@ -421,8 +391,8 @@ public:
         return parser_many<RT>(*this, func);
     }
     
-    parser_many<char_t> parse_many_char(std::function<char_t()> func) {
-        return parser_many<char_t>(*this, func);
+    parser_many<T> parse_many_char(std::function<T()> func) {
+        return parser_many<T>(*this, func);
     }
 
     template<typename RT>
@@ -430,11 +400,12 @@ public:
         return parser_many1<RT>(*this, func);
     }
     
-    parser_many1<char_t> parse_many1_char(std::function<char_t()> func) {
-        return parser_many1<char_t>(*this, func);
+    parser_many1<T> parse_many1_char(std::function<T()> func) {
+        return parser_many1<T>(*this, func);
     }
     
     bool is_success() { return m_is_result; }
+    void set_is_success(bool val) { m_is_result = val; }
 
 private:
     shared_stream *m_shared_stream;
@@ -451,9 +422,9 @@ private:
 
 template<>
 template<>
-class parsec<char>::parser_many<parsec<char>::char_t> {
+class parsec<char>::parser_many<char> {
     public:
-        parser_many(parsec &p, std::function<char_t()> func) : m_parsec(p), m_func(func) { }
+        parser_many(parsec &p, std::function<char()> func) : m_parsec(p), m_func(func) { }
         
         virtual ~parser_many() { }
         
@@ -479,14 +450,14 @@ class parsec<char>::parser_many<parsec<char>::char_t> {
 
     private:
         parsec &m_parsec;
-        std::function<char_t()> m_func;
+        std::function<char()> m_func;
 };
 
 template<>
 template<>
-class parsec<char32_t>::parser_many<parsec<char32_t>::char_t> {
+class parsec<char32_t>::parser_many<char32_t> {
     public:
-        parser_many(parsec &p, std::function<char_t()> func) : m_parsec(p), m_func(func) { }
+        parser_many(parsec &p, std::function<char32_t()> func) : m_parsec(p), m_func(func) { }
         
         virtual ~parser_many() { }
         
@@ -512,14 +483,14 @@ class parsec<char32_t>::parser_many<parsec<char32_t>::char_t> {
 
     private:
         parsec &m_parsec;
-        std::function<char_t()> m_func;
+        std::function<char32_t()> m_func;
 };
 
 template<>
 template<>
-class parsec<char>::parser_many1<parsec<char>::char_t> {
+class parsec<char>::parser_many1<char> {
     public:
-        parser_many1(parsec &p, std::function<char_t()> func) : m_parsec(p), m_func(func) { }
+        parser_many1(parsec &p, std::function<char()> func) : m_parsec(p), m_func(func) { }
         
         virtual ~parser_many1() { }
         
@@ -551,14 +522,14 @@ class parsec<char>::parser_many1<parsec<char>::char_t> {
 
     private:
         parsec &m_parsec;
-        std::function<char_t()> m_func;
+        std::function<char()> m_func;
 };
 
 template<>
 template<>
-class parsec<char32_t>::parser_many1<parsec<char32_t>::char_t> {
+class parsec<char32_t>::parser_many1<char32_t> {
     public:
-        parser_many1(parsec &p, std::function<char_t()> func) : m_parsec(p), m_func(func) { }
+        parser_many1(parsec &p, std::function<char32_t()> func) : m_parsec(p), m_func(func) { }
         
         virtual ~parser_many1() { }
         
@@ -590,7 +561,7 @@ class parsec<char32_t>::parser_many1<parsec<char32_t>::char_t> {
 
     private:
         parsec &m_parsec;
-        std::function<char_t()> m_func;
+        std::function<char32_t()> m_func;
 };
 
 }
