@@ -26,7 +26,7 @@ Lunar IRにはオーナーという概念があり、変数を利用する際に
 
 構文：
 - TYPE  := TYPE0 | ( OWNERSHIP TYPE0 )
-- TYPE0 := SCALAR | VECTOR | STRING | LIST | STRUCT | DICT | SET | DATA | FUNCTYPE | RSTREAM | WSTREAM | IDENTIFIER
+- TYPE0 := SCALAR | VECTOR | STRING | BINARY | LIST | STRUCT | DICT | SET | DATA | FUNCTYPE | RSTREAM | WSTREAM | IDENTIFIER
 
 ここで、IDENTIFIERとは空白文字以外からなる、1文字以上の文字かつ、先頭が数字ではない文字列かつ、
 予約文字（列）以外の文字列である。
@@ -52,7 +52,7 @@ Lunar IRにはオーナーという概念があり、変数を利用する際に
 
 構文：
 - SCALAR := SCALARTYPE INITSCALAR | SCALARTYPE
-- SCALARTYPE := bool | u64 | s64 | u32 | s32 | u16 | s16 | u8 | s8 | double | float | binary | char | ATOM
+- SCALARTYPE := bool | u64 | s64 | u32 | s32 | u16 | s16 | u8 | s8 | double | float | char | ATOM
 - ATOM := `IDENTIFIER
 
 ただしここで、INITSCALARは数値、真偽値、文字リテラル、atomリテラルのいずれかである。
@@ -77,6 +77,11 @@ Lunar IRにはオーナーという概念があり、変数を利用する際に
 - STRING := string
 
 内部的にはUTF-32。
+
+## バイナリ列
+
+構文：
+- BINARY := binary
 
 ## リスト
 
@@ -380,6 +385,33 @@ OSネイティブなデタッチスレッドを生成。
 - スレッドキューが扱える値は、sharedもしくはunique変数か、プリミティブスカラ変数のみである。
 
 ## Parser Combinator
+
+- PARSECINIT   := (parsec_init string) | (parsec_init binary)
+- PARSE        := (parse ((TYPE (IDENTIFIER+) PARSEC)*) EXPRIDENT EXPRIDENT)
+- PARSEC       := (EXPRIDENT PARSECOPS EXPRIDENT*)
+- PARSECOPS    := PARSECCHAR | PARSECOR | PARSECCHAIN | PARSECMANY | PARSECMANY1 | PARSECTRY | PARSECLAHEAD | PARSECDIGIT | PARSECHEX | PARSECOCT | PARSECSPACE | PARSECSATIS | PARSECSTR 
+- PARSECCHAR   := character
+- PARSECOR     := or
+- PARSECCHAIN  := and
+- PARSECMANY   := many
+- PARSECMANY1  := many1
+- PARSECTRY    := try
+- PARSECLAHEAD := lookahead
+- PARSECDIGT   := digit
+- PARSECHEX    := hex
+- PARSECOCT    := oct
+- PARSECSPACE  := space
+- PARSECSATIS  := satisfy
+- PARSECSTR    := string
+
+```lisp
+(let (parsec (p) (parsec_init))
+  (parse ((char   (a) (p character 'a'))
+          (string (b) (p or () () ()))
+          (string (c) (p and () () ()))
+          (string (d) (p many ())))
+         (return (a b c))))
+```
 
 ## C関数呼び出し
 
