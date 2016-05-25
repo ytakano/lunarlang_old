@@ -101,6 +101,45 @@ parse_number(lunar::parsec<char> &ps)
     return json_double(strtod(s.c_str(), nullptr));
 }
 
+bool
+is_unescaped(char c)
+{
+    if (c == '\x20' || c == '\x21' ||
+        ('\x23' <= c && c <= '\x5b') ||
+        ('\x5d' <= c && c <= '\x7f') ||
+        ((char)-128 <= c && c <= (char)-1))
+        return true;
+    
+    return false;
+}
+
+// string          = quotation-mark *char quotation-mark
+json_string
+parse_string(lunar::parsec<char> &ps)
+{
+    json_string ret;
+    
+    ps.character('"')();
+    if (! ps.is_success())
+        return ret;
+    
+    char c;
+    {
+        lunar::parsec<char>::parser_try ptry(ps);
+        c = ps.satisfy(is_unescaped)();
+    }
+    if (ps.is_success())
+        ret.m_str += c;
+    else
+        ps.set_is_success(true);
+    
+    ps.character('"')();
+    if (! ps.is_success())
+        return ret;
+
+    return ret;
+}
+
 void
 parser_json(void *arg)
 {
