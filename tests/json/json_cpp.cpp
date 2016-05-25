@@ -63,19 +63,57 @@ parse_digit1_9(lunar::parsec<char> &ps)
     return s;
 }
 
+// exp             = e [ minus / plus ] 1*DIGIT
+std::string
+parse_exp(lunar::parsec<char> &ps)
+{
+    std::string s;
+    
+    auto c = ps.character('e')();
+    if (! ps.is_success())
+        return s;
+    
+    s += c;
+
+    char sign;
+    {
+        lunar::parsec<char>::parser_try ptry(ps);
+        sign = ps.character('-')();
+    }
+
+    if (ps.is_success()) {
+        s += sign;
+    } else {
+        lunar::parsec<char>::parser_try ptry(ps);
+        sign = ps.character('+')();
+        
+        if (ps.is_success())
+            s += sign;
+    }
+    
+    ps.set_is_success(true);
+    
+    // int
+    s += parse_digit1_9(ps);
+    return s;
+}
+
 // number          = [ minus ] int [ frac ] [ exp ]
 json_double
 parse_number(lunar::parsec<char> &ps)
 {
     std::string s;
 
+    // [ minus ]
     {
         lunar::parsec<char>::parser_try ptry(ps);
         auto sign = ps.character('-')();
         if (ps.is_success())
             s += "-";
     }
+    ps.set_is_success(true);
     
+    // 0
     {
         lunar::parsec<char>::parser_try ptry(ps);
         auto zero = ps.character('0')();
@@ -84,19 +122,31 @@ parse_number(lunar::parsec<char> &ps)
         }
     }
     
+    // int
     s += parse_digit1_9(ps);
     if (! ps.is_success()) {
         return json_double(0);
     }
     
+    // [ frac ]
     {
         lunar::parsec<char>::parser_try ptry(ps);
         auto frac = parse_frac(ps);
         if (ps.is_success())
             s += frac;
     }
-    
     ps.set_is_success(true);
+    
+    // [ exp ]
+    {
+        lunar::parsec<char>::parser_try ptry(ps);
+        auto exp = parse_exp(ps);
+        if (ps.is_success())
+            s += exp;
+    }
+    ps.set_is_success(true);
+    
+    std::cout << "s = " << s << std::endl;
     
     return json_double(strtod(s.c_str(), nullptr));
 }
