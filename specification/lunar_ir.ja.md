@@ -450,6 +450,14 @@ PTR型の参照外し
 
 ## プリミティブ演算
 
+### 四則演算・剰余算
+
+- ADD   := (+ EXPRIDENT EXPRIDENT+)
+- MINUS := (- EXPRIDENT EXPRIDENT+)
+- MULTI := (* EXPRIDENT EXPRIDENT+)
+- DIV   := (/ EXPRIDENT EXPRIDENT+)
+- MOD   := (mod EXPRIDENT EXPRIDENT+)
+
 # リテラル
 
 # Application Binary Interface (ABI)
