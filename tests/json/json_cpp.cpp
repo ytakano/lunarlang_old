@@ -173,15 +173,73 @@ parse_string(lunar::parsec<char> &ps)
     if (! ps.is_success())
         return ret;
     
-    char c;
-    {
-        lunar::parsec<char>::parser_try ptry(ps);
-        c = ps.satisfy(is_unescaped)();
+    for (;;) {
+        char c;
+        {
+            lunar::parsec<char>::parser_try ptry(ps);
+            c = ps.satisfy(is_unescaped)();
+        }
+
+        if (ps.is_success())
+            ret.m_str += c;
+        else {
+            ps.set_is_success(true);
+        
+            {
+                lunar::parsec<char>::parser_try ptry(ps);
+                ps.character('\\')();
+                if (! ps.is_success()) {
+                    ps.set_is_success(true);
+                    break;
+                }
+                
+                auto func = [](char rhs) -> bool {
+                    return rhs == '"' || rhs == '\\' || rhs == '/' || rhs == 'b' ||
+                           rhs == 'f' || rhs == 'n'  || rhs == 'r' || rhs == 't';
+                };
+                
+                c = ps.satisfy(func)();
+            }
+
+            if (ps.is_success()) {
+                auto conv = [](char rhs) -> char {
+                    if (rhs == 'n') return '\n';
+                    else if (rhs == 'r') return '\r';
+                    else if (rhs == 't') return '\t';
+                    else if (rhs == 'f') return '\f';
+                    else if (rhs == 'b') return '\b';
+                    else return rhs;
+                };
+                ret.m_str += conv(c);
+            } else {
+                ps.character('u')();
+                if (! ps.is_success())
+                    return ret;
+                
+                auto is_hexdig = [](char x) -> bool {
+                    return ('0' <= x && x <= '9') || ('a' <= x && x <= 'f') || ('A' <= x && x <= 'F');
+                };
+                
+                // TODO:
+                
+                c = ps.satisfy(is_hexdig)();
+                if (! ps.is_success())
+                    return ret;
+
+                c = ps.satisfy(is_hexdig)();
+                if (! ps.is_success())
+                    return ret;
+
+                c = ps.satisfy(is_hexdig)();
+                if (! ps.is_success())
+                    return ret;
+                
+                c = ps.satisfy(is_hexdig)();
+                if (! ps.is_success())
+                    return ret;
+            }
+        }
     }
-    if (ps.is_success())
-        ret.m_str += c;
-    else
-        ps.set_is_success(true);
     
     ps.character('"')();
     if (! ps.is_success())
