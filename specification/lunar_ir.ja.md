@@ -386,7 +386,7 @@ OSネイティブなデタッチスレッドを生成。
 
 ## Parser Combinator
 
-- PARSECINIT   := (parsec_init string) | (parsec_init binary)
+- PARSECINIT   := (parsec_init string EXPRIDENT) | (parsec_init binary EXPRIDENT)
 - PARSE        := (parse ((TYPE (IDENTIFIER+) PARSEC)*) EXPRIDENT EXPRIDENT)
 - PARSEC       := (EXPRIDENT PARSECOPS EXPRIDENT*)
 - PARSECOPS    := PARSECCHAR | PARSECOR | PARSECCHAIN | PARSECMANY | PARSECMANY1 | PARSECTRY | PARSECLAHEAD | PARSECDIGIT | PARSECHEX | PARSECOCT | PARSECSPACE | PARSECSATIS | PARSECSTR 
@@ -405,7 +405,7 @@ OSネイティブなデタッチスレッドを生成。
 - PARSECSTR    := string
 
 ```lisp
-(let (parsec (p) (parsec_init))
+(let (parsec (p) (parsec_init string rstream))
   (parse ((char   (a) (p character 'a'))
           (string (b) (p or () () ()))
           (string (c) (p and () () ()))
