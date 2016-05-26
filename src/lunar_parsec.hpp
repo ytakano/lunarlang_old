@@ -207,20 +207,17 @@ public:
 
         virtual ~parser_string() { }
         
-        string_t operator() () {
-            string_t ret;
-            
+        bool operator() () {
             while (*m_str != 0) {
-                auto c = m_parsec.character(*m_str)();
-                if (c) {
-                    ret->push_back(c.m_char);
+                m_parsec.character(*m_str)();
+                if (m_parsec.is_success()) {
+                    m_str++;
                 } else {
-                    delete ret;
-                    return nullptr;
+                    return false;
                 }
             }
             
-            return ret;
+            return true;
         }
         
     private:
@@ -367,7 +364,7 @@ public:
     }
     
     parser_string parse_string(const T *str) {
-        return parser_string(str);
+        return parser_string(*this, str);
     }
     
     parser_satisfy parse_space() {

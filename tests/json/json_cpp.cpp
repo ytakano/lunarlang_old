@@ -47,9 +47,17 @@ public:
     virtual void print(std::ostream &os) const {
         os << "[";
 
-        for (auto &val: m_vals) {
-            val->print(os);
-            os << ",";
+        if (! m_vals.empty()) {
+            auto it = m_vals.begin();
+            for (;;) {
+                (*it)->print(os);
+                
+                ++it;
+                if (it == m_vals.end())
+                    break;
+                
+                os << ",";
+            }
         }
         
         os << "]";
@@ -58,7 +66,57 @@ public:
     std::vector<std::unique_ptr<json_val>> m_vals;
 };
 
-std::unique_ptr<json_val> parse_value(lunar::parsec<char> &ps);
+class json_object : public json_val {
+public:
+    json_object() { }
+    virtual ~json_object() { }
+    
+    virtual void print(std::ostream &os) const {
+        os << "{";
+        
+        if (! m_vals.empty()) {
+            auto it = m_vals.begin();
+            for (;;) {
+                it->first->print(os);
+                os << ":";
+                it->second->print(os);
+                
+                ++it;
+                if (it == m_vals.end())
+                    break;
+                
+                os << ",";
+            }
+        }
+        
+        os << "}";
+    }
+    
+    std::vector<std::pair<std::unique_ptr<json_string>, std::unique_ptr<json_val>>> m_vals;
+};
+
+class json_bool : public json_val {
+public:
+    json_bool(bool val) : m_val(val) {}
+    virtual ~json_bool() { }
+    
+    virtual void print(std::ostream &os) const {
+        if (m_val)
+            os << "true";
+        else
+            os << "false";
+    }
+    
+    bool m_val;
+};
+
+class json_null : public json_val {
+public:
+    virtual void print(std::ostream &os) const { os << "null"; }
+};
+
+std::unique_ptr<json_val>    parse_value(lunar::parsec<char> &ps);
+std::unique_ptr<json_string> parse_string(lunar::parsec<char> &ps);
 
 std::ostream&
 operator<< (std::ostream& os, const json_val &lhs)
@@ -87,6 +145,108 @@ parse_separator(lunar::parsec<char> &ps, char c)
         return;
     
     parse_ws(ps);
+}
+
+std::unique_ptr<json_null>
+parse_null(lunar::parsec<char> &ps)
+{
+    ps.parse_string("null")();
+    if (! ps.is_success())
+        return nullptr;
+    
+    return llvm::make_unique<json_null>();
+}
+
+std::unique_ptr<json_bool>
+parse_false(lunar::parsec<char> &ps)
+{
+    ps.parse_string("false")();
+    if (! ps.is_success())
+        return nullptr;
+    
+    return llvm::make_unique<json_bool>(false);
+}
+
+std::unique_ptr<json_bool>
+parse_true(lunar::parsec<char> &ps)
+{
+    ps.parse_string("true")();
+    if (! ps.is_success())
+        return nullptr;
+    
+    return llvm::make_unique<json_bool>(true);
+}
+
+void
+parse_member(lunar::parsec<char> &ps, json_object *ret)
+{
+    auto key = parse_string(ps);
+    if (! ps.is_success())
+        return;
+
+    parse_separator(ps, ':');
+    if (! ps.is_success())
+        return;
+
+    auto val = parse_value(ps);
+    if (! ps.is_success())
+        return;
+    
+    ret->m_vals.push_back({std::move(key), std::move(val)});
+}
+
+void
+parse_sp_member(lunar::parsec<char> &ps, json_object *ret)
+{
+    parse_ws(ps);
+    
+    ps.character(',')();
+    if (! ps.is_success())
+        return;
+
+    parse_ws(ps);
+    
+    parse_member(ps, ret);
+}
+
+void
+parse_members(lunar::parsec<char> &ps, json_object *ret)
+{
+    parse_member(ps, ret);
+    if (!ps.is_success())
+        return;
+
+    parse_ws(ps);
+    
+    for (;;) {
+        lunar::parsec<char>::parser_try ptry(ps);
+        parse_sp_member(ps, ret);
+        if (! ps.is_success())
+            break;
+    }
+    ps.set_is_success(true);
+}
+
+std::unique_ptr<json_object>
+parse_object(lunar::parsec<char> &ps)
+{
+    auto ret = llvm::make_unique<json_object>();
+    
+    parse_separator(ps, '{');
+    if (! ps.is_success())
+        return nullptr;
+
+    {
+        lunar::parsec<char>::parser_try ptry(ps);
+        parse_members(ps, ret.get());
+    }
+    ps.set_is_success(true);
+    
+    parse_separator(ps, '}');
+    if (! ps.is_success())
+        return nullptr;
+    
+    return ret;
 }
 
 std::unique_ptr<json_val>
@@ -372,6 +532,34 @@ parse_string(lunar::parsec<char> &ps)
 std::unique_ptr<json_val>
 parse_value(lunar::parsec<char> &ps)
 {
+    {
+        lunar::parsec<char>::parser_try ptry(ps);
+        auto val = parse_false(ps);
+        if (ps.is_success())
+            return std::move(val);
+    }
+
+    {
+        lunar::parsec<char>::parser_try ptry(ps);
+        auto val = parse_null(ps);
+        if (ps.is_success())
+            return std::move(val);
+    }
+
+    {
+        lunar::parsec<char>::parser_try ptry(ps);
+        auto val = parse_true(ps);
+        if (ps.is_success())
+            return std::move(val);
+    }
+
+    {
+        lunar::parsec<char>::parser_try ptry(ps);
+        auto obj = parse_object(ps);
+        if (ps.is_success())
+            return std::move(obj);
+    }
+
     {
         lunar::parsec<char>::parser_try ptry(ps);
         auto arr = parse_array(ps);
