@@ -11,12 +11,18 @@ class json_val {
 public:
     json_val() { }
     virtual ~json_val() { }
+    
+    virtual void print(std::ostream &os) const = 0;
 };
 
 class json_double : public json_val {
 public:
     json_double(double num) : m_num(num) { }
     virtual ~json_double() { }
+
+    virtual void print(std::ostream &os) const {
+        os << m_num;
+    }
     
     double m_num;
 };
@@ -25,9 +31,20 @@ class json_string : public json_val {
 public:
     json_string() { }
     virtual ~json_string() { }
+
+    virtual void print(std::ostream &os) const {
+        os << "\"" << m_str << "\"";
+    }
     
     std::string m_str;
 };
+
+std::ostream&
+operator<< (std::ostream& os, const json_val &lhs)
+{
+    lhs.print(os);
+    return os;
+}
 
 std::string
 parse_frac(lunar::parsec<char> &ps)
@@ -99,7 +116,7 @@ parse_exp(lunar::parsec<char> &ps)
 }
 
 // number          = [ minus ] int [ frac ] [ exp ]
-json_double
+std::unique_ptr<json_double>
 parse_number(lunar::parsec<char> &ps)
 {
     std::string s;
@@ -118,14 +135,14 @@ parse_number(lunar::parsec<char> &ps)
         lunar::parsec<char>::parser_try ptry(ps);
         auto zero = ps.character('0')();
         if (ps.is_success()) {
-            return json_double(0);
+            return nullptr;
         }
     }
     
     // int
     s += parse_digit1_9(ps);
     if (! ps.is_success()) {
-        return json_double(0);
+        return nullptr;
     }
     
     // [ frac ]
@@ -148,7 +165,7 @@ parse_number(lunar::parsec<char> &ps)
     
     std::cout << "s = " << s << std::endl;
     
-    return json_double(strtod(s.c_str(), nullptr));
+    return llvm::make_unique<json_double>(strtod(s.c_str(), nullptr));
 }
 
 bool
@@ -164,10 +181,10 @@ is_unescaped(char c)
 }
 
 // string          = quotation-mark *char quotation-mark
-json_string
+std::unique_ptr<json_string>
 parse_string(lunar::parsec<char> &ps)
 {
-    json_string ret;
+    auto ret = llvm::make_unique<json_string>();
     
     ps.character('"')();
     if (! ps.is_success())
@@ -181,7 +198,7 @@ parse_string(lunar::parsec<char> &ps)
         }
 
         if (ps.is_success())
-            ret.m_str += c;
+            ret->m_str += c;
         else {
             ps.set_is_success(true);
         
@@ -210,7 +227,7 @@ parse_string(lunar::parsec<char> &ps)
                     else if (rhs == 'b') return '\b';
                     else return rhs;
                 };
-                ret.m_str += conv(c);
+                ret->m_str += conv(c);
             } else {
                 ps.character('u')();
                 if (! ps.is_success())
@@ -220,23 +237,26 @@ parse_string(lunar::parsec<char> &ps)
                     return ('0' <= x && x <= '9') || ('a' <= x && x <= 'f') || ('A' <= x && x <= 'F');
                 };
                 
-                // TODO:
-                
-                c = ps.satisfy(is_hexdig)();
+                auto c1 = ps.satisfy(is_hexdig)();
                 if (! ps.is_success())
                     return ret;
 
-                c = ps.satisfy(is_hexdig)();
-                if (! ps.is_success())
-                    return ret;
-
-                c = ps.satisfy(is_hexdig)();
+                auto c2 = ps.satisfy(is_hexdig)();
                 if (! ps.is_success())
                     return ret;
                 
-                c = ps.satisfy(is_hexdig)();
+                if (c1 != 0 && c2 != 0)
+                    ret->m_str += c1 * 16 + c2;
+
+                auto c3 = ps.satisfy(is_hexdig)();
                 if (! ps.is_success())
                     return ret;
+                
+                auto c4 = ps.satisfy(is_hexdig)();
+                if (! ps.is_success())
+                    return ret;
+                
+                ret->m_str += c3 * 16 + c4;
             }
         }
     }
@@ -248,6 +268,23 @@ parse_string(lunar::parsec<char> &ps)
     return ret;
 }
 
+std::unique_ptr<json_val>
+parse_value(lunar::parsec<char> &ps)
+{
+    {
+        lunar::parsec<char>::parser_try ptry(ps);
+        auto num = parse_number(ps);
+        if (ps.is_success())
+            return std::move(num);
+    }
+    
+    auto str = parse_string(ps);
+    if (ps.is_success())
+        return std::move(str);
+    
+    return nullptr;
+}
+
 void
 parser_json(void *arg)
 {
@@ -255,10 +292,10 @@ parser_json(void *arg)
     
     lunar::parsec<char> ps(rs);
     
-    json_double d = parse_number(ps);
+    auto val = parse_value(ps);
     if (ps.is_success()) {
         std::cout.precision(dbl::max_digits10);
-        std::cout << "input = " << d.m_num << "\n> " << std::flush;
+        std::cout << "input = " << *val << "\n> " << std::flush;
     } else {
         std::cout << "failed to parse\n> " << std::flush;
     }
