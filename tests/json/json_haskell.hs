@@ -111,7 +111,7 @@ parse_member =
     val <- parse_value
     return $ (key, val)
 
-parse_sp_member = Parsec.char ',' >> parse_ws >> parse_member
+parse_sp_member = parse_ws >> Parsec.char ',' >> parse_ws >> parse_member
 
 parse_array =
   do

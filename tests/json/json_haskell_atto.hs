@@ -62,7 +62,8 @@ parse_member =
     val <- parse_value
     return $ (key, val)
 
-parse_sp_member = Atto.char ',' >> parse_ws >> parse_member
+parse_sp_member = parse_ws >> Atto.char ',' >> parse_ws >> parse_member
+
 parse_array =
   do
     _     <- parse_separator '['
