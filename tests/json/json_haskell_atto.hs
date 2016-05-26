@@ -77,7 +77,7 @@ parse_values =
     t <- (Atto.try $ Atto.many' parse_sp_value) <|> return []
     return $ JSON_Array $ h:t
 
-parse_sp_value = Atto.char ',' >> parse_ws >> parse_value
+parse_sp_value = parse_ws >> Atto.char ',' >> parse_ws >> parse_value
 
 parse_number =
   do

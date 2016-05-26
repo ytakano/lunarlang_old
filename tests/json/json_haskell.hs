@@ -127,7 +127,7 @@ parse_values =
     t <- (Parsec.try $ Parsec.many parse_sp_value) <|> return []
     return $ JSON_Array $ h:t
 
-parse_sp_value = Parsec.char ',' >> parse_ws >> parse_value
+parse_sp_value = parse_ws >> Parsec.char ',' >> parse_ws >> parse_value
 
 parse_frac =
   do

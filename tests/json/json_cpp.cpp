@@ -39,11 +39,113 @@ public:
     std::string m_str;
 };
 
+class json_array : public json_val {
+public:
+    json_array() { }
+    virtual ~json_array() { }
+
+    virtual void print(std::ostream &os) const {
+        os << "[";
+
+        for (auto &val: m_vals) {
+            val->print(os);
+            os << ",";
+        }
+        
+        os << "]";
+    }
+    
+    std::vector<std::unique_ptr<json_val>> m_vals;
+};
+
+std::unique_ptr<json_val> parse_value(lunar::parsec<char> &ps);
+
 std::ostream&
 operator<< (std::ostream& os, const json_val &lhs)
 {
     lhs.print(os);
     return os;
+}
+
+void
+parse_ws(lunar::parsec<char> &ps)
+{
+    auto func = [](char c) {
+        return c == '\x20' || c == '\x09' || c == '\x0a' || c == '\x0d';
+    };
+    
+    auto ws = ps.parse_many_char(ps.satisfy(func))();
+}
+
+void
+parse_separator(lunar::parsec<char> &ps, char c)
+{
+    parse_ws(ps);
+    
+    auto x = ps.character(c)();
+    if (! ps.is_success())
+        return;
+    
+    parse_ws(ps);
+}
+
+std::unique_ptr<json_val>
+parse_sp_value(lunar::parsec<char> &ps)
+{
+    parse_ws(ps);
+
+    ps.character(',')();
+    if (! ps.is_success())
+        return nullptr;
+
+    parse_ws(ps);
+    
+    return parse_value(ps);
+}
+
+void
+parse_values(lunar::parsec<char> &ps, json_array *arr)
+{
+    auto val = parse_value(ps);
+    if (! ps.is_success())
+        return;
+
+    arr->m_vals.push_back(std::move(val));
+    
+    parse_ws(ps);
+
+    for (;;) {
+        lunar::parsec<char>::parser_try ptry(ps);
+        val = parse_sp_value(ps);
+        if (! ps.is_success())
+            break;
+        
+        arr->m_vals.push_back(std::move(val));
+    }
+    ps.set_is_success(true);
+}
+
+std::unique_ptr<json_array>
+parse_array(lunar::parsec<char> &ps)
+{
+    auto ret = llvm::make_unique<json_array>();
+    
+    parse_separator(ps, '[');
+    if (! ps.is_success()) {
+        return nullptr;
+    }
+    
+    {
+        lunar::parsec<char>::parser_try ptry(ps);
+        parse_values(ps, ret.get());
+    }
+    ps.set_is_success(true);
+    
+    parse_separator(ps, ']');
+    if (! ps.is_success())
+        return nullptr;
+    
+    return ret;
 }
 
 std::string
@@ -245,8 +347,7 @@ parse_string(lunar::parsec<char> &ps)
                 if (! ps.is_success())
                     return ret;
                 
-                if (c1 != 0 && c2 != 0)
-                    ret->m_str += c1 * 16 + c2;
+                ret->m_str += c1 * 16 + c2;
 
                 auto c3 = ps.satisfy(is_hexdig)();
                 if (! ps.is_success())
@@ -271,6 +372,13 @@ parse_string(lunar::parsec<char> &ps)
 std::unique_ptr<json_val>
 parse_value(lunar::parsec<char> &ps)
 {
+    {
+        lunar::parsec<char>::parser_try ptry(ps);
+        auto arr = parse_array(ps);
+        if (ps.is_success())
+            return std::move(arr);
+    }
+    
     {
         lunar::parsec<char>::parser_try ptry(ps);
         auto num = parse_number(ps);
@@ -318,7 +426,8 @@ read_stdin(void *arg)
 
         lunar::make_ptr_stream(rs, ws, 32);
 
-        std::cin >> *str;
+        std::getline(std::cin, *str);
+        std::cout << *str << std::endl;
         
         lunar::spawn_green_thread(parser_json, rs);
         
