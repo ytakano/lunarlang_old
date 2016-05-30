@@ -480,6 +480,20 @@ PTR型の参照外し
 - DIV   := (/ EXPRIDENT EXPRIDENT+)
 - MOD   := (mod EXPRIDENT EXPRIDENT+)
 
+## IO
+
+### print式
+
+- PRINT := ( print EXPRIDENT )
+
+文字列を標準出力へ出力。引数はstring型のみ。
+
+## 文字列変換式
+
+- TOSTR := ( tostr EXPRIDENT )
+
+引数を文字列へ変換。immovalなstring型を返す。 
+
 # リテラル
 
 # Application Binary Interface (ABI)
