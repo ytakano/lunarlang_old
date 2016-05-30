@@ -52,7 +52,7 @@ Lunar IRにはオーナーという概念があり、変数を利用する際に
 
 構文：
 - SCALAR := SCALARTYPE INITSCALAR | SCALARTYPE
-- SCALARTYPE := bool | u64 | s64 | u32 | s32 | u16 | s16 | u8 | s8 | double | float | char | ATOM
+- SCALARTYPE := bool | u64 | s64 | u32 | s32 | u16 | s16 | u8 | s8 | double | float | char |ATOM
 - ATOM := `IDENTIFIER
 
 ただしここで、INITSCALARは数値、真偽値、文字リテラル、atomリテラルのいずれかである。
@@ -201,29 +201,35 @@ C関数と互換性を保つために利用され、それ以外での利用は�
 
 # 関数
 
-## 関数定義
+## 関数定義構文
 
 構文：
 - FUNC := ( defun IDENTIFIER ( TYPE\* ) ( TYPE IDENTIFIER )\* EXPR\* )
 
-## 関数呼び出し
+## 関数呼び出し式
 
 構文：
 - CALLFUNC := ( IDENTIFIER EXPRIDENT\* )
 - EXPRIDENT := EXPR | IDENTIFIER
 
-## 無名関数
+関数定義に応じた値を返す。
+
+## 無名関数定義式
 
 構文：
 - LAMBDA := ( lambda ( TYPE\* ) ( TYPE IDENTIFIER )\* EXPR\* )
 
+関数型の値を返す。
+
 # 変数
 
-## 変数生成
+## 変数生成式
 
 - NEW := ( new TYPE )
 
-## 変数束縛
+TYPE型の値を返す。
+
+## 変数束縛構文
 
 構文：
 - LET := ( let ( ( TYPE (IDENTIFIER+) EXPRIDENT )+ ) EXPR\* )
@@ -234,7 +240,7 @@ C関数と互換性を保つために利用され、それ以外での利用は�
 
 関数は複数の値を返すこともあるため、複数の変数名を記述できるように。
 
-## 変数の値書き換え
+## 変数の値書き換え文
 
 構文：
 - STORE := ( store! EXPRIDENT EXPRIDENT )
@@ -242,7 +248,7 @@ C関数と互換性を保つために利用され、それ以外での利用は�
 セマンティクス：
 - ( store! 書き換える変数 書き換える値 )
 
-## 変数の束縛先変更
+## 変数の束縛先変更文
 
 構文：
 - ASSOC := ( assoc! EXPRIDENT EXPRIDENT )
@@ -264,7 +270,7 @@ C関数と互換性を保つために利用され、それ以外での利用は�
 
 if は式であり値を返す。C言語の?構文みたいなもの。
 
-## cond 条件分岐
+## cond 条件分岐構文
 
 構文：
 - COND := ( cond ( EXPRIDENT EXPR\* )+ ?( else EXPR\* ) )
@@ -274,7 +280,7 @@ if は式であり値を返す。C言語の?構文みたいなもの。
 
 cond は制御構文であり、値は返さない。
 
-## while ループ
+## while ループ構文
 
 構文：
 - WHILE := ( while EXPRIDENT EXPR* )
@@ -316,7 +322,7 @@ type 式は真偽値を返す式であり、多相型変数の型を動的に検
 
 # 入力選択
 
-## select 文
+## select 構文
 
 構文：
 - SELECT := ( select (EXPRIDENT EXPR\*)\* (timeout ?SIZE)? )
@@ -327,26 +333,26 @@ type 式は真偽値を返す式であり、多相型変数の型を動的に検
 ストリームの入力待ちを行う。
 入力待ちの際、他に実行可能なグリーンスレッドがある場合はそちらに処理が移行。
 
-
 # 標準関数
 
 ## ストリーム
 
-### ストリームの作成
+### ストリーム生成式
 
 構文：
 - MKSTREAM := ( mkstream TYPE SIZE )
 
 (unique (rstrm TYPE))と(shared (wstrm TYPE))の2つの値を返す。
 
-### push
+### push式
 
 構文：
 - PUSH := ( push! EXPRIDENT )
 
 ストリームの最後尾にデータを挿入する。
+STRM_SUCCESS, STRM_CLOSED, STRM_NO_VACANCYのいずれかの値を返す。
 
-### pop
+### pop式
 
 構文：
 - POP := ( pop! EXPRIDENT )
@@ -355,23 +361,29 @@ type 式は真偽値を返す式であり、多相型変数の型を動的に検
 - ( pop! ストリーム )
 
 ストリームから先頭のデータを取り出す。
+返り値は、(取り出した値 エラー)となり、エラーはSTRM_SUCCESS, STRM_CLOSED, 
+STRM_NO_VACANCYのいずれかとなる。
 
 ## マルチタスキング
 
-### green thread
+### spawn式
 
 構文：
-- SPAWN := ( spawn SIZE EXPRIDENT EXPRIDENT* )
+- SPAWN := ( spawn SIZE EXPRIDENT EXPRIDENT SIZE)
 
 セマンティクス：
-- ( spawn スタックサイズ 呼び出す関数 関数へ渡す引数* )
+- ( spawn スタックサイズ 呼び出す関数 関数へ渡す引数 スタックサイズ)
 
-### schedule
+返り値はスレッド内で一意に識別されるs64型の整数値。
+
+### schedule式
 
 構文：
 - SCHEDULE := ( schedule )
 
-### thread
+他のグリーンスレッドに制御を渡す。
+
+### thread式
 
 OSネイティブなデタッチスレッドを生成。
 
@@ -383,6 +395,8 @@ OSネイティブなデタッチスレッドを生成。
 
 ストリームと同じく、スレッドキューには以下の制約がある。
 - スレッドキューが扱える値は、sharedもしくはunique変数か、プリミティブスカラ変数のみである。
+
+返り値は、bool値。
 
 ## Parser Combinator
 
@@ -420,7 +434,7 @@ OSネイティブなデタッチスレッドを生成。
 shared、unique変数はポインタ渡し。immovableは値渡しとなる。
 pointerのpointerはptr型を利用して実現する。
 
-### dlopen
+### dlopen式
 
 モジュール読み込み
 
@@ -432,7 +446,9 @@ pointerのpointerはptr型を利用して実現する。
 
 動的ライブラリ、.soファイルを読み込む。
 
-### deref
+返り値はbool値。
+
+### deref式
 
 PTR型の参照外し
 
@@ -441,6 +457,18 @@ PTR型の参照外し
 
 セマンティクス：
 - ( deref PTR型変数 )
+
+返り値は、参照外しを行った値。
+
+## 参照カウント
+
+### inccnt式
+
+- INCCNT := ( inccnt EXPRIDENT )
+
+### deccnt式
+
+- DECCNT := ( deccnt EXPRIDENT )
 
 ## プリミティブ演算
 

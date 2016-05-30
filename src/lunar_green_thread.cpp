@@ -653,7 +653,7 @@ green_thread::spawn(void (*func)(void*), void *arg, int stack_size)
     m_suspend.push_back(ctx.get());
     m_id2context[m_count] = std::move(ctx);
     
-    return 0;
+    return ctx->m_id;
 }
 
 void

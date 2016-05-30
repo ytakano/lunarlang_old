@@ -7,19 +7,22 @@
 #include <vector>
 
 /*
- * TYPE := TYPE0 | ( OWNERSHIP TYPE0 )
- * TYPE0 := SCALAR | VECTOR | STRING | LIST | STRUCT | DICT | SET | DATA | FUNCTYPE | RSTREAM | WSTREAM | IDENTIFIER
+ * TYPE  := TYPE0 | ( OWNERSHIP TYPE0 )
+ * TYPE0 := SCALAR | VECTOR | STRING | BINARY | LIST | STRUCT | DICT | SET | DATA | FUNCTYPE | RSTREAM | WSTREAM | IDENTIFIER
  *
  * OWNERSHIP := unique | shared | ref
  *
- * SCALAR := SCALARTYPE INITSCALAR | SCALARTYPE
- * SCALARTYPE := bool | u64 | s64 | u32 | s32 | u16 | s16 | u8 | s8 | double | float | binary | char | ATOM
+ * SCALAR     := SCALARTYPE INITSCALAR | SCALARTYPE
+ * SCALARTYPE := bool | u64 | s64 | u32 | s32 | u16 | s16 | u8 | s8 | double | float | char | ATOM
+ *
  * ATOM := `IDENTIFIER
  *
  * VECTOR := ( vector TYPE SIZE )
  * SIZE := An integer greater than or equal to 0
  *
  * STRING := string
+ *
+ * BINARY := binary
  *
  * LIST := ( list TYPE )
  *
@@ -36,10 +39,16 @@
  * RSTREAM := ( rstrm TYPE )
  * WSTREAM := ( wstrm TYPE )
  *
+ * PTR := (ptr TYPE ) | ( ptr PTR )
+ *
+ * UNION := ( union IDENTIFIER ( TYPE IDENTIFIER )+ )
+ *
  * FUNC := ( defun IDENTIFIER ( TYPE* ) ( TYPE IDENTIFIER )* EXPR* )
  *
  * CALLFUNC := ( IDENTIFIER EXPRIDENT* )
  * EXPRIDENT := EXPR | IDENTIFIER
+ *
+ * LAMBDA := ( lambda ( TYPE* ) ( TYPE IDENTIFIER )* EXPR* )
  *
  * NEW := ( new TYPE )
  * 
@@ -48,6 +57,63 @@
  * STORE := ( store! EXPRIDENT EXPRIDENT )
  *
  * ASSOC := ( assoc! EXPRIDENT EXPRIDENT )
+ *
+ * IF := ( if EXPRIDENT EXPRIDENT EXPRIDENT )
+ *
+ * COND := ( cond ( EXPRIDENT EXPR* )+ ?( else EXPR* ) )
+ *
+ * WHILE := ( while EXPRIDENT EXPR* )
+ *
+ * BREAK := ( break )
+ *
+ * RETURN := ( return ( EXPRIDENT* ) )
+ *
+ * TYPEOF := ( type TYPE0 IDENTIFIER )
+ *
+ * SELECT := ( select ( EXPRIDENT EXPR*)* ( timeout ?SIZE )? )
+ *
+ * MKSTREAM := ( mkstream TYPE SIZE )
+ *
+ * PUSH := ( push! EXPRIDENT )
+ *
+ * POP := ( pop! EXPRIDENT )
+ *
+ * SPAWN := ( spawn SIZE EXPRIDENT EXPRIDENT SIZE )
+ *
+ * SCHEDULE := ( schedule )
+ *
+ * THREAD := ( thread ATOM TYPE SIZE EXPRIDENT EXPRIDENT* )
+ *
+ * PARSECINIT   := (parsec_init string EXPRIDENT) | (parsec_init binary EXPRIDENT)
+ * PARSEC       := (EXPRIDENT PARSECOPS EXPRIDENT*)
+ * PARSECOPS    := PARSECCHAR | PARSECMANY | PARSECMANY1 | PARSECTRY | PARSECTRYEND | PARSECLA | PARSECLAEND | PARSECDIGIT | PARSECHEX | PARSECOCT | PARSECSPACE | PARSECSATIS | PARSECSTR 
+ * PARSECCHAR   := character
+ * PARSECTRY    := try
+ * PARSERTRYEND := try_end
+ * PARSECLA     := look_ahead
+ * PARSECLAEND  := look_ahead_end
+ * PARSECDIGT   := digit
+ * PARSECHEX    := hex
+ * PARSECOCT    := oct
+ * PARSECSPACE  := space
+ * PARSECSATIS  := satisfy
+ * PARSECSTR    := string
+ * PARSECRESULT := result
+ *
+ * CCALL := ( ccall IDENTIFIER EXPRIDENT* )
+ *
+ * DLOPEN := ( dlopen EXPRIDENT )
+ *
+ * DEREF := ( deref EXPRIDENT )
+ *
+ * INCCNT := ( inccnt EXPRIDENT )
+ * DECCNT := ( deccnt EXPRIDENT )
+ *
+ * ADD   := (+ EXPRIDENT EXPRIDENT+)
+ * MINUS := (- EXPRIDENT EXPRIDENT+)
+ * MULTI := (* EXPRIDENT EXPRIDENT+)
+ * DIV   := (/ EXPRIDENT EXPRIDENT+)
+ * MOD   := (mod EXPRIDENT EXPRIDENT+)
  */
 
 namespace lunar {
