@@ -387,30 +387,24 @@ OSネイティブなデタッチスレッドを生成。
 ## Parser Combinator
 
 - PARSECINIT   := (parsec_init string EXPRIDENT) | (parsec_init binary EXPRIDENT)
-- PARSE        := (parse ((TYPE (IDENTIFIER+) PARSEC)*) EXPRIDENT EXPRIDENT)
 - PARSEC       := (EXPRIDENT PARSECOPS EXPRIDENT*)
-- PARSECOPS    := PARSECCHAR | PARSECOR | PARSECCHAIN | PARSECMANY | PARSECMANY1 | PARSECTRY | PARSECLAHEAD | PARSECDIGIT | PARSECHEX | PARSECOCT | PARSECSPACE | PARSECSATIS | PARSECSTR 
+- PARSECOPS    := PARSECCHAR | PARSECMANY | PARSECMANY1 | PARSECTRY | PARSECTRYEND | PARSECLA | PARSECLAEND | PARSECDIGIT | PARSECHEX | PARSECOCT | PARSECSPACE | PARSECSATIS | PARSECSTR 
 - PARSECCHAR   := character
-- PARSECOR     := or
-- PARSECCHAIN  := and
-- PARSECMANY   := many
-- PARSECMANY1  := many1
 - PARSECTRY    := try
-- PARSECLAHEAD := lookahead
+- PARSERTRYEND := try_end
+- PARSECLA     := look_ahead
+- PARSECLAEND  := look_ahead_end
 - PARSECDIGT   := digit
 - PARSECHEX    := hex
 - PARSECOCT    := oct
 - PARSECSPACE  := space
 - PARSECSATIS  := satisfy
 - PARSECSTR    := string
+- PARSECRESULT := result
 
 ```lisp
 (let (parsec (p) (parsec_init string rstream))
-  (parse ((char   (a) (p character 'a'))
-          (string (b) (p or () () ()))
-          (string (c) (p and () () ()))
-          (string (d) (p many ())))
-         (return (a b c))))
+  (p character 'a'))
 ```
 
 ## C関数呼び出し
