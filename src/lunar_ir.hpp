@@ -191,6 +191,9 @@
  *
  * BIN    := b BINNUM\* | B BINNUM\*
  * BINNUM := 0 | 1
+ *
+ * TRUE  := true
+ * FALSE := false
  */
 
 namespace lunar {

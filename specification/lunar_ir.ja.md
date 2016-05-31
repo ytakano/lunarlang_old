@@ -634,4 +634,9 @@ PTR型の参照外し
 - BIN    := b BINNUM\* | B BINNUM\*
 - BINNUM := 0 | 1
 
+## 真偽値
+
+- TRUE  := ture
+- FALSE := false
+
 # Application Binary Interface (ABI)
