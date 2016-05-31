@@ -398,6 +398,68 @@ OSネイティブなデタッチスレッドを生成。
 
 返り値は、bool値。
 
+## ロック・同期処理
+
+### mutex_init式
+
+- MUTEX_INIT := ( mutex_init EXPRIDENT )
+
+### mutex_lock式
+
+- MUTEX_LOCK := ( mutex_lock EXPRIDENT )
+
+### mutex_try_lock式
+
+- MUTEX_TRY_LOCK := ( mutex_try_lock EXPRIDENT )
+
+### mutex_unlock式
+
+- MUTEX_UNLOCK := ( mutex_unclock EXPRIDENT )
+
+### mutex_cond_init式
+
+- MUTEX_COND_INIT := ( mutex_cond_init EXPRIDENT )
+
+### mutex_cond_wait式
+
+- MUTEX_COND_WAIT := ( mutex_cond_wait EXPRIDENT EXPRIDENT )
+
+### mutex_cond_timed_wait式
+
+- MUTEX_COND_TIMED_WAIT := ( mutex_cond_tiemd_wait EXPRIDENT EXPRIDENT SIZE )
+
+### spin_lock_init式
+
+- SPIN_LOCK_INIT := ( spin_lock_init EXPRIDENT )
+
+ゼロ代入。
+
+### spin_lock式
+
+- SPIN_LOCK := ( spin_lock EXPRIDENT )
+
+### spin_try_lock式
+
+- SPIN_TRY_LOCK := ( spin_try_lock EXPRIDENT )
+
+### spin_unlock式
+
+- SPIN_UNLOCK := ( spin_unlock EXPRIDENT )
+
+### htm_lock_init式
+
+- HTM_LOCK_INIT := ( htm_lock_init EXPRIDENT )
+
+Hardware Transactional Memoryのロックハンドラを返す。
+
+### htm_lock式
+
+- HTM_LOCK := ( htm_lock EXPRIDENT )
+
+### htm_unlock式
+
+- HTM_UNCLOK := ( htm_unlock EXPRIDENT )
+
 ## Parser Combinator
 
 - PARSECINIT   := (parser_init string EXPRIDENT) | (parser_init binary EXPRIDENT)
