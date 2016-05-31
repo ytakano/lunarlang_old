@@ -4,14 +4,25 @@ Lunar言語の中間表現であり、ここからLLVM IRへ変換。
 
 # 構文
 
-- IR  := TOP*
-- TOP := FUNC | STRUCT | UNION | DATA | GLOBAL
-- STATEMENT := LET | IF | COND | WHILE | SELECT
-- STEXPR    := STATMENT | EXPR
+- IR           := TOP*
+- TOP          := FUNC | STRUCT | UNION | DATA | GLOBAL | EXPORT | IMPORT
+- STATEMENT    := LET | IF | COND | WHILE | SELECT
+- STEXPR       := STATMENT | EXPR
+- LITERAL      := STR32 | STR8 | CHAR32 | CHAR8 | INT | FLOAT | HEX | OCT | BIN
+- EXPRIDENT    := EXPR | IDENTIFIER
+- EXPRIDENTLIT := EXPR | IDENTIFIER | LITERAL
 
 # グローバル変数定義
 
-- GLOBAL := ( GLOBAL ( ( TYPE (IDENTIFIER+) EXPRIDENT )+ ) )
+- GLOBAL := ( global ( ( TYPE (IDENTIFIER+) EXPRIDENTLIT )+ ) )
+
+# エクスポート
+
+- EXPORT := ( export IDENTIFIER+ )
+
+# インポート
+
+- IMPORT := ( import STR32+ )
 
 # 所有権
 
@@ -235,8 +246,7 @@ C関数と互換性を保つために利用され、それ以外での利用は�
 ## 関数呼び出し式
 
 構文：
-- CALLFUNC := ( IDENTIFIER EXPRIDENT\* )
-- EXPRIDENT := EXPR | IDENTIFIER
+- CALLFUNC := ( EXPRIDENT EXPRIDENTLIT\* )
 
 関数定義に応じた値を返す。
 
@@ -258,7 +268,7 @@ TYPE型の値を返す。
 ## 変数束縛構文
 
 構文：
-- LET := ( let ( ( TYPE (IDENTIFIER+) EXPRIDENT )+ ) STEXPR\* )
+- LET := ( let ( ( TYPE (IDENTIFIER+) EXPRIDENTLIT )+ ) STEXPR\* )
 
 セマンティクス：
 - ( let ( ( 束縛 )+ ) 式\* ）
@@ -269,7 +279,7 @@ TYPE型の値を返す。
 ## 変数の値書き換え文
 
 構文：
-- STORE := ( store! EXPRIDENT EXPRIDENT )
+- STORE := ( store! EXPRIDENT EXPRIDENTLIT )
 
 セマンティクス：
 - ( store! 書き換える変数 書き換える値 )
@@ -289,7 +299,7 @@ TYPE型の値を返す。
 ## if 式
 
 構文：
-- IF := ( if EXPRIDENT EXPRIDENT EXPRIDENT )
+- IF := ( if EXPRIDENTLIT EXPRIDENTLIT EXPRIDENTLIT )
 
 セマンティクス：
 - ( if 条件 条件が真の時の値 条件が偽の時の値 )
@@ -299,7 +309,7 @@ if は式であり値を返す。C言語の?構文みたいなもの。
 ## cond 条件分岐構文
 
 構文：
-- COND := ( cond ( EXPRIDENT STEXPR\* )+ ( else STEXPR\* )? )
+- COND := ( cond ( EXPRIDENTLIT STEXPR\* )+ ( else STEXPR\* )? )
 
 セマンティクス：
 - ( cond ( 条件 条件が真の時に実行する式\* )+ ( else どの条件にも当てはまらない場合に実行する式\* )? )
@@ -309,7 +319,7 @@ cond は制御構文であり、値は返さない。
 ## while ループ構文
 
 構文：
-- WHILE := ( while EXPRIDENT STEXPR* )
+- WHILE := ( while EXPRIDENTLIT STEXPR* )
 
 セマンティクス：
 - ( while 条件 条件が真の間実行する式\* )
@@ -324,7 +334,7 @@ while ループの制御から脱出するときに使う。
 ## return 文
 
 構文：
-- RETURN := ( return (EXPRIDENT*) )
+- RETURN := ( return (EXPRIDENTLIT*) )
 
 セマンティクス：
 - ( return (返り値*) )
@@ -334,7 +344,7 @@ while ループの制御から脱出するときに使う。
 ## type 式
 
 構文：
-- TYPEOF := ( type TYPE0 IDENTIFIER )
+- TYPEOF := ( type TYPE0 IDENTIFIER ) | ( type TYPE0 LITERAL )
 
 セマンティクス：
 - ( type 検査する形名 識別子 )
@@ -351,7 +361,7 @@ type 式は真偽値を返す式であり、多相型変数の型を動的に検
 ## select 構文
 
 構文：
-- SELECT := ( select ( EXPRIDENT EXPR\* )\* ( timeout SIZE STEXPR* )? )
+- SELECT := ( select ( EXPRIDENT STEXPR\* )\* ( timeout SIZE STEXPR* )? )
 
 セマンティクス：
 - ( select (ストリーム ストリームに入力があった時に実行する式) (timeout タイムアウトするまでの時間[ms] )? )
@@ -373,7 +383,7 @@ type 式は真偽値を返す式であり、多相型変数の型を動的に検
 ### push式
 
 構文：
-- PUSH := ( push! EXPRIDENT )
+- PUSH := ( push! EXPRIDENTLIT )
 
 ストリームの最後尾にデータを挿入する。
 STRM_SUCCESS, STRM_CLOSED, STRM_NO_VACANCYのいずれかの値を返す。
@@ -395,7 +405,7 @@ STRM_NO_VACANCYのいずれかとなる。
 ### spawn式
 
 構文：
-- SPAWN := ( spawn SIZE EXPRIDENT EXPRIDENT SIZE)
+- SPAWN := ( spawn SIZE EXPRIDENT EXPRIDENTLIT SIZE)
 
 セマンティクス：
 - ( spawn スタックサイズ 呼び出す関数 関数へ渡す引数 スタックサイズ)
@@ -414,7 +424,7 @@ STRM_NO_VACANCYのいずれかとなる。
 OSネイティブなデタッチスレッドを生成。
 
 構文：
-- THREAD := ( thread ATOM TYPE SIZE EXPRIDENT EXPRIDENT* )
+- THREAD := ( thread ATOM TYPE SIZE EXPRIDENT EXPRIDENTLIT )
 
 セマンティクス：
 - ( thread スレッドの名前 スレッドキューの型 キューのサイズ 呼び出す関数 関数へ渡す引数* )
@@ -485,7 +495,7 @@ Hardware Transactional Memoryのロックハンドラを返す。
 ## Parser Combinator
 
 - PARSECINIT   := (parser_init string EXPRIDENT) | (parser_init binary EXPRIDENT)
-- PARSEC       := (parse EXPRIDENT PARSECOPS EXPRIDENT*)
+- PARSEC       := (parse EXPRIDENT PARSECOPS EXPRIDENTLIT*)
 - PARSECOPS    := PARSECCHAR | PARSECMANY | PARSECMANY1 | PARSECTRY | PARSECTRYEND | PARSECLA | PARSECLAEND | PARSECDIGIT | PARSECHEX | PARSECOCT | PARSECSPACE | PARSECSATIS | PARSECSTR 
 - PARSECCHAR   := character
 - PARSECTRY    := try
@@ -510,7 +520,7 @@ Hardware Transactional Memoryのロックハンドラを返す。
 ### ccall
 
 構文：
-- CCALL := ( ccall IDENTIFIER EXPRIDENT* )
+- CCALL := ( ccall IDENTIFIER EXPRIDENTLIT* )
 
 セマンティクス：
 - ( ccall C関数名 引数* )
@@ -523,7 +533,7 @@ pointerのpointerはptr型を利用して実現する。
 モジュール読み込み
 
 構文：
-- DLOPEN := ( dlopen EXPRIDENT )
+- DLOPEN := ( dlopen EXPRIDENTLIT )
 
 セマンティクス：
 - ( dlopen モジュールへのパス )
@@ -558,26 +568,70 @@ PTR型の参照外し
 
 ### 四則演算・剰余算
 
-- ADD   := (+ EXPRIDENT EXPRIDENT+ )
-- MINUS := (- EXPRIDENT EXPRIDENT+ )
-- MULTI := (* EXPRIDENT EXPRIDENT+ )
-- DIV   := (/ EXPRIDENT EXPRIDENT+ )
-- MOD   := (mod EXPRIDENT EXPRIDENT+ )
+- ADD   := (+ EXPRIDENTLIT EXPRIDENTLIT+ )
+- MINUS := (- EXPRIDENTLIT EXPRIDENTLIT+ )
+- MULTI := (* EXPRIDENTLIT EXPRIDENTLIT+ )
+- DIV   := (/ EXPRIDENTLIT EXPRIDENTLIT+ )
+- MOD   := (mod EXPRIDENTLIT EXPRIDENTLIT+ )
 
 ## IO
 
 ### print式
 
-- PRINT := ( print EXPRIDENT )
+- PRINT := ( print EXPRIDENTLIT )
 
 文字列を標準出力へ出力。引数はstring型のみ。
 
 ## 文字列変換式
 
-- TOSTR := ( tostr EXPRIDENT )
+- TOSTR := ( tostr EXPRIDENTLIT )
 
 引数を文字列へ変換。immovalなstring型を返す。 
 
 # リテラル
+
+## 文字列
+
+### UTF-32
+
+- STR32  := " CHARS* "
+- STR8   := b " CHARS* "
+- ESCAPE := \a | \b | \f | \r | \n | \t | \v | \\ | \? | \' | \" | \0 | \UXXXXXXXX | \uXXXX
+- CHARS  := ESCAPE | ESCAPE以外の文字
+
+## 文字
+
+- CHAR32 := ' CHARS '
+- CHAR8  := ' CHARS '
+
+## 整数
+
+- INT     := -? DIGIT
+- DIGIT   := NUM1to9 NUM0to9* | 0
+- NUM1to9 := 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
+- NUM0to9 := 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
+
+## 浮動小数
+
+- FLOAT := NUM . EXP
+- EXP   := EE SIGN NUM+
+- EE    := e | E
+- SIGN  := - | +
+
+## 16進数
+
+- HEX     := 0x HEXNUM2\* | 0X HEXNUM2\*
+- HEXNUM2 := HEXNUM HEXNUM
+- HEXNUM  := 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | a | A | b | B | c | C | d | D | f | F
+
+## 8進数
+
+- OCT    := 0 OCTNUM*
+- OCTNUM := 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7
+
+## 2進数
+
+- BIN    := b BINNUM\* | B BINNUM\*
+- BINNUM := 0 | 1
 
 # Application Binary Interface (ABI)

@@ -10,9 +10,11 @@
  * -----------------------------------------------------------------------------
  *
  * IR  := TOP*
- * TOP := FUNC | STRUCT | UNION | DATA | GLOBAL
+ * TOP := FUNC | STRUCT | UNION | DATA | GLOBAL | EXPORT | IMPORT
  * STATEMENT := LET | IF | COND | WHILE | SELECT
- * GLOBAL := ( GLOBAL ( ( TYPE (IDENTIFIER+) EXPRIDENT )+ ) )
+ * GLOBAL := ( global ( ( TYPE (IDENTIFIER+) EXPRIDENTLIT )+ ) )
+ * EXPORT := ( export IDENTIFIER+ )
+ * IMPORT := ( import STR32+ )
  *
  * -----------------------------------------------------------------------------
  *
@@ -65,13 +67,13 @@
  *
  * FUNC := ( defun IDENTIFIER ( TYPE* ) ( TYPE IDENTIFIER )* STEXPR* )
  * 
- * LET := ( let ( ( TYPE ( IDENTIFIER+ ) EXPR )* ) STEXPR* )
+ * LET := ( let ( ( TYPE ( IDENTIFIER+ ) EXPRIDENTLIT )* ) STEXPR* )
  *
- * IF := ( if EXPRIDENT EXPRIDENT EXPRIDENT )
+ * IF := ( if EXPRIDENTLIT EXPRIDENTLIT EXPRIDENTLIT )
  *
- * COND := ( cond ( EXPRIDENT STEXPR* )+ ( else STEXPR* )? )
+ * COND := ( cond ( EXPRIDENTLIT STEXPR* )+ ( else STEXPR* )? )
  *
- * WHILE := ( while EXPRIDENT STEXPR* )
+ * WHILE := ( while EXPRIDENTLIT STEXPR* )
  *
  * SELECT := ( select ( EXPRIDENT STEXPR*)* ( timeout SIZE STEXPR* )? )
  *
@@ -79,17 +81,17 @@
  *
  * EXPRIDENT := EXPR | IDENTIFIER
  *
- * CALLFUNC := ( IDENTIFIER EXPRIDENT* )
+ * CALLFUNC := ( EXPRIDENT EXPRIDENTLIT* )
  *
  * BREAK := ( break )
  *
- * RETURN := ( return ( EXPRIDENT* ) )
+ * RETURN := ( return ( EXPRIDENTLIT* ) )
  *
  * LAMBDA := ( lambda ( TYPE* ) ( TYPE IDENTIFIER )* STEXPR* )
  *
  * NEW := ( new TYPE )
  *
- * STORE := ( store! EXPRIDENT EXPRIDENT )
+ * STORE := ( store! EXPRIDENT EXPRIDENTLIT )
  *
  * ASSOC := ( assoc! EXPRIDENT EXPRIDENT )
  *
@@ -97,15 +99,15 @@
  *
  * MKSTREAM := ( mkstream TYPE SIZE )
  *
- * PUSH := ( push! EXPRIDENT )
+ * PUSH := ( push! EXPRIDENTLIT )
  *
- * POP := ( pop! EXPRIDENT )
+ * POP := ( pop! EXPRIDENTLIT )
  *
- * SPAWN := ( spawn SIZE EXPRIDENT EXPRIDENT SIZE )
+ * SPAWN := ( spawn SIZE EXPRIDENT EXPRIDENTLIT SIZE )
  *
  * SCHEDULE := ( schedule )
  *
- * THREAD := ( thread ATOM TYPE SIZE EXPRIDENT EXPRIDENT* )
+ * THREAD := ( thread ATOM TYPE SIZE EXPRIDENT EXPRIDENTLIT )
  *
  * MUTEX_INIT      := ( mutex_init EXPRIDENT )
  * MUTEX_LOCK      := ( mutex_lock EXPRIDENT )
@@ -124,7 +126,7 @@
  * HTM_UNCLOK    := ( htm_unlock EXPRIDENT )
  *
  * PARSECINIT   := ( parser_init string EXPRIDENT ) | ( parsec_init binary EXPRIDENT )
- * PARSEC       := ( parse EXPRIDENT PARSECOPS EXPRIDENT* )
+ * PARSEC       := ( parse EXPRIDENT PARSECOPS EXPRIDENTLIT* )
  * PARSECOPS    := PARSECCHAR | PARSECMANY | PARSECMANY1 | PARSECTRY | PARSECTRYEND | PARSECLA | PARSECLAEND | PARSECDIGIT | PARSECHEX | PARSECOCT | PARSECSPACE | PARSECSATIS | PARSECSTR 
  * PARSECCHAR   := character
  * PARSECTRY    := try
@@ -139,24 +141,56 @@
  * PARSECSTR    := string
  * PARSECRESULT := result
  *
- * CCALL := ( ccall IDENTIFIER EXPRIDENT* )
+ * CCALL := ( ccall IDENTIFIER EXPRIDENTLIT* )
  *
- * DLOPEN := ( dlopen EXPRIDENT )
+ * DLOPEN := ( dlopen EXPRIDENTLIT )
  *
  * DEREF := ( deref EXPRIDENT )
  *
  * INCCNT := ( inccnt EXPRIDENT )
  * DECCNT := ( deccnt EXPRIDENT )
  *
- * ADD   := (+ EXPRIDENT EXPRIDENT+ )
- * MINUS := (- EXPRIDENT EXPRIDENT+ )
- * MULTI := (* EXPRIDENT EXPRIDENT+ )
- * DIV   := (/ EXPRIDENT EXPRIDENT+ )
- * MOD   := (mod EXPRIDENT EXPRIDENT+ )
+ * ADD   := (+ EXPRIDENTLIT EXPRIDENTLIT+ )
+ * MINUS := (- EXPRIDENTLIT EXPRIDENTLIT+ )
+ * MULTI := (* EXPRIDENTLIT EXPRIDENTLIT+ )
+ * DIV   := (/ EXPRIDENTLIT EXPRIDENTLIT+ )
+ * MOD   := (mod EXPRIDENTLIT EXPRIDENTLIT+ )
  *
- * PRINT := ( print EXPRIDENT )
+ * PRINT := ( print EXPRIDENTLIT )
  *
- * TOSTR := ( tostr EXPRIDENT )
+ * TOSTR := ( tostr EXPRIDENTLIT )
+ *
+ * -----------------------------------------------------------------------------
+ *
+ * LITERAL := STR32 | STR8 | CHAR32 | CHAR8 | INT | FLOAT | HEX | OCT | BIN
+ *
+ * STR32  := " CHARS* "
+ * STR8   := b " CHARS* "
+ * ESCAPE := \a | \b | \f | \r | \n | \t | \v | \\ | \? | \' | \" | \0 | \UXXXXXXXX | \uXXXX
+ * CHARS  := ESCAPE | ESCAPE以外の文字
+ *
+ * CHAR32 := ' CHARS '
+ * CHAR8  := ' CHARS '
+ *
+ * INT     := -? DIGIT
+ * DIGIT   := NUM1to9 NUM0to9* | 0
+ * NUM1to9 := 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
+ * NUM0to9 := 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
+ *
+ * FLOAT := NUM . EXP
+ * EXP   := EE SIGN NUM+
+ * EE    := e | E
+ * SIGN  := - | +
+ *
+ * HEX     := 0x HEXNUM2\* | 0X HEXNUM2\*
+ * HEXNUM2 := HEXNUM HEXNUM
+ * HEXNUM  := 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | a | A | b | B | c | C | d | D | f | F
+ *
+ * OCT    := 0 OCTNUM*
+ * OCTNUM := 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7
+ *
+ * BIN    := b BINNUM\* | B BINNUM\*
+ * BINNUM := 0 | 1
  */
 
 namespace lunar {
