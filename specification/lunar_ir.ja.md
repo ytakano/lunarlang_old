@@ -2,6 +2,17 @@
 
 Lunar言語の中間表現であり、ここからLLVM IRへ変換。
 
+# 構文
+
+- IR  := TOP*
+- TOP := FUNC | STRUCT | UNION | DATA | GLOBAL
+- STATEMENT := LET | IF | COND | WHILE | SELECT
+- STEXPR    := STATMENT | EXPR
+
+# グローバル変数定義
+
+- GLOBAL := ( GLOBAL ( ( TYPE (IDENTIFIER+) EXPRIDENT )+ ) )
+
 # 所有権
 
 Lunar IRにはオーナーという概念があり、変数を利用する際には、その変数がどのような所有権で扱われるかを指定する。
@@ -26,7 +37,7 @@ Lunar IRにはオーナーという概念があり、変数を利用する際に
 
 構文：
 - TYPE  := TYPE0 | ( OWNERSHIP TYPE0 )
-- TYPE0 := SCALAR | VECTOR | STRING | BINARY | LIST | STRUCT | DICT | SET | DATA | FUNCTYPE | RSTREAM | WSTREAM | IDENTIFIER
+- TYPE0 := SCALAR | VECTOR | STRING | BINARY | LIST | STRUCT | DICT | SET | DATA | FUNCTYPE | RSTREAM | WSTREAM | PTR | UNION | PARSEC | MUTEX | CONDITION | IDENTIFIER
 
 ここで、IDENTIFIERとは空白文字以外からなる、1文字以上の文字かつ、先頭が数字ではない文字列かつ、
 予約文字（列）以外の文字列である。
@@ -99,7 +110,7 @@ Lunar IRにはオーナーという概念があり、変数を利用する際に
 ## 構造体
 
 構文：
-- STRUCT := ( struct IDENTIFIER ( TYPE IDENTIFIER )+ )
+- STRUCT := ( struct IDENTIFIER? ( TYPE IDENTIFIER )+ )
 
 セマンティクス：
 - ( struct 構造体の名前 ( 構造体メンバの型 構造体メンバの名前 )+ )
@@ -141,7 +152,7 @@ Lunar IRにはオーナーという概念があり、変数を利用する際に
 ## 多相型
 
 構文：
-- DATA := ( data IDENTIFIER ( TYPE IDENTIFIER )+ )
+- DATA := ( data IDENTIFIER? ( TYPE IDENTIFIER )+ )
 
 セマンティクス：
 - ( data 多相型の名前 ( 多相型となる型 型の名前 )+ )
@@ -192,19 +203,34 @@ C関数と互換性を保つために利用され、それ以外での利用は�
 ## 共用体
 
 構文：
-- UNION := ( union IDENTIFIER ( TYPE IDENTIFIER )+ )
+- UNION := ( union IDENTIFIER? ( TYPE IDENTIFIER )+ )
 
 セマンティクス：
 - ( union 構造体の名前 ( 構造体メンバの型 構造体メンバの名前 )+ )
 
 C関数と互換性を保つために利用され、それ以外での利用は非推奨である。
 
+## パーサ型
+
+構文：
+- PARSEC := parsec
+
+## mutex型
+
+構文：
+- MUTEX := mutex
+
+## condition型
+
+構文：
+- CONDITION := condition
+
 # 関数
 
 ## 関数定義構文
 
 構文：
-- FUNC := ( defun IDENTIFIER ( TYPE\* ) ( TYPE IDENTIFIER )\* EXPR\* )
+- FUNC := ( defun IDENTIFIER ( TYPE\* ) ( TYPE IDENTIFIER )\* STEXPR\* )
 
 ## 関数呼び出し式
 
@@ -217,7 +243,7 @@ C関数と互換性を保つために利用され、それ以外での利用は�
 ## 無名関数定義式
 
 構文：
-- LAMBDA := ( lambda ( TYPE\* ) ( TYPE IDENTIFIER )\* EXPR\* )
+- LAMBDA := ( lambda ( TYPE\* ) ( TYPE IDENTIFIER )\* STEXPR\* )
 
 関数型の値を返す。
 
@@ -232,7 +258,7 @@ TYPE型の値を返す。
 ## 変数束縛構文
 
 構文：
-- LET := ( let ( ( TYPE (IDENTIFIER+) EXPRIDENT )+ ) EXPR\* )
+- LET := ( let ( ( TYPE (IDENTIFIER+) EXPRIDENT )+ ) STEXPR\* )
 
 セマンティクス：
 - ( let ( ( 束縛 )+ ) 式\* ）
@@ -273,17 +299,17 @@ if は式であり値を返す。C言語の?構文みたいなもの。
 ## cond 条件分岐構文
 
 構文：
-- COND := ( cond ( EXPRIDENT EXPR\* )+ ?( else EXPR\* ) )
+- COND := ( cond ( EXPRIDENT STEXPR\* )+ ( else STEXPR\* )? )
 
 セマンティクス：
-- ( cond ( 条件 条件が真の時に実行する式\* )+ ?( else どの条件にも当てはまらない場合に実行する式\* ) )
+- ( cond ( 条件 条件が真の時に実行する式\* )+ ( else どの条件にも当てはまらない場合に実行する式\* )? )
 
 cond は制御構文であり、値は返さない。
 
 ## while ループ構文
 
 構文：
-- WHILE := ( while EXPRIDENT EXPR* )
+- WHILE := ( while EXPRIDENT STEXPR* )
 
 セマンティクス：
 - ( while 条件 条件が真の間実行する式\* )
@@ -325,10 +351,10 @@ type 式は真偽値を返す式であり、多相型変数の型を動的に検
 ## select 構文
 
 構文：
-- SELECT := ( select (EXPRIDENT EXPR\*)\* (timeout ?SIZE)? )
+- SELECT := ( select ( EXPRIDENT EXPR\* )\* ( timeout SIZE STEXPR* )? )
 
 セマンティクス：
-- ( select (ストリーム ストリームに入力があった時に実行する式) (timeout タイムアウトするまでの時間[ms] ))
+- ( select (ストリーム ストリームに入力があった時に実行する式) (timeout タイムアウトするまでの時間[ms] )? )
 
 ストリームの入力待ちを行う。
 入力待ちの際、他に実行可能なグリーンスレッドがある場合はそちらに処理が移行。
@@ -422,11 +448,7 @@ OSネイティブなデタッチスレッドを生成。
 
 ### mutex_cond_wait式
 
-- MUTEX_COND_WAIT := ( mutex_cond_wait EXPRIDENT EXPRIDENT )
-
-### mutex_cond_timed_wait式
-
-- MUTEX_COND_TIMED_WAIT := ( mutex_cond_tiemd_wait EXPRIDENT EXPRIDENT SIZE )
+- MUTEX_COND_WAIT := ( mutex_cond_wait EXPRIDENT EXPRIDENT SIZE? )
 
 ### spin_lock_init式
 
@@ -463,7 +485,7 @@ Hardware Transactional Memoryのロックハンドラを返す。
 ## Parser Combinator
 
 - PARSECINIT   := (parser_init string EXPRIDENT) | (parser_init binary EXPRIDENT)
-- PARSEC       := (parse PARSECOPS EXPRIDENT EXPRIDENT*)
+- PARSEC       := (parse EXPRIDENT PARSECOPS EXPRIDENT*)
 - PARSECOPS    := PARSECCHAR | PARSECMANY | PARSECMANY1 | PARSECTRY | PARSECTRYEND | PARSECLA | PARSECLAEND | PARSECDIGIT | PARSECHEX | PARSECOCT | PARSECSPACE | PARSECSATIS | PARSECSTR 
 - PARSECCHAR   := character
 - PARSECTRY    := try

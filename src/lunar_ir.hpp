@@ -7,8 +7,18 @@
 #include <vector>
 
 /*
+ * -----------------------------------------------------------------------------
+ *
+ * IR  := TOP*
+ * TOP := FUNC | STRUCT | UNION | DATA | GLOBAL
+ * STATEMENT := LET | IF | COND | WHILE | SELECT
+ * GLOBAL := ( GLOBAL ( ( TYPE (IDENTIFIER+) EXPRIDENT )+ ) )
+ *
+ * -----------------------------------------------------------------------------
+ *
  * TYPE  := TYPE0 | ( OWNERSHIP TYPE0 )
- * TYPE0 := SCALAR | VECTOR | STRING | BINARY | LIST | STRUCT | DICT | SET | DATA | FUNCTYPE | RSTREAM | WSTREAM | IDENTIFIER
+ * TYPE0 := SCALAR | VECTOR | STRING | BINARY | LIST | STRUCT | DICT | SET | DATA |
+ *          FUNCTYPE | RSTREAM | WSTREAM | PTR | UNION | PARSEC | MUTEX | CONDITION | IDENTIFIER
  *
  * OWNERSHIP := unique | shared | ref
  *
@@ -26,13 +36,15 @@
  *
  * LIST := ( list TYPE )
  *
- * STRUCT := ( struct IDENTIFIER ( TYPE IDENTIFIER )+ )
+ * STRUCT := ( struct IDENTIFIER? ( TYPE IDENTIFIER )+ )
+ *
+ * DATA := ( data IDENTIFIER? ( TYPE IDENTIFIER )+ )
+ *
+ * UNION := ( union IDENTIFIER? ( TYPE IDENTIFIER )+ )
  *
  * DICT := ( dict TYPE TYPE )
  *
  * SET := ( set TYPE )
- *
- * DATA := ( data IDENTIFIER ( TYPE IDENTIFIER )+ )
  *
  * FUNCTYPE := ( func ( TYPE* ) ( TYPE* ) )
  *
@@ -41,36 +53,47 @@
  *
  * PTR := (ptr TYPE ) | ( ptr PTR )
  *
- * UNION := ( union IDENTIFIER ( TYPE IDENTIFIER )+ )
+ * PARSEC := parsec
  *
- * FUNC := ( defun IDENTIFIER ( TYPE* ) ( TYPE IDENTIFIER )* EXPR* )
+ * MUTEX := mutex
  *
- * CALLFUNC := ( IDENTIFIER EXPRIDENT* )
- * EXPRIDENT := EXPR | IDENTIFIER
+ * CONDITION := condition
  *
- * LAMBDA := ( lambda ( TYPE* ) ( TYPE IDENTIFIER )* EXPR* )
+ * -----------------------------------------------------------------------------
  *
- * NEW := ( new TYPE )
+ * STEXPR := STATMENT | EXPR
+ *
+ * FUNC := ( defun IDENTIFIER ( TYPE* ) ( TYPE IDENTIFIER )* STEXPR* )
  * 
- * LET := ( let ( ( TYPE ( IDENTIFIER+ ) EXPR )* ) EXPR* )
- *
- * STORE := ( store! EXPRIDENT EXPRIDENT )
- *
- * ASSOC := ( assoc! EXPRIDENT EXPRIDENT )
+ * LET := ( let ( ( TYPE ( IDENTIFIER+ ) EXPR )* ) STEXPR* )
  *
  * IF := ( if EXPRIDENT EXPRIDENT EXPRIDENT )
  *
- * COND := ( cond ( EXPRIDENT EXPR* )+ ?( else EXPR* ) )
+ * COND := ( cond ( EXPRIDENT STEXPR* )+ ( else STEXPR* )? )
  *
- * WHILE := ( while EXPRIDENT EXPR* )
+ * WHILE := ( while EXPRIDENT STEXPR* )
+ *
+ * SELECT := ( select ( EXPRIDENT STEXPR*)* ( timeout SIZE STEXPR* )? )
+ *
+ * -----------------------------------------------------------------------------
+ *
+ * EXPRIDENT := EXPR | IDENTIFIER
+ *
+ * CALLFUNC := ( IDENTIFIER EXPRIDENT* )
  *
  * BREAK := ( break )
  *
  * RETURN := ( return ( EXPRIDENT* ) )
  *
- * TYPEOF := ( type TYPE0 IDENTIFIER )
+ * LAMBDA := ( lambda ( TYPE* ) ( TYPE IDENTIFIER )* STEXPR* )
  *
- * SELECT := ( select ( EXPRIDENT EXPR*)* ( timeout ?SIZE )? )
+ * NEW := ( new TYPE )
+ *
+ * STORE := ( store! EXPRIDENT EXPRIDENT )
+ *
+ * ASSOC := ( assoc! EXPRIDENT EXPRIDENT )
+ *
+ * TYPEOF := ( type TYPE0 IDENTIFIER )
  *
  * MKSTREAM := ( mkstream TYPE SIZE )
  *
@@ -84,8 +107,24 @@
  *
  * THREAD := ( thread ATOM TYPE SIZE EXPRIDENT EXPRIDENT* )
  *
- * PARSECINIT   := (parser_init string EXPRIDENT) | (parsec_init binary EXPRIDENT)
- * PARSEC       := (parse PARSECOPS EXPRIDENT EXPRIDENT*)
+ * MUTEX_INIT      := ( mutex_init EXPRIDENT )
+ * MUTEX_LOCK      := ( mutex_lock EXPRIDENT )
+ * MUTEX_TRY_LOCK  := ( mutex_try_lock EXPRIDENT )
+ * MUTEX_UNLOCK    := ( mutex_unclock EXPRIDENT )
+ * MUTEX_COND_INIT := ( mutex_cond_init EXPRIDENT )
+ * MUTEX_COND_WAIT := ( mutex_cond_wait EXPRIDENT EXPRIDENT SIZE? )
+ * 
+ * SPIN_LOCK_INIT := ( spin_lock_init EXPRIDENT )
+ * SPIN_LOCK      := ( spin_lock EXPRIDENT )
+ * SPIN_TRY_LOCK  := ( spin_try_lock EXPRIDENT )
+ * SPIN_UNLOCK    := ( spin_unlock EXPRIDENT )
+ * 
+ * HTM_LOCK_INIT := ( htm_lock_init EXPRIDENT )
+ * HTM_LOCK      := ( htm_lock EXPRIDENT )
+ * HTM_UNCLOK    := ( htm_unlock EXPRIDENT )
+ *
+ * PARSECINIT   := ( parser_init string EXPRIDENT ) | ( parsec_init binary EXPRIDENT )
+ * PARSEC       := ( parse EXPRIDENT PARSECOPS EXPRIDENT* )
  * PARSECOPS    := PARSECCHAR | PARSECMANY | PARSECMANY1 | PARSECTRY | PARSECTRYEND | PARSECLA | PARSECLAEND | PARSECDIGIT | PARSECHEX | PARSECOCT | PARSECSPACE | PARSECSATIS | PARSECSTR 
  * PARSECCHAR   := character
  * PARSECTRY    := try
