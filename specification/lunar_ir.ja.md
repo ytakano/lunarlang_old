@@ -2,6 +2,28 @@
 
 Lunar言語の中間表現であり、ここからLLVM IRへ変換。
 
+# 構文
+
+- IR           := TOP*
+- TOP          := FUNC | STRUCT | UNION | DATA | GLOBAL | EXPORT | IMPORT
+- STATEMENT    := LET | IF | COND | WHILE | SELECT
+- STEXPR       := STATMENT | EXPR
+- LITERAL      := STR32 | STR8 | CHAR32 | CHAR8 | INT | FLOAT | HEX | OCT | BIN
+- EXPRIDENT    := EXPR | IDENTIFIER
+- EXPRIDENTLIT := EXPR | IDENTIFIER | LITERAL
+
+# グローバル変数定義
+
+- GLOBAL := ( global ( ( TYPE (IDENTIFIER+) EXPRIDENTLIT )+ ) )
+
+# エクスポート
+
+- EXPORT := ( export IDENTIFIER+ )
+
+# インポート
+
+- IMPORT := ( import STR32+ )
+
 # 所有権
 
 Lunar IRにはオーナーという概念があり、変数を利用する際には、その変数がどのような所有権で扱われるかを指定する。
@@ -26,7 +48,7 @@ Lunar IRにはオーナーという概念があり、変数を利用する際に
 
 構文：
 - TYPE  := TYPE0 | ( OWNERSHIP TYPE0 )
-- TYPE0 := SCALAR | VECTOR | STRING | BINARY | LIST | STRUCT | DICT | SET | DATA | FUNCTYPE | RSTREAM | WSTREAM | IDENTIFIER
+- TYPE0 := SCALAR | VECTOR | STRING | BINARY | LIST | STRUCT | DICT | SET | DATA | FUNCTYPE | RSTREAM | WSTREAM | PTR | UNION | PARSEC | MUTEX | CONDITION | IDENTIFIER
 
 ここで、IDENTIFIERとは空白文字以外からなる、1文字以上の文字かつ、先頭が数字ではない文字列かつ、
 予約文字（列）以外の文字列である。
@@ -99,7 +121,7 @@ Lunar IRにはオーナーという概念があり、変数を利用する際に
 ## 構造体
 
 構文：
-- STRUCT := ( struct IDENTIFIER ( TYPE IDENTIFIER )+ )
+- STRUCT := ( struct IDENTIFIER? ( TYPE IDENTIFIER )+ )
 
 セマンティクス：
 - ( struct 構造体の名前 ( 構造体メンバの型 構造体メンバの名前 )+ )
@@ -141,7 +163,7 @@ Lunar IRにはオーナーという概念があり、変数を利用する際に
 ## 多相型
 
 構文：
-- DATA := ( data IDENTIFIER ( TYPE IDENTIFIER )+ )
+- DATA := ( data IDENTIFIER? ( TYPE IDENTIFIER )+ )
 
 セマンティクス：
 - ( data 多相型の名前 ( 多相型となる型 型の名前 )+ )
@@ -192,32 +214,46 @@ C関数と互換性を保つために利用され、それ以外での利用は�
 ## 共用体
 
 構文：
-- UNION := ( union IDENTIFIER ( TYPE IDENTIFIER )+ )
+- UNION := ( union IDENTIFIER? ( TYPE IDENTIFIER )+ )
 
 セマンティクス：
 - ( union 構造体の名前 ( 構造体メンバの型 構造体メンバの名前 )+ )
 
 C関数と互換性を保つために利用され、それ以外での利用は非推奨である。
 
+## パーサ型
+
+構文：
+- PARSEC := parsec
+
+## mutex型
+
+構文：
+- MUTEX := mutex
+
+## condition型
+
+構文：
+- CONDITION := condition
+
 # 関数
 
 ## 関数定義構文
 
 構文：
-- FUNC := ( defun IDENTIFIER ( TYPE\* ) ( TYPE IDENTIFIER )\* EXPR\* )
+- FUNC := ( defun IDENTIFIER ( TYPE\* ) ( TYPE IDENTIFIER )\* STEXPR\* )
 
 ## 関数呼び出し式
 
 構文：
-- CALLFUNC := ( IDENTIFIER EXPRIDENT\* )
-- EXPRIDENT := EXPR | IDENTIFIER
+- CALLFUNC := ( EXPRIDENT EXPRIDENTLIT\* )
 
 関数定義に応じた値を返す。
 
 ## 無名関数定義式
 
 構文：
-- LAMBDA := ( lambda ( TYPE\* ) ( TYPE IDENTIFIER )\* EXPR\* )
+- LAMBDA := ( lambda ( TYPE\* ) ( TYPE IDENTIFIER )\* STEXPR\* )
 
 関数型の値を返す。
 
@@ -232,7 +268,7 @@ TYPE型の値を返す。
 ## 変数束縛構文
 
 構文：
-- LET := ( let ( ( TYPE (IDENTIFIER+) EXPRIDENT )+ ) EXPR\* )
+- LET := ( let ( ( TYPE (IDENTIFIER+) EXPRIDENTLIT )+ ) STEXPR\* )
 
 セマンティクス：
 - ( let ( ( 束縛 )+ ) 式\* ）
@@ -243,7 +279,7 @@ TYPE型の値を返す。
 ## 変数の値書き換え文
 
 構文：
-- STORE := ( store! EXPRIDENT EXPRIDENT )
+- STORE := ( store! EXPRIDENT EXPRIDENTLIT )
 
 セマンティクス：
 - ( store! 書き換える変数 書き換える値 )
@@ -263,7 +299,7 @@ TYPE型の値を返す。
 ## if 式
 
 構文：
-- IF := ( if EXPRIDENT EXPRIDENT EXPRIDENT )
+- IF := ( if EXPRIDENTLIT EXPRIDENTLIT EXPRIDENTLIT )
 
 セマンティクス：
 - ( if 条件 条件が真の時の値 条件が偽の時の値 )
@@ -273,17 +309,17 @@ if は式であり値を返す。C言語の?構文みたいなもの。
 ## cond 条件分岐構文
 
 構文：
-- COND := ( cond ( EXPRIDENT EXPR\* )+ ?( else EXPR\* ) )
+- COND := ( cond ( EXPRIDENTLIT STEXPR\* )+ ( else STEXPR\* )? )
 
 セマンティクス：
-- ( cond ( 条件 条件が真の時に実行する式\* )+ ?( else どの条件にも当てはまらない場合に実行する式\* ) )
+- ( cond ( 条件 条件が真の時に実行する式\* )+ ( else どの条件にも当てはまらない場合に実行する式\* )? )
 
 cond は制御構文であり、値は返さない。
 
 ## while ループ構文
 
 構文：
-- WHILE := ( while EXPRIDENT EXPR* )
+- WHILE := ( while EXPRIDENTLIT STEXPR* )
 
 セマンティクス：
 - ( while 条件 条件が真の間実行する式\* )
@@ -298,7 +334,7 @@ while ループの制御から脱出するときに使う。
 ## return 文
 
 構文：
-- RETURN := ( return (EXPRIDENT*) )
+- RETURN := ( return (EXPRIDENTLIT*) )
 
 セマンティクス：
 - ( return (返り値*) )
@@ -308,7 +344,7 @@ while ループの制御から脱出するときに使う。
 ## type 式
 
 構文：
-- TYPEOF := ( type TYPE0 IDENTIFIER )
+- TYPEOF := ( type TYPE0 IDENTIFIER ) | ( type TYPE0 LITERAL )
 
 セマンティクス：
 - ( type 検査する形名 識別子 )
@@ -325,10 +361,10 @@ type 式は真偽値を返す式であり、多相型変数の型を動的に検
 ## select 構文
 
 構文：
-- SELECT := ( select (EXPRIDENT EXPR\*)\* (timeout ?SIZE)? )
+- SELECT := ( select ( EXPRIDENT STEXPR\* )\* ( timeout SIZE STEXPR* )? )
 
 セマンティクス：
-- ( select (ストリーム ストリームに入力があった時に実行する式) (timeout タイムアウトするまでの時間[ms] ))
+- ( select (ストリーム ストリームに入力があった時に実行する式) (timeout タイムアウトするまでの時間[ms] )? )
 
 ストリームの入力待ちを行う。
 入力待ちの際、他に実行可能なグリーンスレッドがある場合はそちらに処理が移行。
@@ -347,7 +383,7 @@ type 式は真偽値を返す式であり、多相型変数の型を動的に検
 ### push式
 
 構文：
-- PUSH := ( push! EXPRIDENT )
+- PUSH := ( push! EXPRIDENTLIT )
 
 ストリームの最後尾にデータを挿入する。
 STRM_SUCCESS, STRM_CLOSED, STRM_NO_VACANCYのいずれかの値を返す。
@@ -369,7 +405,7 @@ STRM_NO_VACANCYのいずれかとなる。
 ### spawn式
 
 構文：
-- SPAWN := ( spawn SIZE EXPRIDENT EXPRIDENT SIZE)
+- SPAWN := ( spawn SIZE EXPRIDENT EXPRIDENTLIT SIZE)
 
 セマンティクス：
 - ( spawn スタックサイズ 呼び出す関数 関数へ渡す引数 スタックサイズ)
@@ -388,7 +424,7 @@ STRM_NO_VACANCYのいずれかとなる。
 OSネイティブなデタッチスレッドを生成。
 
 構文：
-- THREAD := ( thread ATOM TYPE SIZE EXPRIDENT EXPRIDENT* )
+- THREAD := ( thread ATOM TYPE SIZE EXPRIDENT EXPRIDENTLIT )
 
 セマンティクス：
 - ( thread スレッドの名前 スレッドキューの型 キューのサイズ 呼び出す関数 関数へ渡す引数* )
@@ -398,10 +434,68 @@ OSネイティブなデタッチスレッドを生成。
 
 返り値は、bool値。
 
+## ロック・同期処理
+
+### mutex_init式
+
+- MUTEX_INIT := ( mutex_init EXPRIDENT )
+
+### mutex_lock式
+
+- MUTEX_LOCK := ( mutex_lock EXPRIDENT )
+
+### mutex_try_lock式
+
+- MUTEX_TRY_LOCK := ( mutex_try_lock EXPRIDENT )
+
+### mutex_unlock式
+
+- MUTEX_UNLOCK := ( mutex_unclock EXPRIDENT )
+
+### mutex_cond_init式
+
+- MUTEX_COND_INIT := ( mutex_cond_init EXPRIDENT )
+
+### mutex_cond_wait式
+
+- MUTEX_COND_WAIT := ( mutex_cond_wait EXPRIDENT EXPRIDENT SIZE? )
+
+### spin_lock_init式
+
+- SPIN_LOCK_INIT := ( spin_lock_init EXPRIDENT )
+
+ゼロ代入。
+
+### spin_lock式
+
+- SPIN_LOCK := ( spin_lock EXPRIDENT )
+
+### spin_try_lock式
+
+- SPIN_TRY_LOCK := ( spin_try_lock EXPRIDENT )
+
+### spin_unlock式
+
+- SPIN_UNLOCK := ( spin_unlock EXPRIDENT )
+
+### htm_lock_init式
+
+- HTM_LOCK_INIT := ( htm_lock_init EXPRIDENT )
+
+Hardware Transactional Memoryのロックハンドラを返す。
+
+### htm_lock式
+
+- HTM_LOCK := ( htm_lock EXPRIDENT )
+
+### htm_unlock式
+
+- HTM_UNCLOK := ( htm_unlock EXPRIDENT )
+
 ## Parser Combinator
 
 - PARSECINIT   := (parser_init string EXPRIDENT) | (parser_init binary EXPRIDENT)
-- PARSEC       := (parse PARSECOPS EXPRIDENT EXPRIDENT*)
+- PARSEC       := (parse EXPRIDENT PARSECOPS EXPRIDENTLIT*)
 - PARSECOPS    := PARSECCHAR | PARSECMANY | PARSECMANY1 | PARSECTRY | PARSECTRYEND | PARSECLA | PARSECLAEND | PARSECDIGIT | PARSECHEX | PARSECOCT | PARSECSPACE | PARSECSATIS | PARSECSTR 
 - PARSECCHAR   := character
 - PARSECTRY    := try
@@ -426,7 +520,7 @@ OSネイティブなデタッチスレッドを生成。
 ### ccall
 
 構文：
-- CCALL := ( ccall IDENTIFIER EXPRIDENT* )
+- CCALL := ( ccall IDENTIFIER EXPRIDENTLIT* )
 
 セマンティクス：
 - ( ccall C関数名 引数* )
@@ -439,7 +533,7 @@ pointerのpointerはptr型を利用して実現する。
 モジュール読み込み
 
 構文：
-- DLOPEN := ( dlopen EXPRIDENT )
+- DLOPEN := ( dlopen EXPRIDENTLIT )
 
 セマンティクス：
 - ( dlopen モジュールへのパス )
@@ -474,26 +568,75 @@ PTR型の参照外し
 
 ### 四則演算・剰余算
 
-- ADD   := (+ EXPRIDENT EXPRIDENT+ )
-- MINUS := (- EXPRIDENT EXPRIDENT+ )
-- MULTI := (* EXPRIDENT EXPRIDENT+ )
-- DIV   := (/ EXPRIDENT EXPRIDENT+ )
-- MOD   := (mod EXPRIDENT EXPRIDENT+ )
+- ADD   := (+ EXPRIDENTLIT EXPRIDENTLIT+ )
+- MINUS := (- EXPRIDENTLIT EXPRIDENTLIT+ )
+- MULTI := (* EXPRIDENTLIT EXPRIDENTLIT+ )
+- DIV   := (/ EXPRIDENTLIT EXPRIDENTLIT+ )
+- MOD   := (mod EXPRIDENTLIT EXPRIDENTLIT+ )
 
 ## IO
 
 ### print式
 
-- PRINT := ( print EXPRIDENT )
+- PRINT := ( print EXPRIDENTLIT )
 
 文字列を標準出力へ出力。引数はstring型のみ。
 
 ## 文字列変換式
 
-- TOSTR := ( tostr EXPRIDENT )
+- TOSTR := ( tostr EXPRIDENTLIT )
 
 引数を文字列へ変換。immovalなstring型を返す。 
 
 # リテラル
+
+## 文字列
+
+### UTF-32
+
+- STR32  := " CHARS* "
+- STR8   := b " CHARS* "
+- ESCAPE := \a | \b | \f | \r | \n | \t | \v | \\ | \? | \' | \" | \0 | \UXXXXXXXX | \uXXXX
+- CHARS  := ESCAPE | ESCAPE以外の文字
+
+## 文字
+
+- CHAR32 := ' CHARS '
+- CHAR8  := ' CHARS '
+
+## 整数
+
+- INT     := -? DIGIT
+- DIGIT   := NUM1to9 NUM0to9* | 0
+- NUM1to9 := 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
+- NUM0to9 := 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
+
+## 浮動小数
+
+- FLOAT := NUM . EXP
+- EXP   := EE SIGN NUM+
+- EE    := e | E
+- SIGN  := - | +
+
+## 16進数
+
+- HEX     := 0x HEXNUM2\* | 0X HEXNUM2\*
+- HEXNUM2 := HEXNUM HEXNUM
+- HEXNUM  := 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | a | A | b | B | c | C | d | D | f | F
+
+## 8進数
+
+- OCT    := 0 OCTNUM*
+- OCTNUM := 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7
+
+## 2進数
+
+- BIN    := b BINNUM\* | B BINNUM\*
+- BINNUM := 0 | 1
+
+## 真偽値
+
+- TRUE  := ture
+- FALSE := false
 
 # Application Binary Interface (ABI)
