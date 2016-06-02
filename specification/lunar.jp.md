@@ -2,6 +2,46 @@
 
 ## 見た目はJavaScriptっぽく
 
+```
+bool foo() {
+    f = 100 // 型推論
+    shared u32 v = make shared u32
+    somefunc = lambda u32 () { }
+    
+    *v = 200
+    v = 200 // error
+    
+    if flag == true {
+    }
+    
+    for n in d {
+    }
+    
+    s32 = 0
+    while s < 100 {
+    }
+    
+    select {
+    ch1:
+        continue
+    ch2:
+        continue
+    }
+    
+    case var {
+    var < 100:
+    
+    typeof s32:
+    
+    }
+    
+    spawn(func2, arg, stacksize)
+    thread(func2, arg, stacksize)
+    
+    return true
+}
+```
+
 ## Fault Tolerant
 
 [Making reliable distributed systems in the presence of software errors](http://ftp.nsysu.edu.tw/FreeBSD/ports/distfiles/erlang/armstrong_thesis_2003.pdf "Making reliable distributed systems in the presence of software errors") の 5 Programming Fault-tolerant Systems (pp.115)を参照。
@@ -28,21 +68,34 @@ chain, choice, manyは汎用的な記述方法としてこちら側で定義！
 
 ## モナド、パイプ、programmable semicolon
 
+do の第一引数が関数の第一引数に渡される。
+第二引数以降も同じ。
+
 ```
-do parser, p {
-    and, ; 継続、bind
-    or
+do parser {
+    func()
+    func1() or func2()
+    func3()
+
     if () {
     }
     
-    return true;
+    return true
 } fail {
+}
+
+parser -> func() -> func1() or func2() -> func3()
+
+if func(parser) {
+    if func1(parser) or func2(parser) {
+        func3()
+    }
 }
 ```
 
 ```
-do socket {
-    let fd = socket();
-    bind(fd);
+do {
+    let fd = socket()
+    bind(fd)
 }
 ```
