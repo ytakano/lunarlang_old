@@ -3,12 +3,12 @@
 #include <thread>
 
 volatile int n = 0;
-volatile int cnt = 0;
+volatile uint64_t cnt = 0;
 
 void
 func1(void *arg)
 {
-    n++;
+    __sync_fetch_and_add(&n, 1);
     while(n != 3); // barrier
 
     for (;;) {
@@ -25,7 +25,7 @@ func1(void *arg)
 void
 func2(void *arg)
 {
-    n++;
+    __sync_fetch_and_add(&n, 1);
     while(n != 3); // barrier
     
     auto fb = lunar::get_green_thread(1);
@@ -35,15 +35,17 @@ func2(void *arg)
 void
 thread3()
 {
-    n++;
+    __sync_fetch_and_add(&n, 1);
     while(n != 3); // barrier
 
     for (;;) {
-        cnt = 0;
+        uint64_t c0 = cnt;
         auto t0 = lunar::get_clock();
         sleep(5);
+        uint64_t c1 = cnt;
         auto t1 = lunar::get_clock();
-        printf("%lf [ops/s]\n", cnt / ((t1 - t0) * 0.001));
+        printf("%lf [ops/s]\n", (c1 - c0) / ((t1 - t0) * 1e-3));
+        fflush(stdout);
     }
 }
 

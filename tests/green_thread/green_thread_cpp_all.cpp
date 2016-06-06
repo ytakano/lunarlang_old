@@ -18,7 +18,7 @@ func3(void *arg) {
 void
 func1(void *arg)
 {
-    n++;
+    __sync_fetch_and_add(&n, 1);
     while(n != 2); // barrier
 
     auto rs = new lunar::shared_stream;
@@ -87,7 +87,7 @@ func1(void *arg)
 void
 func2(void *arg)
 {
-    n++;
+    __sync_fetch_and_add(&n, 1);
     while(n != 2); // barrier
     
     auto fb = lunar::get_green_thread(1);

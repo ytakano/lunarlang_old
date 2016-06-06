@@ -9,7 +9,7 @@ find_package(Boost COMPONENTS REQUIRED)
 
 # for LLVM
 find_package(LLVM REQUIRED CONFIG)
-add_definitions(${LLVM_DEFINITIONS})
+#add_definitions(${LLVM_DEFINITIONS})
 
 # for threading library
 find_package(Threads REQUIRED)
