@@ -48,7 +48,7 @@ Lunar IRにはオーナーという概念があり、変数を利用する際に
 
 構文：
 - TYPE  := TYPE0 | ( OWNERSHIP TYPE0 )
-- TYPE0 := SCALAR | VECTOR | STRING | BINARY | LIST | STRUCT | DICT | SET | DATA | FUNCTYPE | RSTREAM | WSTREAM | PTR | UNION | PARSEC | MUTEX | CONDITION | IDENTIFIER
+- TYPE0 := SCALAR | VECTOR | STRING | BINARY | LIST | STRUCT | DICT | SET | DATA | FUNCTYPE | RSTREAM | WSTREAM | PTR | UNION | PARSEC | IDENTIFIER
 
 ここで、IDENTIFIERとは空白文字以外からなる、1文字以上の文字かつ、先頭が数字ではない文字列かつ、
 予約文字（列）以外の文字列である。
@@ -225,16 +225,6 @@ C関数と互換性を保つために利用され、それ以外での利用は�
 
 構文：
 - PARSEC := parsec
-
-## mutex型
-
-構文：
-- MUTEX := mutex
-
-## condition型
-
-構文：
-- CONDITION := condition
 
 # 関数
 
@@ -435,36 +425,6 @@ OSネイティブなデタッチスレッドを生成。
 返り値は、bool値。
 
 ## ロック・同期処理
-
-### mutex_init式
-
-- MUTEX_INIT := ( mutex_init EXPRIDENT )
-
-### mutex_lock式
-
-- MUTEX_LOCK := ( mutex_lock EXPRIDENT )
-
-### mutex_try_lock式
-
-- MUTEX_TRY_LOCK := ( mutex_try_lock EXPRIDENT )
-
-### mutex_unlock式
-
-- MUTEX_UNLOCK := ( mutex_unclock EXPRIDENT )
-
-### mutex_cond_init式
-
-- MUTEX_COND_INIT := ( mutex_cond_init EXPRIDENT )
-
-### mutex_cond_wait式
-
-- MUTEX_COND_WAIT := ( mutex_cond_wait EXPRIDENT EXPRIDENT SIZE? )
-
-### spin_lock_init式
-
-- SPIN_LOCK_INIT := ( spin_lock_init EXPRIDENT )
-
-ゼロ代入。
 
 ### spin_lock式
 

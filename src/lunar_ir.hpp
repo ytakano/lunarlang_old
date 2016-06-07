@@ -20,7 +20,7 @@
  *
  * TYPE  := TYPE0 | ( OWNERSHIP TYPE0 )
  * TYPE0 := SCALAR | VECTOR | STRING | BINARY | LIST | STRUCT | DICT | SET | DATA |
- *          FUNCTYPE | RSTREAM | WSTREAM | PTR | UNION | PARSEC | MUTEX | CONDITION | IDENTIFIER
+ *          FUNCTYPE | RSTREAM | WSTREAM | PTR | UNION | PARSEC | IDENTIFIER
  *
  * OWNERSHIP := unique | shared | ref
  *
@@ -56,10 +56,6 @@
  * PTR := (ptr TYPE ) | ( ptr PTR )
  *
  * PARSEC := parsec
- *
- * MUTEX := mutex
- *
- * CONDITION := condition
  *
  * -----------------------------------------------------------------------------
  *
@@ -108,13 +104,6 @@
  * SCHEDULE := ( schedule )
  *
  * THREAD := ( thread ATOM TYPE SIZE EXPRIDENT EXPRIDENTLIT )
- *
- * MUTEX_INIT      := ( mutex_init EXPRIDENT )
- * MUTEX_LOCK      := ( mutex_lock EXPRIDENT )
- * MUTEX_TRY_LOCK  := ( mutex_try_lock EXPRIDENT )
- * MUTEX_UNLOCK    := ( mutex_unclock EXPRIDENT )
- * MUTEX_COND_INIT := ( mutex_cond_init EXPRIDENT )
- * MUTEX_COND_WAIT := ( mutex_cond_wait EXPRIDENT EXPRIDENT SIZE? )
  * 
  * SPIN_LOCK_INIT := ( spin_lock_init EXPRIDENT )
  * SPIN_LOCK      := ( spin_lock EXPRIDENT )
@@ -198,14 +187,14 @@
 
 namespace lunar {
 
-enum OWNERSHIP {
+enum LANG_OWNERSHIP {
     OWN_UNIQUE,
     OWN_SHARED,
     OWN_IMMOVABLE,
     OWN_REF,
 };
 
-enum SCALAR {
+enum LANG_SCALAR {
     SC_BOOL,
     SC_U64,
     SC_S64,
@@ -221,18 +210,34 @@ enum SCALAR {
     SC_ATOM,
 };
 
-enum BASIC_TYPE {
+enum LANG_BASIC_TYPE {
     BT_SCALAR,
     BT_VECTOR,
     BT_STRING,
+    BT_BINARY,
     BT_LIST,
     BT_STRUCT,
     BT_DICT,
     BT_SET,
     BT_DATA,
+    BT_UNION,
     BT_FUNCTYPE,
     BT_RSTREAM,
     BT_WSTREAM,
+    BT_PTR,
+    BT_PARSEC,
+};
+
+enum LANG_LITERAL {
+    LIT_STR32,
+    LIT_STR8,
+    LIT_CHAR32,
+    LIT_CHAR8,
+    LIT_INT,
+    LIT_FLOAT,
+    LIT_HEX,
+    LIT_OCT,
+    LIT_BIN,
 };
 
 class lunar_ir_expr {
@@ -243,26 +248,26 @@ public:
 
 class lunar_ir_type {
 public:
-    lunar_ir_type(BASIC_TYPE type, OWNERSHIP owner_ship) : m_type(type), m_owner_ship(owner_ship) { }
+    lunar_ir_type(LANG_BASIC_TYPE type, LANG_OWNERSHIP owner_ship) : m_type(type), m_owner_ship(owner_ship) { }
     virtual ~lunar_ir_type() { }
 
 protected:
-    BASIC_TYPE m_type;
-    OWNERSHIP  m_owner_ship;
+    LANG_BASIC_TYPE m_type;
+    LANG_OWNERSHIP  m_owner_ship;
 };
 
 class lunar_ir_scalar : public lunar_ir_type {
 public:
-    lunar_ir_scalar(OWNERSHIP owner_ship, SCALAR scalar)
+    lunar_ir_scalar(LANG_OWNERSHIP owner_ship, LANG_SCALAR scalar)
         : lunar_ir_type(BT_SCALAR, owner_ship), m_scalar(scalar) { }
 
 private:
-    SCALAR m_scalar;
+    LANG_SCALAR m_scalar;
 };
 
 class lunar_ir_vector : public lunar_ir_type {
 public:
-    lunar_ir_vector(OWNERSHIP owner_ship, std::unique_ptr<lunar_ir_type> type, uint64_t size)
+    lunar_ir_vector(LANG_OWNERSHIP owner_ship, std::unique_ptr<lunar_ir_type> type, uint64_t size)
         : lunar_ir_type(BT_VECTOR, owner_ship),
           m_type(std::move(type)),
           m_size(size) { }
@@ -276,7 +281,7 @@ private:
 
 class lunar_ir_list : public lunar_ir_type {
 public:
-    lunar_ir_list(OWNERSHIP owner_ship, std::unique_ptr<lunar_ir_type> type)
+    lunar_ir_list(LANG_OWNERSHIP owner_ship, std::unique_ptr<lunar_ir_type> type)
         : lunar_ir_type(BT_LIST, owner_ship),
           m_type(std::move(type)) { }
     
@@ -288,7 +293,7 @@ private:
 
 class lunar_ir_struct : public lunar_ir_type {
 public:
-    lunar_ir_struct(OWNERSHIP owner_ship, const std::string &name)
+    lunar_ir_struct(LANG_OWNERSHIP owner_ship, const std::string &name)
         : lunar_ir_type(BT_STRUCT, owner_ship), m_name(name) { }
     
     virtual ~lunar_ir_struct() { }
@@ -307,7 +312,7 @@ private:
 
 class lunar_ir_dict : public lunar_ir_type {
 public:
-    lunar_ir_dict(OWNERSHIP owner_ship, std::unique_ptr<lunar_ir_type> key, std::unique_ptr<lunar_ir_type> val)
+    lunar_ir_dict(LANG_OWNERSHIP owner_ship, std::unique_ptr<lunar_ir_type> key, std::unique_ptr<lunar_ir_type> val)
         : lunar_ir_type(BT_DICT, owner_ship), m_key(std::move(key)), m_val(std::move(val)) { }
 
 private:
@@ -317,7 +322,7 @@ private:
 
 class lunar_ir_set : public lunar_ir_type {
 public:
-    lunar_ir_set(OWNERSHIP owner_ship, std::unique_ptr<lunar_ir_type> val)
+    lunar_ir_set(LANG_OWNERSHIP owner_ship, std::unique_ptr<lunar_ir_type> val)
         : lunar_ir_type(BT_SET, owner_ship), m_val(std::move(val)) { }
 
 private:
@@ -326,7 +331,7 @@ private:
 
 class lunar_ir_data : public lunar_ir_type {
 public:
-    lunar_ir_data(OWNERSHIP owner_ship, const std::string &name)
+    lunar_ir_data(LANG_OWNERSHIP owner_ship, const std::string &name)
         : lunar_ir_type(BT_DATA, owner_ship), m_name(name) { }
     
     virtual ~lunar_ir_data() { }
@@ -345,7 +350,7 @@ private:
 
 class lunar_ir_functype : public lunar_ir_type {
 public:
-    lunar_ir_functype(OWNERSHIP owner_ship) : lunar_ir_type(BT_FUNCTYPE, owner_ship) { }
+    lunar_ir_functype(LANG_OWNERSHIP owner_ship) : lunar_ir_type(BT_FUNCTYPE, owner_ship) { }
     virtual ~lunar_ir_functype() { }
     
     void add_ret(std::unique_ptr<lunar_ir_type> ret)
@@ -387,7 +392,7 @@ private:
 
 class lunar_ir_string : public lunar_ir_type {
 public:
-    lunar_ir_string(OWNERSHIP owner_ship) : lunar_ir_type(BT_STRING, owner_ship) { }
+    lunar_ir_string(LANG_OWNERSHIP owner_ship) : lunar_ir_type(BT_STRING, owner_ship) { }
     virtual ~lunar_ir_string() { }
 };
 
