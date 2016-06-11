@@ -69,6 +69,8 @@
  *
  * COND := ( cond ( EXPRIDENTLIT STEXPR* )+ ( else STEXPR* )? )
  *
+ * BREAK := ( break )
+ *
  * WHILE := ( while EXPRIDENTLIT STEXPR* )
  *
  * SELECT := ( select ( EXPRIDENT STEXPR*)* ( timeout SIZE STEXPR* )? )
@@ -78,8 +80,6 @@
  * EXPRIDENT := EXPR | IDENTIFIER
  *
  * CALLFUNC := ( EXPRIDENT EXPRIDENTLIT* )
- *
- * BREAK := ( break )
  *
  * RETURN := ( return ( EXPRIDENTLIT* ) )
  *
@@ -310,6 +310,25 @@ private:
     std::string m_name;
 };
 
+class lunar_ir_union : public lunar_ir_type {
+public:
+    lunar_ir_union(LANG_OWNERSHIP owner_ship, const std::string &name)
+        : lunar_ir_type(BT_UNION, owner_ship), m_name(name) { }
+    
+    virtual ~lunar_ir_union() { }
+
+    void add_member(std::unique_ptr<lunar_ir_type> type, const std::string &name)
+    {
+        m_member_types.push_back(std::move(type));
+        m_member_names.push_back(name);
+    }
+
+private:
+    std::vector<std::unique_ptr<lunar_ir_type>> m_member_types;
+    std::vector<std::string> m_member_names;
+    std::string m_name;
+};
+
 class lunar_ir_dict : public lunar_ir_type {
 public:
     lunar_ir_dict(LANG_OWNERSHIP owner_ship, std::unique_ptr<lunar_ir_type> key, std::unique_ptr<lunar_ir_type> val)
@@ -394,6 +413,33 @@ class lunar_ir_string : public lunar_ir_type {
 public:
     lunar_ir_string(LANG_OWNERSHIP owner_ship) : lunar_ir_type(BT_STRING, owner_ship) { }
     virtual ~lunar_ir_string() { }
+};
+
+class lunar_ir_binary : public lunar_ir_type {
+public:
+    lunar_ir_binary(LANG_OWNERSHIP owner_ship) : lunar_ir_type(BT_BINARY, owner_ship) { }
+    virtual ~lunar_ir_binary() { }
+};
+
+class lunar_ir_ptr : public lunar_ir_type {
+public:
+    lunar_ir_ptr(LANG_OWNERSHIP owner_ship, std::unique_ptr<lunar_ir_type> type)
+        : lunar_ir_type(BT_PTR, owner_ship),
+          m_type(std::move(type)) { }
+    virtual ~lunar_ir_ptr() { }
+
+private:
+    std::unique_ptr<lunar_ir_type> m_type;
+};
+
+class lunar_ir_parsec : public lunar_ir_type {
+public:
+    lunar_ir_parsec(bool is_binary) // binary or string
+        : lunar_ir_type(BT_PARSEC, OWN_UNIQUE), m_is_binary(is_binary) { }
+    virtual ~lunar_ir_parsec() { }
+
+private:
+    bool m_is_binary;
 };
 
 class lunar_ir_func : public lunar_ir_expr {
