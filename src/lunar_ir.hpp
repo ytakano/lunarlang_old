@@ -5,13 +5,14 @@
 #include "lunar_string.hpp"
 
 #include <vector>
+#include <unordered_map>
 
 /*
  * -----------------------------------------------------------------------------
  *
  * IR  := TOP*
  * TOP := FUNC | STRUCT | UNION | DATA | GLOBAL | EXPORT | IMPORT
- * STATEMENT := LET | IF | COND | WHILE | BREAK | SELECT | SPAWN | THREAD | SCHEDULE | STORE | ASSOC | RETURN | INCCNT | DECCNT
+ * STATEMENT := LET | COND | WHILE | BREAK | SELECT | SPAWN | THREAD | SCHEDULE | STORE | ASSOC | RETURN | INCCNT | DECCNT
  * GLOBAL := ( global ( ( TYPE (IDENTIFIER+) EXPRIDENTLIT )+ ) )
  * EXPORT := ( export IDENTIFIER+ )
  * IMPORT := ( import STR32+ )
@@ -64,10 +65,8 @@
  * -----------------------------------------------------------------------------
  *
  * STEXPR := STATMENT | EXPR
- * 
- * LET := ( let ( ( TYPE ( IDENTIFIER+ ) EXPRIDENTLIT )* ) STEXPR* )
  *
- * IF := ( if EXPRIDENTLIT EXPRIDENTLIT EXPRIDENTLIT )
+ * LET := ( let ( (TYPE IDENTIFIER)+ EXPRIDENTLIT )+ STEXPR\* )
  *
  * COND := ( cond ( EXPRIDENTLIT STEXPR* )+ ( else STEXPR* )? )
  *
@@ -95,6 +94,8 @@
  * -----------------------------------------------------------------------------
  *
  * EXPRIDENT := EXPR | IDENTIFIER
+ *
+ * IF := ( if EXPRIDENTLIT EXPRIDENTLIT EXPRIDENTLIT )
  *
  * LAMBDA := ( lambda ( TYPE* ) ( TYPE IDENTIFIER )* STEXPR* )
  *
@@ -460,7 +461,7 @@ private:
     bool m_is_binary;
 };
 
-class lunar_ir_func : public lunar_ir_expr {
+class lunar_ir_func {
 public:
     lunar_ir_func(const std::string &name) : m_name(name) { }
     virtual ~lunar_ir_func() { }
@@ -472,8 +473,19 @@ public:
 
     void add_arg(std::unique_ptr<lunar_ir_type> arg, const std::string &name)
     {
+        m_args[name] = arg.get();
         m_arg.push_back(std::move(arg));
         m_argname.push_back(name);
+    }
+    
+    void add_stexpr(std::unique_ptr<lunar_ir_expr> expr)
+    {
+        m_stexprs.push_back(llvm::make_unique<lunar_ir_stexpr>(std::move(expr)));
+    }
+    
+    void add_stexpr(std::unique_ptr<lunar_ir_statement> statement)
+    {
+        m_stexprs.push_back(llvm::make_unique<lunar_ir_stexpr>(std::move(statement)));
     }
     
     void add_stexpr(std::unique_ptr<lunar_ir_stexpr> stexpr)
@@ -485,7 +497,38 @@ private:
     std::vector<std::unique_ptr<lunar_ir_type>> m_ret;
     std::vector<std::unique_ptr<lunar_ir_type>> m_arg;
     std::vector<std::string> m_argname;
+    std::unordered_map<std::string, lunar_ir_type*> m_args;
     std::string m_name;
+    std::vector<std::unique_ptr<lunar_ir_stexpr>> m_stexprs;
+};
+
+class lunar_ir_let : public lunar_ir_statement {
+public:
+    lunar_ir_let() { }
+    virtual ~lunar_ir_let() { }
+
+    void add_var(std::unique_ptr<lunar_ir_type> type, std::string name)
+    {
+        m_vars[name] = std::move(type);
+    }
+    
+    void add_stexpr(std::unique_ptr<lunar_ir_expr> expr)
+    {
+        m_stexprs.push_back(llvm::make_unique<lunar_ir_stexpr>(std::move(expr)));
+    }
+    
+    void add_stexpr(std::unique_ptr<lunar_ir_statement> statement)
+    {
+        m_stexprs.push_back(llvm::make_unique<lunar_ir_stexpr>(std::move(statement)));
+    }
+    
+    void add_stexpr(std::unique_ptr<lunar_ir_stexpr> stexpr)
+    {
+        m_stexprs.push_back(std::move(stexpr));
+    }
+
+private:
+    std::unordered_map<std::string, std::unique_ptr<lunar_ir_type>> m_vars;
     std::vector<std::unique_ptr<lunar_ir_stexpr>> m_stexprs;
 };
 

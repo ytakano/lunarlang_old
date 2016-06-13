@@ -6,7 +6,7 @@ Lunar言語の中間表現であり、ここからLLVM IRへ変換。
 
 - IR           := TOP*
 - TOP          := FUNC | STRUCT | UNION | DATA | GLOBAL | EXPORT | IMPORT
-- STATEMENT    := LET | IF | COND | WHILE | BREAK | SELECT | SPAWN | THREAD | SCHEDULE | STORE | ASSOC | RETURN | INCCNT | DECCNT
+- STATEMENT    := LET | COND | WHILE | BREAK | SELECT | SPAWN | THREAD | SCHEDULE | STORE | ASSOC | RETURN | INCCNT | DECCNT
 - STEXPR       := STATMENT | EXPR
 - LITERAL      := STR32 | STR8 | CHAR32 | CHAR8 | INT | FLOAT | HEX | OCT | BIN
 - EXPRIDENT    := EXPR | IDENTIFIER
@@ -258,11 +258,11 @@ TYPE型の値を返す。
 ## 変数束縛構文
 
 構文：
-- LET := ( let ( ( TYPE (IDENTIFIER+) EXPRIDENTLIT )+ ) STEXPR\* )
+- LET := ( let ( (TYPE IDENTIFIER)+ EXPRIDENTLIT )+ STEXPR\* )
 
 セマンティクス：
-- ( let ( ( 束縛 )+ ) 式\* ）
-- ( let ( ( 型 (変数名+) 束縛する値 )+ ) 式\* )
+- ( let ( 束縛 )+ 式\* ）
+- ( let ( (型 変数名)+ 束縛する値 )+ 式\* )
 
 関数は複数の値を返すこともあるため、複数の変数名を記述できるように。
 
