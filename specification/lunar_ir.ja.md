@@ -6,7 +6,7 @@ Lunar言語の中間表現であり、ここからLLVM IRへ変換。
 
 - IR           := TOP*
 - TOP          := FUNC | STRUCT | UNION | DATA | GLOBAL | EXPORT | IMPORT
-- STATEMENT    := LET | IF | COND | WHILE | SELECT
+- STATEMENT    := LET | IF | COND | WHILE | BREAK | SELECT | SPAWN | THREAD | SCHEDULE | STORE | ASSOC | RETURN | INCCNT | DECCNT
 - STEXPR       := STATMENT | EXPR
 - LITERAL      := STR32 | STR8 | CHAR32 | CHAR8 | INT | FLOAT | HEX | OCT | BIN
 - EXPRIDENT    := EXPR | IDENTIFIER
@@ -392,7 +392,7 @@ STRM_NO_VACANCYのいずれかとなる。
 
 ## マルチタスキング
 
-### spawn式
+### spawn文
 
 構文：
 - SPAWN := ( spawn SIZE EXPRIDENT EXPRIDENTLIT SIZE)
@@ -402,14 +402,14 @@ STRM_NO_VACANCYのいずれかとなる。
 
 返り値はスレッド内で一意に識別されるs64型の整数値。
 
-### schedule式
+### schedule文
 
 構文：
 - SCHEDULE := ( schedule )
 
 他のグリーンスレッドに制御を渡す。
 
-### thread式
+### thread文
 
 OSネイティブなデタッチスレッドを生成。
 
@@ -422,13 +422,15 @@ OSネイティブなデタッチスレッドを生成。
 ストリームと同じく、スレッドキューには以下の制約がある。
 - スレッドキューが扱える値は、sharedもしくはunique変数か、プリミティブスカラ変数のみである。
 
-返り値は、bool値。
-
 ## ロック・同期処理
 
 ### spin_lock式
 
 - SPIN_LOCK := ( spin_lock EXPRIDENT )
+
+### spin_lock_init式
+
+- SPIN_LOCK_INIT := ( spin_lock_init EXPRIDENT )
 
 ### spin_try_lock式
 
@@ -437,20 +439,6 @@ OSネイティブなデタッチスレッドを生成。
 ### spin_unlock式
 
 - SPIN_UNLOCK := ( spin_unlock EXPRIDENT )
-
-### htm_lock_init式
-
-- HTM_LOCK_INIT := ( htm_lock_init EXPRIDENT )
-
-Hardware Transactional Memoryのロックハンドラを返す。
-
-### htm_lock式
-
-- HTM_LOCK := ( htm_lock EXPRIDENT )
-
-### htm_unlock式
-
-- HTM_UNCLOK := ( htm_unlock EXPRIDENT )
 
 ## Parser Combinator
 
@@ -502,6 +490,13 @@ pointerのpointerはptr型を利用して実現する。
 
 返り値はbool値。
 
+### toptr式
+
+PTR型へ変換
+
+構文：
+- TOPTR := ( toptr EXPRIDENT )
+
 ### deref式
 
 PTR型の参照外し
@@ -516,11 +511,11 @@ PTR型の参照外し
 
 ## 参照カウント
 
-### inccnt式
+### inccnt文
 
 - INCCNT := ( inccnt EXPRIDENT )
 
-### deccnt式
+### deccnt文
 
 - DECCNT := ( deccnt EXPRIDENT )
 

@@ -11,7 +11,7 @@
  *
  * IR  := TOP*
  * TOP := FUNC | STRUCT | UNION | DATA | GLOBAL | EXPORT | IMPORT
- * STATEMENT := LET | IF | COND | WHILE | SELECT
+ * STATEMENT := LET | IF | COND | WHILE | BREAK | SELECT | SPAWN | THREAD | SCHEDULE | STORE | ASSOC | RETURN | INCCNT | DECCNT
  * GLOBAL := ( global ( ( TYPE (IDENTIFIER+) EXPRIDENTLIT )+ ) )
  * EXPORT := ( export IDENTIFIER+ )
  * IMPORT := ( import STR32+ )
@@ -59,9 +59,11 @@
  *
  * -----------------------------------------------------------------------------
  *
- * STEXPR := STATMENT | EXPR
- *
  * FUNC := ( defun IDENTIFIER ( TYPE* ) ( TYPE IDENTIFIER )* STEXPR* )
+ *
+ * -----------------------------------------------------------------------------
+ *
+ * STEXPR := STATMENT | EXPR
  * 
  * LET := ( let ( ( TYPE ( IDENTIFIER+ ) EXPRIDENTLIT )* ) STEXPR* )
  *
@@ -75,21 +77,30 @@
  *
  * SELECT := ( select ( EXPRIDENT STEXPR*)* ( timeout SIZE STEXPR* )? )
  *
+ * SPAWN := ( spawn SIZE EXPRIDENT EXPRIDENTLIT SIZE )
+ *
+ * THREAD := ( thread ATOM TYPE SIZE EXPRIDENT EXPRIDENTLIT )
+ *
+ * STORE := ( store! EXPRIDENT EXPRIDENTLIT )
+ *
+ * ASSOC := ( assoc! EXPRIDENT EXPRIDENT )
+ *
+ * SCHEDULE := ( schedule )
+ *
+ * RETURN := ( return ( EXPRIDENTLIT* ) )
+ *
+ * INCCNT := ( inccnt EXPRIDENT )
+ * DECCNT := ( deccnt EXPRIDENT )
+ *
  * -----------------------------------------------------------------------------
  *
  * EXPRIDENT := EXPR | IDENTIFIER
- *
- * CALLFUNC := ( EXPRIDENT EXPRIDENTLIT* )
- *
- * RETURN := ( return ( EXPRIDENTLIT* ) )
  *
  * LAMBDA := ( lambda ( TYPE* ) ( TYPE IDENTIFIER )* STEXPR* )
  *
  * NEW := ( new TYPE )
  *
- * STORE := ( store! EXPRIDENT EXPRIDENTLIT )
- *
- * ASSOC := ( assoc! EXPRIDENT EXPRIDENT )
+ * CALLFUNC := ( EXPRIDENT EXPRIDENTLIT* )
  *
  * TYPEOF := ( type TYPE0 IDENTIFIER )
  *
@@ -98,21 +109,11 @@
  * PUSH := ( push! EXPRIDENTLIT )
  *
  * POP := ( pop! EXPRIDENTLIT )
- *
- * SPAWN := ( spawn SIZE EXPRIDENT EXPRIDENTLIT SIZE )
- *
- * SCHEDULE := ( schedule )
- *
- * THREAD := ( thread ATOM TYPE SIZE EXPRIDENT EXPRIDENTLIT )
  * 
  * SPIN_LOCK_INIT := ( spin_lock_init EXPRIDENT )
  * SPIN_LOCK      := ( spin_lock EXPRIDENT )
  * SPIN_TRY_LOCK  := ( spin_try_lock EXPRIDENT )
  * SPIN_UNLOCK    := ( spin_unlock EXPRIDENT )
- * 
- * HTM_LOCK_INIT := ( htm_lock_init EXPRIDENT )
- * HTM_LOCK      := ( htm_lock EXPRIDENT )
- * HTM_UNCLOK    := ( htm_unlock EXPRIDENT )
  *
  * PARSECINIT   := ( parser_init string EXPRIDENT ) | ( parsec_init binary EXPRIDENT )
  * PARSEC       := ( parse EXPRIDENT PARSECOPS EXPRIDENTLIT* )
@@ -134,10 +135,8 @@
  *
  * DLOPEN := ( dlopen EXPRIDENTLIT )
  *
+ * TOPTR := ( toptr EXPRIDENT )
  * DEREF := ( deref EXPRIDENT )
- *
- * INCCNT := ( inccnt EXPRIDENT )
- * DECCNT := ( deccnt EXPRIDENT )
  *
  * ADD   := (+ EXPRIDENTLIT EXPRIDENTLIT+ )
  * MINUS := (- EXPRIDENTLIT EXPRIDENTLIT+ )
@@ -240,12 +239,6 @@ enum LANG_LITERAL {
     LIT_BIN,
 };
 
-class lunar_ir_expr {
-public:
-    lunar_ir_expr() { }
-    virtual ~lunar_ir_expr() { }
-};
-
 class lunar_ir_type {
 public:
     lunar_ir_type(LANG_BASIC_TYPE type, LANG_OWNERSHIP owner_ship) : m_type(type), m_owner_ship(owner_ship) { }
@@ -255,6 +248,31 @@ protected:
     LANG_BASIC_TYPE m_type;
     LANG_OWNERSHIP  m_owner_ship;
 };
+
+class lunar_ir_expr {
+public:
+    lunar_ir_expr() { }
+    virtual ~lunar_ir_expr() { }
+};
+
+class lunar_ir_statement {
+public:
+    lunar_ir_statement() { }
+    virtual ~lunar_ir_statement() { }
+};
+
+class lunar_ir_stexpr {
+public:
+    lunar_ir_stexpr(std::unique_ptr<lunar_ir_expr> expr) : m_expr(std::move(expr)), m_is_expr(true) { }
+    lunar_ir_stexpr(std::unique_ptr<lunar_ir_statement> statement) : m_statement(std::move(statement)), m_is_expr(false) { }
+    virtual ~lunar_ir_stexpr() { }
+
+private:
+    std::unique_ptr<lunar_ir_expr>      m_expr;
+    std::unique_ptr<lunar_ir_statement> m_statement;
+    bool m_is_expr;
+};
+
 
 class lunar_ir_scalar : public lunar_ir_type {
 public:
@@ -458,9 +476,9 @@ public:
         m_argname.push_back(name);
     }
     
-    void add_expr(std::unique_ptr<lunar_ir_expr> expr)
+    void add_stexpr(std::unique_ptr<lunar_ir_stexpr> stexpr)
     {
-        m_exprs.push_back(std::move(expr));
+        m_stexprs.push_back(std::move(stexpr));
     }
 
 private:
@@ -468,7 +486,7 @@ private:
     std::vector<std::unique_ptr<lunar_ir_type>> m_arg;
     std::vector<std::string> m_argname;
     std::string m_name;
-    std::vector<std::unique_ptr<lunar_ir_expr>> m_exprs;
+    std::vector<std::unique_ptr<lunar_ir_stexpr>> m_stexprs;
 };
 
 }
