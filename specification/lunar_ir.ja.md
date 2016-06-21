@@ -6,7 +6,7 @@ Lunar言語の中間表現であり、ここからLLVM IRへ変換。
 
 - IR           := TOP*
 - TOP          := FUNC | STRUCT | UNION | DATA | GLOBAL | EXPORT | IMPORT
-- STATEMENT    := LET | COND | WHILE | BREAK | SELECT
+- STATEMENT    := LET | COND | WHILE | BREAK | SELECT | RETURN | SCHEDULE
 - STEXPR       := STATMENT | EXPR
 - LITERAL      := STR32 | STR8 | CHAR32 | CHAR8 | INT | FLOAT | HEX | OCT | BIN
 - EXPRIDENT    := EXPR | IDENTIFIER
@@ -269,10 +269,10 @@ TYPE型の値を返す。
 ## 変数の値書き換え文
 
 構文：
-- STORE := ( store! EXPRIDENT EXPRIDENTLIT )
+- COPY := ( copy! EXPRIDENT EXPRIDENTLIT )
 
 セマンティクス：
-- ( store! 書き換える変数 書き換える値 )
+- ( copy! 書き換える変数 書き換える値 )
 
 ## 変数の束縛先変更文
 
@@ -324,10 +324,10 @@ while ループの制御から脱出するときに使う。
 ## return 文
 
 構文：
-- RETURN := ( return (EXPRIDENTLIT*) )
+- RETURN := ( return EXPRIDENTLIT* )
 
 セマンティクス：
-- ( return (返り値*) )
+- ( return 返り値* )
 
 # 多相型
 

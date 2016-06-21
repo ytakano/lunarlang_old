@@ -12,7 +12,7 @@
  *
  * IR  := TOP*
  * TOP := FUNC | STRUCT | UNION | DATA | GLOBAL | EXPORT | IMPORT
- * STATEMENT := LET | COND | WHILE | BREAK | SELECT
+ * STATEMENT := LET | COND | WHILE | BREAK | SELECT | RETURN | SCHEDULE
  * GLOBAL := ( global ( ( TYPE (IDENTIFIER+) EXPRIDENTLIT )+ ) )
  * EXPORT := ( export IDENTIFIER+ )
  * IMPORT := ( import STR32+ )
@@ -76,6 +76,10 @@
  *
  * BREAK := ( break )
  *
+ * RETURN := ( return EXPRIDENTLIT* )
+ *
+ * SCHEDULE := ( schedule )
+ *
  * -----------------------------------------------------------------------------
  *
  * EXPRIDENT := EXPR | IDENTIFIER
@@ -84,13 +88,9 @@
  *
  * THREAD := ( thread EXPRIDENTLIT TYPE EXPRIDENTLIT EXPRIDENT EXPRIDENTLIT )
  *
- * STORE := ( store! EXPRIDENT EXPRIDENTLIT )
+ * COPY := ( copy! EXPRIDENT EXPRIDENTLIT )
  *
  * ASSOC := ( assoc! EXPRIDENT EXPRIDENT )
- *
- * SCHEDULE := ( schedule )
- *
- * RETURN := ( return ( EXPRIDENTLIT* ) )
  *
  * INCCNT := ( inccnt EXPRIDENT )
  * DECCNT := ( deccnt EXPRIDENT )
@@ -644,6 +644,32 @@ private:
     std::unique_ptr<lunar_ir_expr> m_timeout; // no timeout when -1
 };
 
+class lunar_ir_break : public lunar_ir_statement {
+public:
+    lunar_ir_break() { }
+    virtual ~lunar_ir_break() { }
+};
+
+class lunar_ir_return : public lunar_ir_statement {
+public:
+    lunar_ir_return() { }
+    virtual ~lunar_ir_return() { }
+
+    void add_expr(std::unique_ptr<lunar_ir_expr> expr)
+    {
+        m_exprs.push_back(std::move(expr));
+    }
+
+private:
+    std::vector<std::unique_ptr<lunar_ir_expr>> m_exprs;
+};
+
+class lunar_ir_schedule : public lunar_ir_statement {
+public:
+    lunar_ir_schedule() { }
+    virtual ~lunar_ir_schedule() { }
+};
+
 class lunar_ir_spawn : public lunar_ir_expr {
 public:
     lunar_ir_spawn(std::unique_ptr<lunar_ir_expr> ssize,
@@ -680,6 +706,116 @@ private:
     std::unique_ptr<lunar_ir_expr> m_qsize; // size of thread queue
     std::unique_ptr<lunar_ir_expr> m_func;
     std::unique_ptr<lunar_ir_expr> m_arg;
+};
+
+class lunar_ir_copy : public lunar_ir_expr {
+public:
+    lunar_ir_copy(std::unique_ptr<lunar_ir_expr> dst, std::unique_ptr<lunar_ir_expr> src)
+        : m_dst(std::move(dst)),
+          m_src(std::move(src)) { }
+    virtual ~lunar_ir_copy() { }
+
+private:
+    std::unique_ptr<lunar_ir_expr> m_dst;
+    std::unique_ptr<lunar_ir_expr> m_src;
+};
+
+class lunar_ir_assoc : public lunar_ir_expr {
+public:
+    lunar_ir_assoc(std::unique_ptr<lunar_ir_expr> dst, std::unique_ptr<lunar_ir_expr> src)
+        : m_dst(std::move(dst)),
+          m_src(std::move(src)) { }
+    virtual ~lunar_ir_assoc() { }
+
+private:
+    std::unique_ptr<lunar_ir_expr> m_dst;
+    std::unique_ptr<lunar_ir_expr> m_src;
+};
+
+class lunar_ir_inccnt : public lunar_ir_expr {
+public:
+    lunar_ir_inccnt(std::unique_ptr<lunar_ir_expr> expr) : m_expr(std::move(expr)) { }
+    virtual ~lunar_ir_inccnt() { }
+
+private:
+    std::unique_ptr<lunar_ir_expr> m_expr;
+};
+
+class lunar_ir_deccnt : public lunar_ir_expr {
+public:
+    lunar_ir_deccnt(std::unique_ptr<lunar_ir_expr> expr) : m_expr(std::move(expr)) { }
+    virtual ~lunar_ir_deccnt() { }
+
+private:
+    std::unique_ptr<lunar_ir_expr> m_expr;
+};
+
+class lunar_ir_if : public lunar_ir_expr {
+public:
+    lunar_ir_if(std::unique_ptr<lunar_ir_expr> cond,
+                std::unique_ptr<lunar_ir_expr> expr1,
+                std::unique_ptr<lunar_ir_expr> expr2)
+        : m_cond(std::move(cond)),
+          m_expr1(std::move(expr1)),
+          m_expr2(std::move(expr2)) { }
+    virtual ~lunar_ir_if() { }
+
+private:
+    std::unique_ptr<lunar_ir_expr> m_cond;
+    std::unique_ptr<lunar_ir_expr> m_expr1;
+    std::unique_ptr<lunar_ir_expr> m_expr2;
+};
+
+class lunar_ir_lambda : public lunar_ir_expr {
+public:
+    lunar_ir_lambda() { }
+    virtual ~lunar_ir_lambda() { }
+    
+    void add_ret(std::unique_ptr<lunar_ir_type> ret)
+    {
+        m_ret.push_back(std::move(ret));
+    }
+
+    void add_arg(std::unique_ptr<lunar_ir_var> var)
+    {
+        m_argmap[var->get_name()] = var.get();
+        m_args.push_back(std::move(var));
+    }
+
+    void add_stexpr(std::unique_ptr<lunar_ir_stexpr> stexpr)
+    {
+        m_stexprs.push_back(std::move(stexpr));
+    }
+
+private:
+    std::vector<std::unique_ptr<lunar_ir_type>> m_ret;
+    std::vector<std::unique_ptr<lunar_ir_var>>  m_args;
+    std::unordered_map<std::string, lunar_ir_var*> m_argmap;
+    std::vector<std::unique_ptr<lunar_ir_stexpr>> m_stexprs;
+};
+
+class lunar_ir_new : public lunar_ir_expr {
+public:
+    lunar_ir_new(std::unique_ptr<lunar_ir_type> type) : m_type(std::move(type)) { }
+    virtual ~lunar_ir_new() { }
+
+private:
+    std::unique_ptr<lunar_ir_type> m_type;
+};
+
+class lunar_ir_callfunc : public lunar_ir_expr {
+public:
+    lunar_ir_callfunc(std::unique_ptr<lunar_ir_expr> func) : m_func(std::move(func)) { }
+    virtual ~lunar_ir_callfunc() { }
+
+    void add_arg(std::unique_ptr<lunar_ir_expr> arg)
+    {
+        m_args.push_back(std::move(arg));
+    }
+
+private:
+    std::unique_ptr<lunar_ir_expr> m_func;
+    std::vector<std::unique_ptr<lunar_ir_expr>> m_args;
 };
 
 }
