@@ -6,7 +6,7 @@ Lunar言語の中間表現であり、ここからLLVM IRへ変換。
 
 - IR           := TOP*
 - TOP          := FUNC | STRUCT | UNION | DATA | GLOBAL | EXPORT | IMPORT
-- STATEMENT    := LET | COND | WHILE | BREAK | SELECT | SPAWN | THREAD | SCHEDULE | STORE | ASSOC | RETURN | INCCNT | DECCNT
+- STATEMENT    := LET | COND | WHILE | BREAK | SELECT
 - STEXPR       := STATMENT | EXPR
 - LITERAL      := STR32 | STR8 | CHAR32 | CHAR8 | INT | FLOAT | HEX | OCT | BIN
 - EXPRIDENT    := EXPR | IDENTIFIER
@@ -351,7 +351,7 @@ type 式は真偽値を返す式であり、多相型変数の型を動的に検
 ## select 構文
 
 構文：
-- SELECT := ( select ( EXPRIDENT STEXPR\* )\* ( timeout SIZE STEXPR* )? )
+- SELECT := ( select ( EXPRIDENT STEXPR\* )\* ( timeout EXPRIDENTLIT STEXPR* )? )
 
 セマンティクス：
 - ( select (ストリーム ストリームに入力があった時に実行する式) (timeout タイムアウトするまでの時間[ms] )? )
@@ -395,10 +395,10 @@ STRM_NO_VACANCYのいずれかとなる。
 ### spawn文
 
 構文：
-- SPAWN := ( spawn SIZE EXPRIDENT EXPRIDENTLIT SIZE)
+- SPAWN := ( spawn EXPRIDENTLIT EXPRIDENT EXPRIDENTLIT)
 
 セマンティクス：
-- ( spawn スタックサイズ 呼び出す関数 関数へ渡す引数 スタックサイズ)
+- ( spawn スタックサイズ 呼び出す関数 関数へ渡す引数)
 
 返り値はスレッド内で一意に識別されるs64型の整数値。
 
@@ -414,7 +414,7 @@ STRM_NO_VACANCYのいずれかとなる。
 OSネイティブなデタッチスレッドを生成。
 
 構文：
-- THREAD := ( thread ATOM TYPE SIZE EXPRIDENT EXPRIDENTLIT )
+- THREAD := ( thread EXPRIDENTLIT TYPE EXPRIDENTLIT EXPRIDENT EXPRIDENTLIT )
 
 セマンティクス：
 - ( thread スレッドの名前 スレッドキューの型 キューのサイズ 呼び出す関数 関数へ渡す引数* )
