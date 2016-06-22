@@ -251,7 +251,11 @@ C関数と互換性を保つために利用され、それ以外での利用は�
 
 ## 変数生成式
 
-- NEW := ( new TYPE )
+構文：
+- NEW := ( new TYPE EXPRIDENTLIT* )
+
+セマンティクス：
+- ( new 型 初期化引数* )
 
 TYPE型の値を返す。
 
@@ -334,10 +338,10 @@ while ループの制御から脱出するときに使う。
 ## type 式
 
 構文：
-- TYPEOF := ( type TYPE0 IDENTIFIER ) | ( type TYPE0 LITERAL )
+- TYPEOF := ( type TYPE0 EXPRIDENTLIT )
 
 セマンティクス：
-- ( type 検査する形名 識別子 )
+- ( type 検査する形名 識別子など )
 
 type 式は真偽値を返す式であり、多相型変数の型を動的に検査するために利用される。
 
@@ -366,7 +370,10 @@ type 式は真偽値を返す式であり、多相型変数の型を動的に検
 ### ストリーム生成式
 
 構文：
-- MKSTREAM := ( mkstream TYPE SIZE )
+- MKSTREAM := ( mkstream TYPE EXPRIDENTLIT )
+
+セマンティクス：
+- ( mkstream ストリームの型 サイズ )
 
 (unique (rstrm TYPE))と(shared (wstrm TYPE))の2つの値を返す。
 
@@ -442,8 +449,7 @@ OSネイティブなデタッチスレッドを生成。
 
 ## Parser Combinator
 
-- PARSECINIT   := (parser_init string EXPRIDENT) | (parser_init binary EXPRIDENT)
-- PARSEC       := (parse EXPRIDENT PARSECOPS EXPRIDENTLIT*)
+- PARSE        := (parse EXPRIDENT PARSECOPS EXPRIDENTLIT*)
 - PARSECOPS    := PARSECCHAR | PARSECMANY | PARSECMANY1 | PARSECTRY | PARSECTRYEND | PARSECLA | PARSECLAEND | PARSECDIGIT | PARSECHEX | PARSECOCT | PARSECSPACE | PARSECSATIS | PARSECSTR 
 - PARSECCHAR   := character
 - PARSECTRY    := try
@@ -459,8 +465,8 @@ OSネイティブなデタッチスレッドを生成。
 - PARSECRESULT := result
 
 ```lisp
-(let (parsec (p) (parsec_init string rstream))
-  (p character 'a'))
+(let (parsec (p) (new parsec string rstream))
+  (parse p character 'a'))
 ```
 
 ## C関数呼び出し
@@ -523,11 +529,30 @@ PTR型の参照外し
 
 ### 四則演算・剰余算
 
-- ADD   := (+ EXPRIDENTLIT EXPRIDENTLIT+ )
-- MINUS := (- EXPRIDENTLIT EXPRIDENTLIT+ )
-- MULTI := (* EXPRIDENTLIT EXPRIDENTLIT+ )
-- DIV   := (/ EXPRIDENTLIT EXPRIDENTLIT+ )
-- MOD   := (mod EXPRIDENTLIT EXPRIDENTLIT+ )
+- ADD   := ( + EXPRIDENTLIT EXPRIDENTLIT+ )
+- MINUS := ( - EXPRIDENTLIT EXPRIDENTLIT+ )
+- MULTI := ( * EXPRIDENTLIT EXPRIDENTLIT+ )
+- DIV   := ( / EXPRIDENTLIT EXPRIDENTLIT+ )
+- MOD   := ( mod EXPRIDENTLIT EXPRIDENTLIT+ )
+
+### ビット演算
+
+- BAND := ( band EXPRIDENTLIT EXPRIDENTLIT+ )
+- BOR  := ( bor EXPRIDENTLIT EXPRIDENTLIT+ )
+- BXOR := ( bxor EXPRIDENTLIT EXPRIDENTLIT+ )
+- BNOT := ( bnot EXPRIDENTLIT )
+- BSL  := ( bsl EXPRIDENT EXPRIDENT ) // 論理左シフト
+- BSR  := ( bsr EXPRIDENT EXPRIDENT ) // 論理右シフト
+- BASL := ( basl EXPRIDENT EXPRIDENT ) // 算術左シフト
+- BASR := ( basr EXPRIDENT EXPRIDENT ) // 算術右シフト
+- BPOPCNT := ( bpopcnt EXPRIDENT )
+- BLZCNT  := ( blzcnt EXPRIDENT )
+
+### 論理演算
+
+- AND := ( and EXPRIDENTLIT EXPRIDENTLIT+ )
+- OR  := ( or EXPRIDENTLIT EXPRIDENTLIT+ )
+- EQ  := ( = EXPRIDENTLIT EXPRIDENTLIT+ )
 
 ## IO
 

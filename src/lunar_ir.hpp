@@ -82,6 +82,12 @@
  *
  * -----------------------------------------------------------------------------
  *
+ * EXPR := SPAWN | THREAD | COPY | ASSOC | INCCNT | DECCNT | IF | LAMBDA | NEW | CALLFUNC |
+ *         TYPEOF | MKSTREAM | PUSH | POP | SPIN_LOCK_INIT | SPIN_LOCK | SPIN_TRY_LOCK |
+ *         SPIN_UNLOCK | PARSE | CCALL | DLOPEN | TOPTR | DEREF | ADD | MINUS | MULTI |
+ *         DIV | MOD | PRINT | TOSTR | BAND | BOR | BXOR | BNOT | BSL | BSR | BASL | BASR |
+ *         BPOPCNT | BLZCNT | AND | OR | EQ
+ *
  * EXPRIDENT := EXPR | IDENTIFIER
  *
  * SPAWN := ( spawn EXPRIDENTLIT EXPRIDENT EXPRIDENTLIT )
@@ -99,13 +105,13 @@
  *
  * LAMBDA := ( lambda ( TYPE* ) ( TYPE IDENTIFIER )* STEXPR* )
  *
- * NEW := ( new TYPE )
+ * NEW := ( new TYPE EXPRIDENTLIT* )
  *
  * CALLFUNC := ( EXPRIDENT EXPRIDENTLIT* )
  *
- * TYPEOF := ( type TYPE0 IDENTIFIER )
+ * TYPEOF := ( type TYPE0 EXPRIDENTLIT )
  *
- * MKSTREAM := ( mkstream TYPE SIZE )
+ * MKSTREAM := ( mkstream TYPE EXPRIDENTLIT )
  *
  * PUSH := ( push! EXPRIDENTLIT )
  *
@@ -116,8 +122,7 @@
  * SPIN_TRY_LOCK  := ( spin_try_lock EXPRIDENT )
  * SPIN_UNLOCK    := ( spin_unlock EXPRIDENT )
  *
- * PARSECINIT   := ( parser_init string EXPRIDENT ) | ( parsec_init binary EXPRIDENT )
- * PARSEC       := ( parse EXPRIDENT PARSECOPS EXPRIDENTLIT* )
+ * PARSE        := ( parse EXPRIDENT PARSECOPS EXPRIDENTLIT* )
  * PARSECOPS    := PARSECCHAR | PARSECMANY | PARSECMANY1 | PARSECTRY | PARSECTRYEND | PARSECLA | PARSECLAEND | PARSECDIGIT | PARSECHEX | PARSECOCT | PARSECSPACE | PARSECSATIS | PARSECSTR 
  * PARSECCHAR   := character
  * PARSECTRY    := try
@@ -139,11 +144,26 @@
  * TOPTR := ( toptr EXPRIDENT )
  * DEREF := ( deref EXPRIDENT )
  *
- * ADD   := (+ EXPRIDENTLIT EXPRIDENTLIT+ )
- * MINUS := (- EXPRIDENTLIT EXPRIDENTLIT+ )
- * MULTI := (* EXPRIDENTLIT EXPRIDENTLIT+ )
- * DIV   := (/ EXPRIDENTLIT EXPRIDENTLIT+ )
- * MOD   := (mod EXPRIDENTLIT EXPRIDENTLIT+ )
+ * ADD   := ( + EXPRIDENTLIT EXPRIDENTLIT+ )
+ * MINUS := ( - EXPRIDENTLIT EXPRIDENTLIT+ )
+ * MULTI := ( * EXPRIDENTLIT EXPRIDENTLIT+ )
+ * DIV   := ( / EXPRIDENTLIT EXPRIDENTLIT+ )
+ * MOD   := ( mod EXPRIDENTLIT EXPRIDENTLIT+ )
+ *
+ * BAND := ( band EXPRIDENTLIT EXPRIDENTLIT+ )
+ * BOR  := ( bor EXPRIDENTLIT EXPRIDENTLIT+ )
+ * BXOR := ( bxor EXPRIDENTLIT EXPRIDENTLIT+ )
+ * BNOT := ( bnot EXPRIDENTLIT )
+ * BSL  := ( bsl EXPRIDENT EXPRIDENT )  // logical left shift
+ * BSR  := ( bsr EXPRIDENT EXPRIDENT )  // logical right shift
+ * BASL := ( basl EXPRIDENT EXPRIDENT ) // arithmetic left shift
+ * BASR := ( basr EXPRIDENT EXPRIDENT ) // arithmetic right shift
+ * BPOPCNT := ( bpopcnt EXPRIDENT )
+ * BLZCNT  := ( blzcnt EXPRIDENT )
+ *
+ * AND := ( and EXPRIDENTLIT EXPRIDENTLIT+ )
+ * OR  := ( or EXPRIDENTLIT EXPRIDENTLIT+ )
+ * EQ  := ( = EXPRIDENTLIT EXPRIDENTLIT+ )
  *
  * PRINT := ( print EXPRIDENTLIT )
  *
@@ -799,8 +819,14 @@ public:
     lunar_ir_new(std::unique_ptr<lunar_ir_type> type) : m_type(std::move(type)) { }
     virtual ~lunar_ir_new() { }
 
+    void add_arg(std::unique_ptr<lunar_ir_expr> arg)
+    {
+        m_args.push_back(std::move(arg));
+    }
+
 private:
     std::unique_ptr<lunar_ir_type> m_type;
+    std::vector<std::unique_ptr<lunar_ir_expr>> m_args;
 };
 
 class lunar_ir_callfunc : public lunar_ir_expr {
@@ -816,6 +842,88 @@ public:
 private:
     std::unique_ptr<lunar_ir_expr> m_func;
     std::vector<std::unique_ptr<lunar_ir_expr>> m_args;
+};
+
+class lunar_ir_typeof : public lunar_ir_expr {
+public:
+    lunar_ir_typeof(LANG_BASIC_TYPE type, std::unique_ptr<lunar_ir_expr> size)
+        : m_type(type), m_size(std::move(size)) { }
+    virtual ~lunar_ir_typeof() { }
+
+private:
+    LANG_BASIC_TYPE m_type;
+    std::unique_ptr<lunar_ir_expr> m_size;
+};
+
+class lunar_ir_mkstream : public lunar_ir_expr {
+public:
+    lunar_ir_mkstream(std::unique_ptr<lunar_ir_type> type, std::unique_ptr<lunar_ir_expr> size)
+        : m_type(std::move(type)), m_size(std::move(size)) { }
+    virtual ~lunar_ir_mkstream() { }
+
+private:
+    std::unique_ptr<lunar_ir_type> m_type;
+    std::unique_ptr<lunar_ir_expr> m_size;
+};
+
+class lunar_ir_push : public lunar_ir_expr
+{
+public:
+    lunar_ir_push(std::unique_ptr<lunar_ir_expr> expr) : m_expr(std::move(expr)) { }
+    virtual ~lunar_ir_push() { }
+
+private:
+    std::unique_ptr<lunar_ir_expr> m_expr;
+};
+
+class lunar_ir_pop : public lunar_ir_expr
+{
+public:
+    lunar_ir_pop(std::unique_ptr<lunar_ir_expr> expr) : m_expr(std::move(expr)) { }
+    virtual ~lunar_ir_pop() { }
+
+private:
+    std::unique_ptr<lunar_ir_expr> m_expr;
+};
+
+class lunar_ir_spin_lock_init : public lunar_ir_expr
+{
+public:
+    lunar_ir_spin_lock_init(std::unique_ptr<lunar_ir_expr> expr) : m_expr(std::move(expr)) { }
+    virtual ~lunar_ir_spin_lock_init() { }
+
+private:
+    std::unique_ptr<lunar_ir_expr> m_expr;
+};
+
+class lunar_ir_spin_lock : public lunar_ir_expr
+{
+public:
+    lunar_ir_spin_lock(std::unique_ptr<lunar_ir_expr> expr) : m_expr(std::move(expr)) { }
+    virtual ~lunar_ir_spin_lock() { }
+
+private:
+    std::unique_ptr<lunar_ir_expr> m_expr;
+};
+
+class lunar_ir_spin_try_lock : public lunar_ir_expr
+{
+public:
+    lunar_ir_spin_try_lock(std::unique_ptr<lunar_ir_expr> expr) : m_expr(std::move(expr)) { }
+    virtual ~lunar_ir_spin_try_lock() { }
+
+private:
+    std::unique_ptr<lunar_ir_expr> m_expr;
+};
+
+class lunar_ir_spin_unlock : public lunar_ir_expr
+{
+public:
+    lunar_ir_spin_unlock(std::unique_ptr<lunar_ir_expr> expr) : m_expr(std::move(expr)) { }
+    virtual ~lunar_ir_spin_unlock() { }
+
+private:
+    std::unique_ptr<lunar_ir_expr> m_expr;
 };
 
 }
