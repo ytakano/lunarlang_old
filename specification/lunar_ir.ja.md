@@ -263,7 +263,7 @@ TYPE型の値を返す。
 ## 変数束縛構文
 
 構文：
-- LET := ( let ( (TYPE IDENTIFIER)+ EXPRIDENTLIT )+ STEXPR\* )
+- LET := ( let ( ( TYPE IDENTIFIER )+ EXPRIDENTLIT )+ STEXPR\* )
 
 セマンティクス：
 - ( let ( 束縛 )+ 式\* ）
