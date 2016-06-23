@@ -112,9 +112,10 @@
  *
  * TYPEOF := ( type TYPE0 EXPRIDENTLIT )
  *
- * MKSTREAM := ( mkstream TYPE EXPRIDENTLIT )
- * MKFILESTREAM := ( mkfilestream EXPRIDENTLIT )
- * MKSOCKSTREAM := ( mksockstream EXPRIDENTLIT )
+ * MKSTREAM       := ( mkstream TYPE EXPRIDENTLIT )
+ * MKFILESTREAM   := ( mkfilestream EXPRIDENTLIT )
+ * MKSOCKSTREAM   := ( mksockstream EXPRIDENTLIT )
+ * MKSIGNALSTREAM := ( mksognalstream EXPRIDENTLIT )
  *
  * PUSH := ( push! EXPRIDENTLIT )
  *
@@ -169,6 +170,9 @@
  * OR  := ( or EXPRIDENTLIT EXPRIDENTLIT+ )
  * EQ  := ( = EXPRIDENTLIT EXPRIDENTLIT+ )
  * NOT := ( not EXPRIDENTLIT )
+ *
+ * OPEN   := ( open EXPRIDENTLIT OFLAGS )
+ * SOCKET := ( socket SOCKDOMAIN SOCKTYPE )
  *
  * PRINT := ( print EXPRIDENTLIT+ )
  *
