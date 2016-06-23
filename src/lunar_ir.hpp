@@ -87,6 +87,7 @@
  *         SPIN_LOCK | SPIN_TRY_LOCK | SPIN_UNLOCK | PARSE | CCALL | DLOPEN | DLCLOSE |
  *         TOPTR | DEREF | ADD | MINUS | MULTI | DIV | MOD | PRINT | TOSTR | BAND | BOR |
  *         BXOR | BNOT | BSL | BSR | BASL | BASR | BPOPCNT | BLZCNT | AND | OR | EQ | NOT
+ *         SOCKET | OPEN | MKSIGNALSTREAM
  *
  * EXPRIDENT := EXPR | IDENTIFIER
  *
@@ -139,8 +140,7 @@
  * PARSECSTR    := string
  * PARSECRESULT := result
  *
- * DLOPEN  := ( dlopen EXPRIDENTLIT DLMODE )
- * DLMODE  := lazy | now
+ * DLOPEN  := ( dlopen EXPRIDENTLIT )
  * DLCLOSE := ( dlclose EXPRIDENT )
  * DLSYM   := ( dlsym EXPRIDENT EXPRIDENTLIT )
  * CCALL   := ( ccall EXPRIDENT EXPRIDENTLIT* )
@@ -300,7 +300,6 @@ private:
     std::unique_ptr<lunar_ir_statement> m_statement;
     bool m_is_expr;
 };
-
 
 class lunar_ir_scalar : public lunar_ir_type {
 public:
@@ -886,6 +885,16 @@ public:
     lunar_ir_mksockstream(std::unique_ptr<lunar_ir_expr> expr)
         : m_expr(std::move(expr)) { }
     virtual ~lunar_ir_mksockstream() { }
+
+private:
+    std::unique_ptr<lunar_ir_expr> m_expr;
+};
+
+class lunar_ir_mksignalstream : public lunar_ir_expr {
+public:
+    lunar_ir_mksignalstream(std::unique_ptr<lunar_ir_expr> expr)
+        : m_expr(std::move(expr)) { }
+    virtual ~lunar_ir_mksignalstream() { }
 
 private:
     std::unique_ptr<lunar_ir_expr> m_expr;

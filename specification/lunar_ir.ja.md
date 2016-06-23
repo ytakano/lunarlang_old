@@ -11,7 +11,7 @@ Lunar言語の中間表現であり、ここからLLVM IRへ変換。
 - LITERAL      := STR32 | STR8 | CHAR32 | CHAR8 | INT | FLOAT | HEX | OCT | BIN
 - EXPRIDENT    := EXPR | IDENTIFIER
 - EXPRIDENTLIT := EXPR | IDENTIFIER | LITERAL
-- EXPR         := SPAWN | THREAD | COPY | ASSOC | INCCNT | DECCNT | IF | LAMBDA | NEW | CALLFUNC | TYPEOF | MKSTREAM | MKFILESTREAM | MKSOCKSTREAM | PUSH | POP | SPIN_LOCK_INIT | SPIN_LOCK | SPIN_TRY_LOCK | SPIN_UNLOCK | PARSE | CCALL | DLOPEN | DLCLOSE | TOPTR | DEREF | ADD | MINUS | MULTI | DIV | MOD | PRINT | TOSTR | BAND | BOR | BXOR | BNOT | BSL | BSR | BASL | BASR | BPOPCNT | BLZCNT | AND | OR | EQ | NOT
+- EXPR         := SPAWN | THREAD | COPY | ASSOC | INCCNT | DECCNT | IF | LAMBDA | NEW | CALLFUNC | TYPEOF | MKSTREAM | MKFILESTREAM | MKSOCKSTREAM | PUSH | POP | SPIN_LOCK_INIT | SPIN_LOCK | SPIN_TRY_LOCK | SPIN_UNLOCK | PARSE | CCALL | DLOPEN | DLCLOSE | TOPTR | DEREF | ADD | MINUS | MULTI | DIV | MOD | PRINT | TOSTR | BAND | BOR | BXOR | BNOT | BSL | BSR | BASL | BASR | BPOPCNT | BLZCNT | AND | OR | EQ | NOT | SOCKET | OPEN | MKSIGNALSTREAM
 
 # グローバル変数定義
 
@@ -394,6 +394,14 @@ type 式は真偽値を返す式であり、多相型変数の型を動的に検
 セマンティクス：
 - ( mksockstream ソケットファイルディスクリプタ )
 
+### シグナルストリーム生成式
+
+構文：
+- MKSIGNALSTREAM := ( mksognalstream EXPRIDENTLIT )
+
+セマンティクス：
+- ( mksignalstream シグナル番号 )
+
 ### push式
 
 構文：
@@ -504,11 +512,10 @@ pointerのpointerはptr型を利用して実現する。
 モジュール読み込み
 
 構文：
-- DLOPEN := ( dlopen EXPRIDENTLIT DLMODE )
-- DLMODE := lazy | now
+- DLOPEN := ( dlopen EXPRIDENTLIT )
 
 セマンティクス：
-- ( dlopen モジュールへのパス モード )
+- ( dlopen モジュールへのパス )
 
 動的ライブラリ、.soファイルを読み込む。
 
@@ -586,6 +593,25 @@ PTR型の参照外し
 - NOT := ( not EXPRIDENTLIT )
 
 ## IO
+
+### socket式
+
+- SOCKET     := ( socket SOCKDOMAIN SOCKTYPE )
+- SOCKDOMAIN := PF_UNIX | PF_INET | PF_INET6
+- SOCKTYPE   := SOCK_STREAM | SOCK_DGRAM | SOCK_RAW
+
+返り値のディスクリプタはmksockstreamと結び付けられなければならない。
+
+### open式
+
+構文：
+- OPEN   := ( open EXPRIDENTLIT OFLAGS )
+- OFLAGS := O_RDONLY | O_WONLY | O_RDWR | O_APPEND | O_CREAT | O_TRUNC | O_EXCL | O_SHLOCK | O_EXLOCK | O_NOFOLLOW | O_SYMLINK | O_EVTONLY | O_CLOEXEC
+
+セマンティクス：
+- ( open フィアル名 フラグ )
+
+返り値のディスクリプタはmkfilestreamと結び付けられなければならない。
 
 ### print式
 
