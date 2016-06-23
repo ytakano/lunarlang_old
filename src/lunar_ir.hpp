@@ -83,10 +83,10 @@
  * -----------------------------------------------------------------------------
  *
  * EXPR := SPAWN | THREAD | COPY | ASSOC | INCCNT | DECCNT | IF | LAMBDA | NEW | CALLFUNC |
- *         TYPEOF | MKSTREAM | PUSH | POP | SPIN_LOCK_INIT | SPIN_LOCK | SPIN_TRY_LOCK |
- *         SPIN_UNLOCK | PARSE | CCALL | DLOPEN | TOPTR | DEREF | ADD | MINUS | MULTI |
- *         DIV | MOD | PRINT | TOSTR | BAND | BOR | BXOR | BNOT | BSL | BSR | BASL | BASR |
- *         BPOPCNT | BLZCNT | AND | OR | EQ
+ *         TYPEOF | MKSTREAM | MKFILESTREAM | MKSOCKSTREAM | PUSH | POP | SPIN_LOCK_INIT |
+ *         SPIN_LOCK | SPIN_TRY_LOCK | SPIN_UNLOCK | PARSE | CCALL | DLOPEN | DLCLOSE |
+ *         TOPTR | DEREF | ADD | MINUS | MULTI | DIV | MOD | PRINT | TOSTR | BAND | BOR |
+ *         BXOR | BNOT | BSL | BSR | BASL | BASR | BPOPCNT | BLZCNT | AND | OR | EQ | NOT
  *
  * EXPRIDENT := EXPR | IDENTIFIER
  *
@@ -112,6 +112,8 @@
  * TYPEOF := ( type TYPE0 EXPRIDENTLIT )
  *
  * MKSTREAM := ( mkstream TYPE EXPRIDENTLIT )
+ * MKFILESTREAM := ( mkfilestream EXPRIDENTLIT )
+ * MKSOCKSTREAM := ( mksockstream EXPRIDENTLIT )
  *
  * PUSH := ( push! EXPRIDENTLIT )
  *
@@ -137,9 +139,11 @@
  * PARSECSTR    := string
  * PARSECRESULT := result
  *
- * CCALL := ( ccall IDENTIFIER EXPRIDENTLIT* )
- *
- * DLOPEN := ( dlopen EXPRIDENTLIT )
+ * DLOPEN  := ( dlopen EXPRIDENTLIT DLMODE )
+ * DLMODE  := lazy | now
+ * DLCLOSE := ( dlclose EXPRIDENT )
+ * DLSYM   := ( dlsym EXPRIDENT EXPRIDENTLIT )
+ * CCALL   := ( ccall EXPRIDENT EXPRIDENTLIT* )
  *
  * TOPTR := ( toptr EXPRIDENT )
  * DEREF := ( deref EXPRIDENT )
@@ -164,8 +168,9 @@
  * AND := ( and EXPRIDENTLIT EXPRIDENTLIT+ )
  * OR  := ( or EXPRIDENTLIT EXPRIDENTLIT+ )
  * EQ  := ( = EXPRIDENTLIT EXPRIDENTLIT+ )
+ * NOT := ( not EXPRIDENTLIT )
  *
- * PRINT := ( print EXPRIDENTLIT )
+ * PRINT := ( print EXPRIDENTLIT+ )
  *
  * TOSTR := ( tostr EXPRIDENTLIT )
  *
@@ -866,6 +871,26 @@ private:
     std::unique_ptr<lunar_ir_expr> m_size;
 };
 
+class lunar_ir_mkfilestream : public lunar_ir_expr {
+public:
+    lunar_ir_mkfilestream(std::unique_ptr<lunar_ir_expr> expr)
+        : m_expr(std::move(expr)) { }
+    virtual ~lunar_ir_mkfilestream() { }
+
+private:
+    std::unique_ptr<lunar_ir_expr> m_expr;
+};
+
+class lunar_ir_mksockstream : public lunar_ir_expr {
+public:
+    lunar_ir_mksockstream(std::unique_ptr<lunar_ir_expr> expr)
+        : m_expr(std::move(expr)) { }
+    virtual ~lunar_ir_mksockstream() { }
+
+private:
+    std::unique_ptr<lunar_ir_expr> m_expr;
+};
+
 class lunar_ir_push : public lunar_ir_expr
 {
 public:
@@ -924,6 +949,39 @@ public:
 
 private:
     std::unique_ptr<lunar_ir_expr> m_expr;
+};
+
+class lunar_ir_parse : public lunar_ir_expr
+{
+public:
+    enum PARSECOPS {
+        PASECCHAR,
+        PARSECTRY,
+        PARSECTRYEND,
+        PARSECLA,
+        PARSECLAEND,
+        PARSECDIGIT,
+        PARSECHEX,
+        PARSECOCT,
+        PARSECSPACE,
+        PARSECSATIS,
+        PARSECSTR,
+        PARSECRESULT
+    };
+
+    lunar_ir_parse(std::unique_ptr<lunar_ir_expr> parsec, PARSECOPS op)
+        : m_parsec(std::move(parsec)), m_op(op) { }
+    virtual ~lunar_ir_parse() { }
+
+    void add_expr(std::unique_ptr<lunar_ir_expr> expr)
+    {
+        m_exprs.push_back(std::move(expr));
+    }
+
+private:
+    std::unique_ptr<lunar_ir_expr> m_parsec;
+    PARSECOPS m_op;
+    std::vector<std::unique_ptr<lunar_ir_expr>> m_exprs;
 };
 
 }

@@ -11,6 +11,7 @@ Lunar言語の中間表現であり、ここからLLVM IRへ変換。
 - LITERAL      := STR32 | STR8 | CHAR32 | CHAR8 | INT | FLOAT | HEX | OCT | BIN
 - EXPRIDENT    := EXPR | IDENTIFIER
 - EXPRIDENTLIT := EXPR | IDENTIFIER | LITERAL
+- EXPR         := SPAWN | THREAD | COPY | ASSOC | INCCNT | DECCNT | IF | LAMBDA | NEW | CALLFUNC | TYPEOF | MKSTREAM | MKFILESTREAM | MKSOCKSTREAM | PUSH | POP | SPIN_LOCK_INIT | SPIN_LOCK | SPIN_TRY_LOCK | SPIN_UNLOCK | PARSE | CCALL | DLOPEN | DLCLOSE | TOPTR | DEREF | ADD | MINUS | MULTI | DIV | MOD | PRINT | TOSTR | BAND | BOR | BXOR | BNOT | BSL | BSR | BASL | BASR | BPOPCNT | BLZCNT | AND | OR | EQ | NOT
 
 # グローバル変数定義
 
@@ -270,7 +271,7 @@ TYPE型の値を返す。
 
 関数は複数の値を返すこともあるため、複数の変数名を記述できるように。
 
-## 変数の値書き換え文
+## 変数の値書き換え式
 
 構文：
 - COPY := ( copy! EXPRIDENT EXPRIDENTLIT )
@@ -278,7 +279,7 @@ TYPE型の値を返す。
 セマンティクス：
 - ( copy! 書き換える変数 書き換える値 )
 
-## 変数の束縛先変更文
+## 変数の束縛先変更式
 
 構文：
 - ASSOC := ( assoc! EXPRIDENT EXPRIDENT )
@@ -377,6 +378,22 @@ type 式は真偽値を返す式であり、多相型変数の型を動的に検
 
 (unique (rstrm TYPE))と(shared (wstrm TYPE))の2つの値を返す。
 
+### ファイルストリーム生成式
+
+構文：
+- MKSTREAM := ( mkfilestream EXPRIDENTLIT )
+
+セマンティクス：
+- ( mkfilestream ファイルディスクリプタ )
+
+### ソケットストリーム生成式
+
+構文：
+- MKSOCKSTREAM := ( mksockstream EXPRIDENTLIT )
+
+セマンティクス：
+- ( mksockstream ソケットファイルディスクリプタ )
+
 ### push式
 
 構文：
@@ -399,7 +416,7 @@ STRM_NO_VACANCYのいずれかとなる。
 
 ## マルチタスキング
 
-### spawn文
+### spawn式
 
 構文：
 - SPAWN := ( spawn EXPRIDENTLIT EXPRIDENT EXPRIDENTLIT)
@@ -416,7 +433,7 @@ STRM_NO_VACANCYのいずれかとなる。
 
 他のグリーンスレッドに制御を渡す。
 
-### thread文
+### thread式
 
 OSネイティブなデタッチスレッドを生成。
 
@@ -474,10 +491,10 @@ OSネイティブなデタッチスレッドを生成。
 ### ccall
 
 構文：
-- CCALL := ( ccall IDENTIFIER EXPRIDENTLIT* )
+- CCALL := ( ccall EXPRIDENT EXPRIDENTLIT* )
 
 セマンティクス：
-- ( ccall C関数名 引数* )
+- ( ccall C関数 引数* )
 
 shared、unique変数はポインタ渡し。immovableは値渡しとなる。
 pointerのpointerはptr型を利用して実現する。
@@ -487,14 +504,27 @@ pointerのpointerはptr型を利用して実現する。
 モジュール読み込み
 
 構文：
-- DLOPEN := ( dlopen EXPRIDENTLIT )
+- DLOPEN := ( dlopen EXPRIDENTLIT DLMODE )
+- DLMODE := lazy | now
 
 セマンティクス：
-- ( dlopen モジュールへのパス )
+- ( dlopen モジュールへのパス モード )
 
 動的ライブラリ、.soファイルを読み込む。
 
-返り値はbool値。
+返り値はハンドラ。
+
+### dlclose式
+
+- DLCLOSE := ( dlclose EXPRIDENT )
+
+### dlsym式
+
+構文：
+- DLSYM := ( dlsym EXPRIDENT EXPRIDENTLIT )
+
+セマンティクス：
+- ( dlsym モジュール シンボル名 )
 
 ### toptr式
 
@@ -517,11 +547,11 @@ PTR型の参照外し
 
 ## 参照カウント
 
-### inccnt文
+### inccnt式
 
 - INCCNT := ( inccnt EXPRIDENT )
 
-### deccnt文
+### deccnt式
 
 - DECCNT := ( deccnt EXPRIDENT )
 
@@ -541,8 +571,8 @@ PTR型の参照外し
 - BOR  := ( bor EXPRIDENTLIT EXPRIDENTLIT+ )
 - BXOR := ( bxor EXPRIDENTLIT EXPRIDENTLIT+ )
 - BNOT := ( bnot EXPRIDENTLIT )
-- BSL  := ( bsl EXPRIDENT EXPRIDENT ) // 論理左シフト
-- BSR  := ( bsr EXPRIDENT EXPRIDENT ) // 論理右シフト
+- BSL  := ( bsl EXPRIDENT EXPRIDENT )  // 論理左シフト
+- BSR  := ( bsr EXPRIDENT EXPRIDENT )  // 論理右シフト
 - BASL := ( basl EXPRIDENT EXPRIDENT ) // 算術左シフト
 - BASR := ( basr EXPRIDENT EXPRIDENT ) // 算術右シフト
 - BPOPCNT := ( bpopcnt EXPRIDENT )
@@ -553,12 +583,13 @@ PTR型の参照外し
 - AND := ( and EXPRIDENTLIT EXPRIDENTLIT+ )
 - OR  := ( or EXPRIDENTLIT EXPRIDENTLIT+ )
 - EQ  := ( = EXPRIDENTLIT EXPRIDENTLIT+ )
+- NOT := ( not EXPRIDENTLIT )
 
 ## IO
 
 ### print式
 
-- PRINT := ( print EXPRIDENTLIT )
+- PRINT := ( print EXPRIDENTLIT+ )
 
 文字列を標準出力へ出力。引数はstring型のみ。
 
