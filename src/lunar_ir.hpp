@@ -188,7 +188,7 @@
  * CHARS  := ESCAPE | ESCAPE以外の文字
  *
  * CHAR32 := ' CHARS '
- * CHAR8  := ' CHARS '
+ * CHAR8  := b ' CHARS '
  *
  * INT     := -? DIGIT
  * DIGIT   := NUM1to9 NUM0to9* | 0
@@ -1287,6 +1287,69 @@ public:
 private:
     SOCKDOMAIN m_domain;
     SOCKTYPE   m_type;
+};
+
+class lunar_ir_lit_str32 : public lunar_ir_expr {
+public:
+    lunar_ir_lit_str32(std::u32string str) : m_str(str) { }
+    virtual ~lunar_ir_lit_str32() { }
+
+private:
+    std::u32string m_str;
+};
+
+class lunar_ir_lit_str : public lunar_ir_expr {
+public:
+    lunar_ir_lit_str(std::string str) : m_str(str) { }
+    virtual ~lunar_ir_lit_str() { }
+
+private:
+    std::string m_str;
+};
+
+class lunar_ir_lit_char32 : public lunar_ir_expr {
+public:
+    lunar_ir_lit_char32(uint32_t c) : m_char(c) { }
+    virtual ~lunar_ir_lit_char32() { }
+
+private:
+    uint32_t m_char;
+};
+
+class lunar_ir_lit_char : public lunar_ir_expr {
+public:
+    lunar_ir_lit_char(char c) : m_char(c) { }
+    virtual ~lunar_ir_lit_char() { }
+
+private:
+    char m_char;
+};
+
+class lunar_ir_lit_int : public lunar_ir_expr {
+public:
+    lunar_ir_lit_int(int64_t num) : m_num(num) { }
+    virtual ~lunar_ir_lit_int() { }
+
+private:
+    int64_t m_num;
+};
+
+class lunar_ir_lit_uint : public lunar_ir_expr {
+public:
+    lunar_ir_lit_uint(uint64_t num) : m_num(num) { }
+    virtual ~lunar_ir_lit_uint() { }
+
+private:
+    uint64_t m_num;
+};
+
+class lunar_ir_lit_float : public lunar_ir_expr {
+public:
+    lunar_ir_lit_float(double num) : m_num(num) { }
+    virtual ~lunar_ir_lit_float() { }
+
+private:
+    double m_num;
 };
 
 }

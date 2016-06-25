@@ -639,7 +639,7 @@ PTR型の参照外し
 ## 文字
 
 - CHAR32 := ' CHARS '
-- CHAR8  := ' CHARS '
+- CHAR8  := b ' CHARS '
 
 ## 整数
 
