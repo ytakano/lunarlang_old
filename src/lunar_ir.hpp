@@ -1070,6 +1070,177 @@ private:
     std::unique_ptr<lunar_ir_expr> m_expr;
 };
 
+class lunar_ir_binops : public lunar_ir_expr {
+public:
+    lunar_ir_binops() { }
+    virtual ~lunar_ir_binops() { }
+
+    void add_expr(std::unique_ptr<lunar_ir_expr> expr)
+    {
+        m_exprs.push_back(std::move(expr));
+    }
+
+protected:
+    std::vector<std::unique_ptr<lunar_ir_expr>> m_exprs;
+};
+
+class lunar_ir_add : public lunar_ir_binops {
+public:
+    lunar_ir_add() { }
+    virtual ~lunar_ir_add() { }
+};
+
+class lunar_ir_minus : public lunar_ir_binops {
+public:
+    lunar_ir_minus() { }
+    virtual ~lunar_ir_minus() { }
+};
+
+class lunar_ir_multi : public lunar_ir_binops {
+public:
+    lunar_ir_multi() { }
+    virtual ~lunar_ir_multi() { }
+};
+
+class lunar_ir_div : public lunar_ir_binops {
+public:
+    lunar_ir_div() { }
+    virtual ~lunar_ir_div() { }
+};
+
+class lunar_ir_mod : public lunar_ir_binops {
+public:
+    lunar_ir_mod() { }
+    virtual ~lunar_ir_mod() { }
+};
+
+class lunar_ir_band : public lunar_ir_binops {
+public:
+    lunar_ir_band() { }
+    virtual ~lunar_ir_band() { }
+};
+
+class lunar_ir_bor : public lunar_ir_binops {
+public:
+    lunar_ir_bor() { }
+    virtual ~lunar_ir_bor() { }
+};
+
+class lunar_ir_bxor : public lunar_ir_binops {
+public:
+    lunar_ir_bxor() { }
+    virtual ~lunar_ir_bxor() { }
+};
+
+class lunar_ir_bnot : public lunar_ir_expr {
+public:
+    lunar_ir_bnot(std::unique_ptr<lunar_ir_expr> expr) : m_expr(std::move(expr)) { }
+    virtual ~lunar_ir_bnot() { }
+
+private:
+    std::unique_ptr<lunar_ir_expr> m_expr;
+};
+
+class lunar_ir_bpopcnt : public lunar_ir_expr {
+public:
+    lunar_ir_bpopcnt(std::unique_ptr<lunar_ir_expr> expr) : m_expr(std::move(expr)) { }
+    virtual ~lunar_ir_bpopcnt() { }
+
+private:
+    std::unique_ptr<lunar_ir_expr> m_expr;
+};
+
+class lunar_ir_blzcnt : public lunar_ir_expr {
+public:
+    lunar_ir_blzcnt(std::unique_ptr<lunar_ir_expr> expr) : m_expr(std::move(expr)) { }
+    virtual ~lunar_ir_blzcnt() { }
+
+private:
+    std::unique_ptr<lunar_ir_expr> m_expr;
+};
+
+class lunar_ir_bsl : public lunar_ir_expr {
+public:
+    lunar_ir_bsl(std::unique_ptr<lunar_ir_expr> lexpr, std::unique_ptr<lunar_ir_expr> rexpr)
+        : m_lexpr(std::move(lexpr)), m_rexpr(std::move(rexpr)) { }
+    virtual ~lunar_ir_bsl() { }
+
+private:
+    std::unique_ptr<lunar_ir_expr> m_lexpr;
+    std::unique_ptr<lunar_ir_expr> m_rexpr;
+};
+
+class lunar_ir_bsr : public lunar_ir_expr {
+public:
+    lunar_ir_bsr(std::unique_ptr<lunar_ir_expr> lexpr, std::unique_ptr<lunar_ir_expr> rexpr)
+        : m_lexpr(std::move(lexpr)), m_rexpr(std::move(rexpr)) { }
+    virtual ~lunar_ir_bsr() { }
+
+private:
+    std::unique_ptr<lunar_ir_expr> m_lexpr;
+    std::unique_ptr<lunar_ir_expr> m_rexpr;
+};
+
+class lunar_ir_basl : public lunar_ir_expr {
+public:
+    lunar_ir_basl(std::unique_ptr<lunar_ir_expr> lexpr, std::unique_ptr<lunar_ir_expr> rexpr)
+        : m_lexpr(std::move(lexpr)), m_rexpr(std::move(rexpr)) { }
+    virtual ~lunar_ir_basl() { }
+
+private:
+    std::unique_ptr<lunar_ir_expr> m_lexpr;
+    std::unique_ptr<lunar_ir_expr> m_rexpr;
+};
+
+class lunar_ir_basr : public lunar_ir_expr {
+public:
+    lunar_ir_basr(std::unique_ptr<lunar_ir_expr> lexpr, std::unique_ptr<lunar_ir_expr> rexpr)
+        : m_lexpr(std::move(lexpr)), m_rexpr(std::move(rexpr)) { }
+    virtual ~lunar_ir_basr() { }
+
+private:
+    std::unique_ptr<lunar_ir_expr> m_lexpr;
+    std::unique_ptr<lunar_ir_expr> m_rexpr;
+};
+
+class lunar_ir_and : public lunar_ir_binops {
+public:
+    lunar_ir_and() { }
+    virtual ~lunar_ir_and() { }
+};
+
+class lunar_ir_or : public lunar_ir_binops {
+public:
+    lunar_ir_or() { }
+    virtual ~lunar_ir_or() { }
+};
+
+class lunar_ir_eq : public lunar_ir_binops {
+public:
+    lunar_ir_eq() { }
+    virtual ~lunar_ir_eq() { }
+};
+
+class lunar_ir_not : public lunar_ir_binops {
+public:
+    lunar_ir_not() { }
+    virtual ~lunar_ir_not() { }
+};
+
+class lunar_ir_print : public lunar_ir_expr {
+public:
+    lunar_ir_print() { }
+    virtual ~lunar_ir_print() { }
+
+    void add_expr(std::unique_ptr<lunar_ir_expr> expr)
+    {
+        m_exprs.push_back(std::move(expr));
+    }
+
+protected:
+    std::vector<std::unique_ptr<lunar_ir_expr>> m_exprs;
+};
+
 }
 
 #endif // LUNAR_IR_HPP
