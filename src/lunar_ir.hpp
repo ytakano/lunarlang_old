@@ -171,7 +171,7 @@
  * EQ  := ( = EXPRIDENTLIT EXPRIDENTLIT+ )
  * NOT := ( not EXPRIDENTLIT )
  *
- * OPEN   := ( open EXPRIDENTLIT OFLAGS )
+ * OPEN   := ( open EXPRIDENTLIT (OFLAGS*) )
  * SOCKET := ( socket SOCKDOMAIN SOCKTYPE )
  *
  * PRINT := ( print EXPRIDENTLIT+ )
@@ -1239,6 +1239,54 @@ public:
 
 protected:
     std::vector<std::unique_ptr<lunar_ir_expr>> m_exprs;
+};
+
+class lunar_ir_open : public lunar_ir_expr {
+public:
+    enum OFLAGS {
+        OFLAG_RDONLY,
+        OFLAG_WONLY,
+        OFLAG_RDWR,
+        OFLAG_APPEND,
+        OFLAG_CREAT,
+        OFLAG_TRUNC,
+        OFLAG_EXCL,
+        OFLAG_SHLOCK,
+        OFLAG_EXLOCK,
+        OFLAG_NOFOLLOW,
+        OFLAG_SYMLINK,
+        OFLAG_EVTONLY,
+        OFLAG_CLOEXEC,
+    };
+
+    lunar_ir_open(std::unique_ptr<lunar_ir_expr> file) : m_file(std::move(file)) { }
+    virtual ~lunar_ir_open() { }
+
+private:
+    std::unique_ptr<lunar_ir_expr> m_file;
+    std::vector<OFLAGS> m_flags;
+};
+
+class lunar_ir_socket : public lunar_ir_expr {
+public:
+    enum SOCKDOMAIN {
+        DOMAIN_PF_UNIX,
+        DOMAIN_PF_INET,
+        DOMIAN_PF_INET6,
+    };
+
+    enum SOCKTYPE {
+        TYPE_SOCK_STREAM,
+        TYPE_SOCK_DGRAM,
+        TYPE_SOCK_RAW,
+    };
+
+    lunar_ir_socket(SOCKDOMAIN domain, SOCKTYPE type) : m_domain(domain), m_type(type) { }
+    virtual ~lunar_ir_socket() { }
+
+private:
+    SOCKDOMAIN m_domain;
+    SOCKTYPE   m_type;
 };
 
 }
