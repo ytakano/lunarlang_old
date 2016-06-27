@@ -19,11 +19,6 @@
  *
  * -----------------------------------------------------------------------------
  *
- * EXPORT := ( export IDENTIFIER+ )
- * IMPORT := ( import STR32+ )
- *
- * -----------------------------------------------------------------------------
- *
  * TYPE  := TYPE0 | ( OWNERSHIP TYPE0 )
  * TYPE0 := SCALAR | VECTOR | STRING | BINARY | LIST | STRUCT | DICT | SET | DATA |
  *          FUNCTYPE | RSTREAM | WSTREAM | PTR | UNION | PARSEC | IDENTIFIER
@@ -1383,6 +1378,20 @@ public:
 
 private:
     double m_num;
+};
+
+class lunar_ir {
+public:
+    lunar_ir();
+    virtual ~lunar_ir();
+
+private:
+    std::vector<std::unique_ptr<lunar_ir_func>>   m_funcs;
+    std::vector<std::unique_ptr<lunar_ir_struct>> m_structs;
+    std::vector<std::unique_ptr<lunar_ir_union>>  m_unions;
+    std::vector<std::unique_ptr<lunar_ir_data>>   m_data;
+    std::vector<std::unique_ptr<lunar_ir_import>> m_imports;
+    std::vector<std::unique_ptr<lunar_ir_export>> m_exports;
 };
 
 }
