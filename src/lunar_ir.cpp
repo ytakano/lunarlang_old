@@ -14,7 +14,7 @@ lunar_ir::~lunar_ir()
 }
 
 void
-lunar_ir::parse(std::u32string buf, std::string file)
+lunar_ir::compile(std::string mainfile)
 {
 
 }

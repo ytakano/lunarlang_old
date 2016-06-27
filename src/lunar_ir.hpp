@@ -12,10 +12,9 @@
  * -----------------------------------------------------------------------------
  *
  * IR  := TOP*
- * TOP := FUNC | STRUCT | UNION | DATA | GLOBAL | EXPORT | IMPORT
+ * TOP := FUNC | STRUCT | UNION | DATA | GLOBAL | IMPORT
  * STATEMENT := LET | COND | WHILE | BREAK | SELECT | RETURN | SCHEDULE
  * GLOBAL := ( global ( ( TYPE (IDENTIFIER+) EXPRIDENTLIT )+ ) )
- * EXPORT := ( export IDENTIFIER+ )
  * IMPORT := ( import STR32+ )
  *
  * -----------------------------------------------------------------------------
@@ -40,11 +39,11 @@
  *
  * LIST := ( list TYPE )
  *
- * STRUCT := ( struct IDENTIFIER? ( TYPE IDENTIFIER )+ )
+ * STRUCT := ( struct IDENTIFIER? ( TYPE IDENTIFIER )* )
  *
- * DATA := ( data IDENTIFIER? ( TYPE IDENTIFIER )+ )
+ * DATA := ( data IDENTIFIER? ( TYPE IDENTIFIER )* )
  *
- * UNION := ( union IDENTIFIER? ( TYPE IDENTIFIER )+ )
+ * UNION := ( union IDENTIFIER? ( TYPE IDENTIFIER )* )
  *
  * DICT := ( dict TYPE TYPE )
  *
@@ -270,6 +269,15 @@ enum LANG_LITERAL {
     LIT_BIN,
 };
 
+enum IR_TOP {
+    IR_FUNC,
+    IR_STRUCT,
+    IR_UNION,
+    IR_DATA,
+    IR_GLOBAL,
+    IR_IMPORT,
+};
+
 class lunar_ir_type {
 public:
     lunar_ir_type(LANG_BASIC_TYPE type, LANG_OWNERSHIP owner_ship) : m_type(type), m_owner_ship(owner_ship) { }
@@ -280,9 +288,66 @@ protected:
     LANG_OWNERSHIP  m_owner_ship;
 };
 
-class lunar_ir_import {
+class lunar_ir_top {
 public:
-    lunar_ir_import() { }
+    lunar_ir_top(IR_TOP type) : m_type(type) { }
+    virtual ~lunar_ir_top() { }
+
+private:
+    IR_TOP m_type;
+};
+
+class lunar_ir_def_struct : public lunar_ir_top {
+public:
+    lunar_ir_def_struct() : lunar_ir_top(IR_STRUCT) { }
+    virtual ~lunar_ir_def_struct() { }
+
+    void add_member(std::unique_ptr<lunar_ir_type> type, const std::string &name)
+    {
+        m_member_types.push_back(std::move(type));
+        m_member_names.push_back(name);
+    }
+
+private:
+    std::vector<std::unique_ptr<lunar_ir_type>> m_member_types;
+    std::vector<std::string> m_member_names;
+};
+
+class lunar_ir_def_union : public lunar_ir_top {
+public:
+    lunar_ir_def_union() : lunar_ir_top(IR_STRUCT) { }
+    virtual ~lunar_ir_def_union() { }
+
+    void add_member(std::unique_ptr<lunar_ir_type> type, const std::string &name)
+    {
+        m_member_types.push_back(std::move(type));
+        m_member_names.push_back(name);
+    }
+
+private:
+    std::vector<std::unique_ptr<lunar_ir_type>> m_member_types;
+    std::vector<std::string> m_member_names;
+};
+
+class lunar_ir_def_data : public lunar_ir_top {
+public:
+    lunar_ir_def_data() : lunar_ir_top(IR_STRUCT) { }
+    virtual ~lunar_ir_def_data() { }
+
+    void add_member(std::unique_ptr<lunar_ir_type> type, const std::string &name)
+    {
+        m_member_types.push_back(std::move(type));
+        m_member_names.push_back(name);
+    }
+
+private:
+    std::vector<std::unique_ptr<lunar_ir_type>> m_member_types;
+    std::vector<std::string> m_member_names;
+};
+
+class lunar_ir_import : public lunar_ir_top {
+public:
+    lunar_ir_import() : lunar_ir_top(IR_IMPORT) { }
     virtual ~lunar_ir_import() { }
 
     void add_module(std::string module)
@@ -292,20 +357,6 @@ public:
 
 private:
     std::vector<std::string> m_modules;
-};
-
-class lunar_ir_export {
-public:
-    lunar_ir_export() { }
-    virtual ~lunar_ir_export() { }
-
-    void add_module(std::string id)
-    {
-        m_ids.push_back(id);
-    }
-
-private:
-    std::vector<std::string> m_ids;
 };
 
 class lunar_ir_expr {
@@ -375,40 +426,26 @@ private:
 
 class lunar_ir_struct : public lunar_ir_type {
 public:
-    lunar_ir_struct(LANG_OWNERSHIP owner_ship, const std::string &name)
-        : lunar_ir_type(BT_STRUCT, owner_ship), m_name(name) { }
-    
+    lunar_ir_struct(LANG_OWNERSHIP owner_ship, const std::string &name,
+                    std::unique_ptr<lunar_ir_def_struct> def)
+        : lunar_ir_type(BT_STRUCT, owner_ship), m_name(name), m_def(std::move(def)) { }
     virtual ~lunar_ir_struct() { }
 
-    void add_member(std::unique_ptr<lunar_ir_type> type, const std::string &name)
-    {
-        m_member_types.push_back(std::move(type));
-        m_member_names.push_back(name);
-    }
-
 private:
-    std::vector<std::unique_ptr<lunar_ir_type>> m_member_types;
-    std::vector<std::string> m_member_names;
     std::string m_name;
+    std::unique_ptr<lunar_ir_def_struct> m_def;
 };
 
 class lunar_ir_union : public lunar_ir_type {
 public:
-    lunar_ir_union(LANG_OWNERSHIP owner_ship, const std::string &name)
-        : lunar_ir_type(BT_UNION, owner_ship), m_name(name) { }
-    
+    lunar_ir_union(LANG_OWNERSHIP owner_ship, const std::string &name,
+                   std::unique_ptr<lunar_ir_def_union> def)
+        : lunar_ir_type(BT_UNION, owner_ship), m_name(name), m_def(std::move(def)) { }
     virtual ~lunar_ir_union() { }
 
-    void add_member(std::unique_ptr<lunar_ir_type> type, const std::string &name)
-    {
-        m_member_types.push_back(std::move(type));
-        m_member_names.push_back(name);
-    }
-
 private:
-    std::vector<std::unique_ptr<lunar_ir_type>> m_member_types;
-    std::vector<std::string> m_member_names;
     std::string m_name;
+    std::unique_ptr<lunar_ir_def_union> m_def;
 };
 
 class lunar_ir_dict : public lunar_ir_type {
@@ -432,21 +469,14 @@ private:
 
 class lunar_ir_data : public lunar_ir_type {
 public:
-    lunar_ir_data(LANG_OWNERSHIP owner_ship, const std::string &name)
-        : lunar_ir_type(BT_DATA, owner_ship), m_name(name) { }
-    
+    lunar_ir_data(LANG_OWNERSHIP owner_ship, const std::string &name,
+                  std::unique_ptr<lunar_ir_def_data> def)
+        : lunar_ir_type(BT_DATA, owner_ship), m_name(name), m_def(std::move(def)) { }
     virtual ~lunar_ir_data() { }
 
-    void add_member(std::unique_ptr<lunar_ir_type> type, const std::string &name)
-    {
-        m_member_types.push_back(std::move(type));
-        m_member_names.push_back(name);
-    }
-
 private:
-    std::vector<std::unique_ptr<lunar_ir_type>> m_member_types;
-    std::vector<std::string> m_member_names;
     std::string m_name;
+    std::unique_ptr<lunar_ir_def_data> m_def;
 };
 
 class lunar_ir_functype : public lunar_ir_type {
@@ -538,9 +568,9 @@ private:
     std::string m_name;
 };
 
-class lunar_ir_func {
+class lunar_ir_func : public lunar_ir_top {
 public:
-    lunar_ir_func(const std::string &name) : m_name(name) { }
+    lunar_ir_func(const std::string &name) : lunar_ir_top(IR_FUNC), m_name(name) { }
     virtual ~lunar_ir_func() { }
     
     void add_ret(std::unique_ptr<lunar_ir_type> ret)
@@ -1388,12 +1418,7 @@ public:
 
 private:
     std::string m_file;
-    std::vector<std::unique_ptr<lunar_ir_func>>   m_funcs;
-    std::vector<std::unique_ptr<lunar_ir_struct>> m_structs;
-    std::vector<std::unique_ptr<lunar_ir_union>>  m_unions;
-    std::vector<std::unique_ptr<lunar_ir_data>>   m_data;
-    std::vector<std::unique_ptr<lunar_ir_import>> m_imports;
-    std::vector<std::unique_ptr<lunar_ir_export>> m_exports;
+    std::vector<std::unique_ptr<lunar_ir_top>> m_top_elms;
 };
 
 class lunar_ir {
@@ -1401,13 +1426,23 @@ public:
     lunar_ir();
     virtual ~lunar_ir();
 
-    void parse(std::u32string buf, std::string file);
+    void add_file(std::u32string buf, std::string file)
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+
+        m_files[file] = buf;
+        m_fileq.push_back(file);
+    }
+
+    void compile(std::string mainfile);
 
 private:
     void parse_module(lunar_ir_module *module, parsec<char32_t> *parsec);
 
-    std::unique_ptr<lunar_ir_module> m_module;
-    std::unordered_set<std::string>  m_read_modules;
+    std::unordered_map<std::string, std::unique_ptr<lunar_ir_module>> m_modules;
+    std::unordered_map<std::string, std::u32string> m_files;
+    std::deque<std::string> m_fileq;
+    std::mutex m_mutex;
 };
 
 }

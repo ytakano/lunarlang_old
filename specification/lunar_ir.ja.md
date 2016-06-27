@@ -5,7 +5,7 @@ Lunar言語の中間表現であり、ここからLLVM IRへ変換。
 # 構文
 
 - IR           := TOP*
-- TOP          := FUNC | STRUCT | UNION | DATA | GLOBAL | EXPORT | IMPORT
+- TOP          := FUNC | STRUCT | UNION | DATA | GLOBAL | IMPORT
 - STATEMENT    := LET | COND | WHILE | BREAK | SELECT | RETURN | SCHEDULE
 - STEXPR       := STATMENT | EXPR
 - LITERAL      := STR32 | STR8 | CHAR32 | CHAR8 | INT | FLOAT | HEX | OCT | BIN
@@ -16,10 +16,6 @@ Lunar言語の中間表現であり、ここからLLVM IRへ変換。
 # グローバル変数定義
 
 - GLOBAL := ( global ( ( TYPE (IDENTIFIER+) EXPRIDENTLIT )+ ) )
-
-# エクスポート
-
-- EXPORT := ( export IDENTIFIER+ )
 
 # インポート
 
@@ -122,10 +118,10 @@ Lunar IRにはオーナーという概念があり、変数を利用する際に
 ## 構造体
 
 構文：
-- STRUCT := ( struct IDENTIFIER? ( TYPE IDENTIFIER )+ )
+- STRUCT := ( struct IDENTIFIER? ( TYPE IDENTIFIER )* )
 
 セマンティクス：
-- ( struct 構造体の名前 ( 構造体メンバの型 構造体メンバの名前 )+ )
+- ( struct 構造体の名前 ( 構造体メンバの型 構造体メンバの名前 )* )
 
 例：
 ```lisp
@@ -164,10 +160,10 @@ Lunar IRにはオーナーという概念があり、変数を利用する際に
 ## 多相型
 
 構文：
-- DATA := ( data IDENTIFIER? ( TYPE IDENTIFIER )+ )
+- DATA := ( data IDENTIFIER? ( TYPE IDENTIFIER )* )
 
 セマンティクス：
-- ( data 多相型の名前 ( 多相型となる型 型の名前 )+ )
+- ( data 多相型の名前 ( 多相型となる型 型の名前 )* )
 
 ## 関数型
 
@@ -215,10 +211,10 @@ C関数と互換性を保つために利用され、それ以外での利用は�
 ## 共用体
 
 構文：
-- UNION := ( union IDENTIFIER? ( TYPE IDENTIFIER )+ )
+- UNION := ( union IDENTIFIER? ( TYPE IDENTIFIER )* )
 
 セマンティクス：
-- ( union 構造体の名前 ( 構造体メンバの型 構造体メンバの名前 )+ )
+- ( union 構造体の名前 ( 構造体メンバの型 構造体メンバの名前 )* )
 
 C関数と互換性を保つために利用され、それ以外での利用は非推奨である。
 
