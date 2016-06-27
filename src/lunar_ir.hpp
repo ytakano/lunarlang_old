@@ -3,6 +3,7 @@
 
 #include "lunar_common.hpp"
 #include "lunar_string.hpp"
+#include "lunar_parsec.hpp"
 
 #include <vector>
 #include <unordered_map>
@@ -1380,18 +1381,33 @@ private:
     double m_num;
 };
 
-class lunar_ir {
+class lunar_ir_module {
 public:
-    lunar_ir();
-    virtual ~lunar_ir();
+    lunar_ir_module(std::string file) : m_file(file) { }
+    virtual ~lunar_ir_module() { }
 
 private:
+    std::string m_file;
     std::vector<std::unique_ptr<lunar_ir_func>>   m_funcs;
     std::vector<std::unique_ptr<lunar_ir_struct>> m_structs;
     std::vector<std::unique_ptr<lunar_ir_union>>  m_unions;
     std::vector<std::unique_ptr<lunar_ir_data>>   m_data;
     std::vector<std::unique_ptr<lunar_ir_import>> m_imports;
     std::vector<std::unique_ptr<lunar_ir_export>> m_exports;
+};
+
+class lunar_ir {
+public:
+    lunar_ir();
+    virtual ~lunar_ir();
+
+    void parse(std::u32string buf, std::string file);
+
+private:
+    void parse_module(lunar_ir_module *module, parsec<char32_t> *parsec);
+
+    std::unique_ptr<lunar_ir_module> m_module;
+    std::unordered_set<std::string>  m_read_modules;
 };
 
 }
