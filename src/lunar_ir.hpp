@@ -19,6 +19,11 @@
  *
  * -----------------------------------------------------------------------------
  *
+ * EXPORT := ( export IDENTIFIER+ )
+ * IMPORT := ( import STR32+ )
+ *
+ * -----------------------------------------------------------------------------
+ *
  * TYPE  := TYPE0 | ( OWNERSHIP TYPE0 )
  * TYPE0 := SCALAR | VECTOR | STRING | BINARY | LIST | STRUCT | DICT | SET | DATA |
  *          FUNCTYPE | RSTREAM | WSTREAM | PTR | UNION | PARSEC | IDENTIFIER
@@ -277,6 +282,34 @@ public:
 protected:
     LANG_BASIC_TYPE m_type;
     LANG_OWNERSHIP  m_owner_ship;
+};
+
+class lunar_ir_import {
+public:
+    lunar_ir_import() { }
+    virtual ~lunar_ir_import() { }
+
+    void add_module(std::string module)
+    {
+        m_modules.push_back(module);
+    }
+
+private:
+    std::vector<std::string> m_modules;
+};
+
+class lunar_ir_export {
+public:
+    lunar_ir_export() { }
+    virtual ~lunar_ir_export() { }
+
+    void add_module(std::string id)
+    {
+        m_ids.push_back(id);
+    }
+
+private:
+    std::vector<std::string> m_ids;
 };
 
 class lunar_ir_expr {
