@@ -30,7 +30,7 @@ func2(void *arg)
     
     lunar::alltype t = { nullptr };
     auto fb = lunar::get_green_thread(1);
-    for (;;) lunar::push_threadq_fast_unsafe_green_thread(fb, &t);
+    for (;;) lunar::push_threadq_fast_unsafe_green_thread(fb, t);
 }
 
 void

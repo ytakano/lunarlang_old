@@ -169,9 +169,39 @@ extern "C" {
                       bool is_threadq, int64_t timeout);
 #endif // KQUEUE
 
-    STRM_RESULT push_threadq_green_thread(uint64_t id, alltype *p);
-    STRM_RESULT push_threadq_fast_unsafe_green_thread(void *fb, alltype *p);
+    STRM_RESULT push_threadq_green_thread(uint64_t id, alltype p);
+    STRM_RESULT push_threadq_green_thread_ptr(uint64_t id, void *ptr);
+    STRM_RESULT push_threadq_green_thread_u64(uint64_t id, uint64_t num);
+    STRM_RESULT push_threadq_green_thread_i64(uint64_t id, int64_t num);
+    STRM_RESULT push_threadq_green_thread_u32(uint64_t id, uint32_t num);
+    STRM_RESULT push_threadq_green_thread_i32(uint64_t id, int32_t num);
+    STRM_RESULT push_threadq_green_thread_u16(uint64_t id, uint16_t num);
+    STRM_RESULT push_threadq_green_thread_i16(uint64_t id, int16_t num);
+    STRM_RESULT push_threadq_green_thread_u8(uint64_t id, uint8_t num);
+    STRM_RESULT push_threadq_green_thread_i8(uint64_t id, int8_t num);
+    STRM_RESULT push_threadq_green_thread_bool(uint64_t id, bool val);
+    STRM_RESULT push_threadq_fast_unsafe_green_thread(void *fb, alltype p);
+    STRM_RESULT push_threadq_fast_unsafe_green_thread_ptr(void *fb, void *p);
+    STRM_RESULT push_threadq_fast_unsafe_green_thread_u64(void *fb, uint64_t num);
+    STRM_RESULT push_threadq_fast_unsafe_green_thread_i64(void *fb, int64_t num);
+    STRM_RESULT push_threadq_fast_unsafe_green_thread_u32(void *fb, uint32_t num);
+    STRM_RESULT push_threadq_fast_unsafe_green_thread_i32(void *fb, int32_t num);
+    STRM_RESULT push_threadq_fast_unsafe_green_thread_u16(void *fb, uint16_t num);
+    STRM_RESULT push_threadq_fast_unsafe_green_thread_i16(void *fb, int16_t num);
+    STRM_RESULT push_threadq_fast_unsafe_green_thread_u8(void *fb, uint8_t num);
+    STRM_RESULT push_threadq_fast_unsafe_green_thread_i8(void *fb, int8_t num);
+    STRM_RESULT push_threadq_fast_unsafe_green_thread_bool(void *fb, bool val);
     STRM_RESULT pop_threadq_green_thread(alltype *p);
+    STRM_RESULT pop_threadq_green_thread_ptr(void **ptr);
+    STRM_RESULT pop_threadq_green_thread_u64(uint64_t *ptr);
+    STRM_RESULT pop_threadq_green_thread_i64(int64_t *ptr);
+    STRM_RESULT pop_threadq_green_thread_u32(uint32_t *ptr);
+    STRM_RESULT pop_threadq_green_thread_i32(int32_t *ptr);
+    STRM_RESULT pop_threadq_green_thread_u16(uint16_t *ptr);
+    STRM_RESULT pop_threadq_green_thread_i16(int16_t *ptr);
+    STRM_RESULT pop_threadq_green_thread_u8(uint8_t *ptr);
+    STRM_RESULT pop_threadq_green_thread_i8(int8_t *ptr);
+    STRM_RESULT pop_threadq_green_thread_bool(bool *ptr);
     STRM_RESULT pop_ptr(void *p, void **ret);
     STRM_RESULT push_ptr(void *p, void *ret);
     void        push_eof(void *p);
@@ -205,7 +235,7 @@ public:
     void run();
     void inc_refcnt_threadq() { m_threadq.inc_refcnt(); }
     void dec_refcnt_threadq() { m_threadq.dec_refcnt(); }
-    STRM_RESULT push_threadq(alltype *p) { return m_threadq.push(p); }
+    STRM_RESULT push_threadq(alltype p) { return m_threadq.push(p); }
     STRM_RESULT pop_threadq(alltype *p) { return m_threadq.pop(p); }
 
 #ifdef KQUEUE
@@ -347,13 +377,13 @@ private:
         threadq(int qsize);
         virtual ~threadq();
         
-        inline STRM_RESULT push(alltype *p) {
+        inline STRM_RESULT push(alltype p) {
             if (m_qlen == m_max_qlen) 
                 return STRM_NO_VACANCY;
             
             spin_lock_acquire_unsafe lock(m_qlock);
         
-            *m_qtail = *p;
+            *m_qtail = p;
             m_qlen++;
             m_qtail++;
         
