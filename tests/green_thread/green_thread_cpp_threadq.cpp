@@ -12,7 +12,7 @@ func1(void *arg)
     while(n != 3); // barrier
 
     for (;;) {
-        void *data;
+        lunar::alltype data;
         if (lunar::pop_threadq_green_thread(&data) == lunar::STRM_NO_MORE_DATA) {
             lunar::select_green_thread(nullptr, 0, nullptr, 0, true, 0);
             continue;
@@ -28,8 +28,9 @@ func2(void *arg)
     __sync_fetch_and_add(&n, 1);
     while(n != 3); // barrier
     
+    lunar::alltype t = { nullptr };
     auto fb = lunar::get_green_thread(1);
-    for (;;) lunar::push_threadq_fast_unsafe_green_thread(fb, nullptr);
+    for (;;) lunar::push_threadq_fast_unsafe_green_thread(fb, &t);
 }
 
 void

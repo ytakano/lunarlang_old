@@ -173,7 +173,7 @@ select_green_thread(epoll_event *eev, int num_eev,
 #endif // KQUEUE
 
 STRM_RESULT
-push_threadq_green_thread(uint64_t id, void *p)
+push_threadq_green_thread(uint64_t id, alltype *p)
 {
     green_thread *fb;
 
@@ -195,13 +195,13 @@ push_threadq_green_thread(uint64_t id, void *p)
 }
 
 STRM_RESULT
-push_threadq_fast_unsafe_green_thread(void *fb, void *p)
+push_threadq_fast_unsafe_green_thread(void *fb, alltype *p)
 {
     return ((green_thread*)fb)->push_threadq(p);
 }
 
 STRM_RESULT
-pop_threadq_green_thread(void **p)
+pop_threadq_green_thread(alltype *p)
 {
     return lunar_gt->pop_threadq(p);
 }
@@ -1119,7 +1119,7 @@ green_thread::threadq::threadq(int qsize)
       m_is_qnotified(true),
       m_qwait_type(threadq::QWAIT_NONE),
       m_max_qlen(qsize),
-      m_q(new void*[qsize]),
+      m_q(new alltype[qsize]),
       m_qend(m_q + qsize),
       m_qhead(m_q),
       m_qtail(m_q)

@@ -169,9 +169,9 @@ extern "C" {
                       bool is_threadq, int64_t timeout);
 #endif // KQUEUE
 
-    STRM_RESULT push_threadq_green_thread(uint64_t id, void *p);
-    STRM_RESULT push_threadq_fast_unsafe_green_thread(void *fb, void *p);
-    STRM_RESULT pop_threadq_green_thread(void **p);
+    STRM_RESULT push_threadq_green_thread(uint64_t id, alltype *p);
+    STRM_RESULT push_threadq_fast_unsafe_green_thread(void *fb, alltype *p);
+    STRM_RESULT pop_threadq_green_thread(alltype *p);
     STRM_RESULT pop_ptr(void *p, void **ret);
     STRM_RESULT push_ptr(void *p, void *ret);
     void        push_eof(void *p);
@@ -205,8 +205,8 @@ public:
     void run();
     void inc_refcnt_threadq() { m_threadq.inc_refcnt(); }
     void dec_refcnt_threadq() { m_threadq.dec_refcnt(); }
-    STRM_RESULT push_threadq(void *p) { return m_threadq.push(p); }
-    STRM_RESULT pop_threadq(void **p) { return m_threadq.pop(p); }
+    STRM_RESULT push_threadq(alltype *p) { return m_threadq.push(p); }
+    STRM_RESULT pop_threadq(alltype *p) { return m_threadq.pop(p); }
 
 #ifdef KQUEUE
     void select_stream(struct kevent *kev, int num_kev,
@@ -347,13 +347,13 @@ private:
         threadq(int qsize);
         virtual ~threadq();
         
-        inline STRM_RESULT push(void *p) {
+        inline STRM_RESULT push(alltype *p) {
             if (m_qlen == m_max_qlen) 
                 return STRM_NO_VACANCY;
             
             spin_lock_acquire_unsafe lock(m_qlock);
         
-            *m_qtail = p;
+            *m_qtail = *p;
             m_qlen++;
             m_qtail++;
         
@@ -384,7 +384,7 @@ private:
             return STRM_SUCCESS;
         }
 
-        inline STRM_RESULT pop(void **p) {
+        inline STRM_RESULT pop(alltype *p) {
             int n = 0;
             while (m_qlen == 0) {
                 if (n++ > 1000)
@@ -442,10 +442,10 @@ private:
         volatile bool m_is_qnotified;
         volatile qwait_type m_qwait_type;
         int    m_max_qlen;
-        void **m_q;
-        void **m_qend;
-        void **m_qhead;
-        void **m_qtail;
+        alltype *m_q;
+        alltype *m_qend;
+        alltype *m_qhead;
+        alltype *m_qtail;
         int    m_qpipe[2];
         spin_lock  m_qlock;
         std::mutex m_qmutex;
