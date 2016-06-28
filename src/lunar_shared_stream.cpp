@@ -96,6 +96,15 @@ make_fd_stream(shared_stream *ronly, shared_stream *wonly, int fd,
 }
 
 void
+incref_stream(shared_stream *ptr)
+{
+    assert(ptr->flag & shared_stream::WRITE);
+
+    ptr->shared_data->refcnt++;
+    ptr->shared_data->wrefcnt++;
+}
+
+void
 deref_ptr_stream(shared_stream *ptr)
 {
     deref_stream<void*>(ptr);
