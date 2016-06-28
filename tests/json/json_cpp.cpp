@@ -597,6 +597,7 @@ parser_json(void *arg)
     }
     
     lunar::deref_ptr_stream(rs);
+    delete rs;
 }
 
 void
@@ -623,6 +624,7 @@ read_stdin(void *arg)
         lunar::push_eof(ws);
         
         lunar::deref_ptr_stream(ws);
+        delete ws;
     }
 }
 

@@ -1435,14 +1435,17 @@ public:
     }
 
     void compile(std::string mainfile);
+    void run(int idx);
 
 private:
-    void parse_module(lunar_ir_module *module, parsec<char32_t> *parsec);
+    void parse_module(std::unique_ptr<lunar_ir_module> module, parsec<char32_t> &ps);
 
     std::unordered_map<std::string, std::unique_ptr<lunar_ir_module>> m_modules;
     std::unordered_map<std::string, std::u32string> m_files;
     std::deque<std::string> m_fileq;
     std::mutex m_mutex;
+
+    friend void run_parse(void *ir);
 };
 
 }

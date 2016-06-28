@@ -3,14 +3,18 @@
 #include "lunar_green_thread.hpp"
 #include "lunar_shared_stream.hpp"
 
+#include "lunar_ir.hpp"
+
 int
 main(int argc, char *argv[])
 {
-    lunar::shared_stream rs, ws;
-    
-    lunar::make_ptr_stream(&rs, &ws);
-    
-    lunar::parsec<char> parsec(&rs);
+    lunar::lunar_ir ir;
+
+    ir.add_file(U"", "a.lunar.ir");
+    ir.add_file(U"", "b.lunar.ir");
+    ir.add_file(U"", "c.lunar.ir");
+
+    ir.compile("a.lunar.ir");
 
     return 0;
 }
