@@ -20,8 +20,9 @@
  * -----------------------------------------------------------------------------
  *
  * TYPE  := TYPE0 | ( OWNERSHIP TYPE0 )
- * TYPE0 := SCALAR | VECTOR | STRING | BINARY | LIST | STRUCT | DICT | SET | DATA |
- *          FUNCTYPE | RSTREAM | WSTREAM | PTR | UNION | PARSEC | IDENTIFIER
+ * TYPE0 := SCALAR | VECTOR | STRING | BINARY | LIST | STRUCT | DICT | SET | DATA | FUNCTYPE |
+ *          RSTREAM | WSTREAM | RFILESTREAM | WFILESTREAM | RSOCKSTREAM | WSOCKSTREAM |
+ *          RSIGSTREAM | RTHREADSTREAM | WTHREADSTREAM | PTR | UNION | PARSEC | IDENTIFIER
  *
  * OWNERSHIP := unique | shared | ref
  *
@@ -253,6 +254,13 @@ enum LANG_BASIC_TYPE {
     BT_FUNCTYPE,
     BT_RSTREAM,
     BT_WSTREAM,
+    BT_RSOCKSTREAM,
+    BT_WSOCKSTREAM,
+    BT_RFILESTREAM,
+    BT_WFILESTREAM,
+    BT_RTHREADSTREAM,
+    BT_WTHREADSTREAM,
+    BT_RSIGSTREAM,
     BT_PTR,
     BT_PARSEC,
 };
@@ -516,6 +524,58 @@ public:
         : lunar_ir_type(BT_WSTREAM, OWN_SHARED), m_type(std::move(type)) { }
 
     virtual ~lunar_ir_wstream() { }
+
+private:
+    std::unique_ptr<lunar_ir_type> m_type;
+};
+
+class lunar_ir_rsigstream : public lunar_ir_type {
+public:
+    lunar_ir_rsigstream() : lunar_ir_type(BT_RSIGSTREAM, OWN_UNIQUE) { }
+    virtual ~lunar_ir_rsigstream() { }
+};
+
+class lunar_ir_rsockstream : public lunar_ir_type {
+public:
+    lunar_ir_rsockstream() : lunar_ir_type(BT_RSOCKSTREAM, OWN_UNIQUE) { }
+    virtual ~lunar_ir_rsockstream() { }
+};
+
+class lunar_ir_wsockstream : public lunar_ir_type {
+public:
+    lunar_ir_wsockstream() : lunar_ir_type(BT_WSOCKSTREAM, OWN_SHARED) { }
+    virtual ~lunar_ir_wsockstream() { }
+};
+
+class lunar_ir_rfilestream : public lunar_ir_type {
+public:
+    lunar_ir_rfilestream() : lunar_ir_type(BT_RFILESTREAM, OWN_UNIQUE) { }
+    virtual ~lunar_ir_rfilestream() { }
+};
+
+class lunar_ir_wfilestream : public lunar_ir_type {
+public:
+    lunar_ir_wfilestream() : lunar_ir_type(BT_WFILESTREAM, OWN_SHARED) { }
+    virtual ~lunar_ir_wfilestream() { }
+};
+
+class lunar_ir_rthreadstream : public lunar_ir_type {
+public:
+    lunar_ir_rthreadstream(std::unique_ptr<lunar_ir_type> type)
+        : lunar_ir_type(BT_RTHREADSTREAM, OWN_UNIQUE), m_type(std::move(type)) { }
+
+    virtual ~lunar_ir_rthreadstream() { }
+
+private:
+    std::unique_ptr<lunar_ir_type> m_type;
+};
+
+class lunar_ir_wthreadstream : public lunar_ir_type {
+public:
+    lunar_ir_wthreadstream(std::unique_ptr<lunar_ir_type> type)
+        : lunar_ir_type(BT_WTHREADSTREAM, OWN_SHARED), m_type(std::move(type)) { }
+
+    virtual ~lunar_ir_wthreadstream() { }
 
 private:
     std::unique_ptr<lunar_ir_type> m_type;
@@ -966,11 +1026,14 @@ private:
 class lunar_ir_push : public lunar_ir_expr
 {
 public:
-    lunar_ir_push(std::unique_ptr<lunar_ir_expr> expr) : m_expr(std::move(expr)) { }
+    lunar_ir_push(std::unique_ptr<lunar_ir_expr> stream, std::unique_ptr<lunar_ir_expr> data)
+        : m_stream(std::move(stream)),
+          m_data(std::move(data)) { }
     virtual ~lunar_ir_push() { }
 
 private:
-    std::unique_ptr<lunar_ir_expr> m_expr;
+    std::unique_ptr<lunar_ir_expr> m_stream;
+    std::unique_ptr<lunar_ir_expr> m_data;
 };
 
 class lunar_ir_pop : public lunar_ir_expr

@@ -45,7 +45,7 @@ Lunar IRにはオーナーという概念があり、変数を利用する際に
 
 構文：
 - TYPE  := TYPE0 | ( OWNERSHIP TYPE0 )
-- TYPE0 := SCALAR | VECTOR | STRING | BINARY | LIST | STRUCT | DICT | SET | DATA | FUNCTYPE | RSTREAM | WSTREAM | PTR | UNION | PARSEC | IDENTIFIER
+- TYPE0 := SCALAR | VECTOR | STRING | BINARY | LIST | STRUCT | DICT | SET | DATA | FUNCTYPE | RSTREAM | WSTREAM | RFILESTREAM | WFILESTREAM | RSOCKSTREAM | WSOCKSTREAM | RSIGSTREAM | RTHREADSTREAM | WTHREADSTREAM | PTR | UNION | PARSEC | IDENTIFIER
 
 ここで、IDENTIFIERとは空白文字以外からなる、1文字以上の文字かつ、先頭が数字ではない文字列かつ、
 予約文字（列）以外の文字列である。
@@ -175,9 +175,11 @@ Lunar IRにはオーナーという概念があり、変数を利用する際に
 
 関数には所有権という概念はない。
 
-## ストリーム
+### ストリーム型
 
-ストリームは読み込み用の端点と、書き込み用の端点から構成される。
+### データストリーム型
+
+データストリームは読み込み用の端点と、書き込み用の端点から構成される。
 
 構文：
 - RSTREAM := ( rstrm TYPE )
@@ -187,10 +189,29 @@ Lunar IRにはオーナーという概念があり、変数を利用する際に
 - ( rstrm ストリームに渡すデータの型 )
 - ( wstrm ストリームに渡すデータの型 )
 
-ストリームには以下の制約がある。
+データストリームには以下の制約がある。
 - 読み込み用の端点は所有権がuniqueであり、書き込み用の端点は所有権がsharedでなければならない。
-- ストリームが扱える値は、sharedもしくはunique変数か、プリミティブスカラ変数のみである。
-- ストリームに送信する構造体内にある変数は、shared、unique、immovable変数のみである。ref変数を内部に持っている構造体は、ストリームで送信することは出来ない。
+- データストリームが扱える値は、sharedもしくはunique変数か、プリミティブスカラ変数のみである。
+- データストリームに送信する構造体内にある変数は、shared、unique、immovable変数のみである。ref変数を内部に持っている構造体は、ストリームで送信することは出来ない。
+
+### ファイルストリーム型
+
+- RFILESTREAM := ( rfilestrm )
+- WFILESTREAM := ( wfilestrm )
+
+### ソケットストリーム型
+
+- RSOCKSTREAM := ( rsockstrm )
+- WSOCKSTREAM := ( wsockstrm )
+
+### シグナルストリーム型
+
+- RSIGSTREAM := ( rsigstrm )
+
+### スレッドデータストリーム型
+
+- RTHREADTREAM := ( rthreadstrm TYPE )
+- WTHREADTREAM := ( wthreadstrm TYPE )
 
 ## ポインタ型
 
@@ -401,7 +422,10 @@ type 式は真偽値を返す式であり、多相型変数の型を動的に検
 ### push式
 
 構文：
-- PUSH := ( push! EXPRIDENTLIT )
+- PUSH := ( push! EXPRIDENTLIT EXPRIDENTLIT )
+
+セマンティクス：
+- ( push! ストリーム型 挿入するデータ )
 
 ストリームの最後尾にデータを挿入する。
 STRM_SUCCESS, STRM_CLOSED, STRM_NO_VACANCYのいずれかの値を返す。
