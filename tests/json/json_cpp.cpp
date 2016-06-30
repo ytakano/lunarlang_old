@@ -1,11 +1,14 @@
 #include <lunar_parsec.hpp>
 
+#include <fstream>
 #include <iostream>
 #include <limits>
 
 #include <stdlib.h>
 
 typedef std::numeric_limits< double > dbl;
+
+std::vector<std::string*> lines;
 
 class json_val {
 public:
@@ -425,8 +428,6 @@ parse_number(lunar::parsec<char> &ps)
     }
     ps.set_is_success(true);
     
-    std::cout << "s = " << s << std::endl;
-    
     return llvm::make_unique<json_double>(strtod(s.c_str(), nullptr));
 }
 
@@ -581,6 +582,8 @@ parse_value(lunar::parsec<char> &ps)
     return nullptr;
 }
 
+int cnt = 0;
+
 void
 parser_json(void *arg)
 {
@@ -591,10 +594,12 @@ parser_json(void *arg)
     auto val = parse_value(ps);
     if (ps.is_success()) {
         std::cout.precision(dbl::max_digits10);
-        std::cout << "input = " << *val << "\n> " << std::flush;
+//        std::cout << "input = " << *val << "\n> " << std::flush;
     } else {
-        std::cout << "failed to parse\n> " << std::flush;
+        std::cout << "failed to parse\n" << *lines[cnt] << std::flush;
     }
+
+    cnt++;
     
     lunar::deref_ptr_stream(rs);
     delete rs;
@@ -603,25 +608,16 @@ parser_json(void *arg)
 void
 read_stdin(void *arg)
 {
-    struct kevent kev;
-    EV_SET(&kev, STDIN_FILENO, EVFILT_READ, EV_ADD | EV_ENABLE, 0, 0, 0);
+    for (auto str: lines) {
+        auto rs = new lunar::shared_stream;
+        auto ws = new lunar::shared_stream;
 
-    std::cout << "> " << std::flush;
-    for (;;) {
-        lunar::select_green_thread(&kev, 1, nullptr, 0, false, 0);
-        auto str = new std::string;
-        auto rs  = new lunar::shared_stream;
-        auto ws  = new lunar::shared_stream;
+        lunar::make_ptr_stream(rs, ws, 1);
 
-        lunar::make_ptr_stream(rs, ws, 32);
-
-        std::getline(std::cin, *str);
-        std::cout << *str << std::endl;
-        
-        lunar::spawn_green_thread(parser_json, rs);
-        
         lunar::push_ptr(ws, str);
         lunar::push_eof(ws);
+        
+        parser_json(rs);
         
         lunar::deref_ptr_stream(ws);
         delete ws;
@@ -631,6 +627,24 @@ read_stdin(void *arg)
 int
 main(int argc, char **argv)
 {
+    if (argc < 2) {
+        std::cout << "usage: " << argv[0] << "file.json" << std::endl;
+        return 0;
+    }
+
+    std::ifstream infile(argv[1]);
+    for (;;) {
+        std::string* line = new std::string;
+        if (! std::getline(infile, *line)) {
+            delete line;
+            break;
+        }
+
+        lines.push_back(line);
+    }
+
+    std::cout << lines.size() << std::endl;
+
     lunar::init_green_thread(0);
     
     lunar::spawn_green_thread(read_stdin, nullptr);
