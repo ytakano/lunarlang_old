@@ -33,7 +33,7 @@ public:
         bool operator() (T c)
         {
             auto it = m_spaces.find(c);
-            if (c != m_spaces.end())
+            if (it != m_spaces.end())
                 return true;
             
             return false;
@@ -99,6 +99,7 @@ public:
                         select_green_thread(nullptr, 0, (void**)&m_parsec.m_shared_stream, 1, false, 0);
                     }
                 } else {
+                    m_parsec.m_is_eof = true;
                     m_parsec.m_is_result = false;
                     m_parsec.set_err(result, m_parsec.m_line, m_parsec.m_col);
 
@@ -145,6 +146,7 @@ public:
             m_num    = m_parsec.m_num;
             m_pos    = m_parsec.m_bytes.get_tmp_pos();
             m_is_try = m_parsec.m_is_try;
+            m_is_eof = m_parsec.m_is_eof;
             
             m_parsec.m_is_try = true;
         }
@@ -163,6 +165,7 @@ public:
                 m_parsec.m_line   = m_line;
                 m_parsec.m_num    = m_num;
                 m_parsec.m_is_try = m_is_try;
+                m_parsec.m_is_eof = m_is_eof;
                 m_parsec.m_bytes.restore_tmp_pos(m_pos);
             }
         }
@@ -172,6 +175,7 @@ public:
         uint64_t  m_col, m_line, m_num;
         point2u64 m_pos;
         bool      m_is_try;
+        bool      m_is_eof;
     };
     
     class parser_look_ahead {
@@ -182,6 +186,7 @@ public:
             m_num  = m_parsec.m_num;
             m_pos  = m_parsec.m_bytes.get_tmp_pos();
             m_is_look_ahead = m_parsec.m_is_look_ahead;
+            m_is_eof = m_parsec.m_is_eof;
             
             m_parsec.m_is_look_ahead = true;
         }
@@ -191,6 +196,7 @@ public:
             m_parsec.m_line = m_line;
             m_parsec.m_num  = m_num;
             m_parsec.m_is_look_ahead = m_is_look_ahead;
+            m_parsec.m_is_eof = m_is_eof;
             m_parsec.m_bytes.restore_tmp_pos(m_pos);
          }
     
@@ -199,6 +205,7 @@ public:
         uint64_t  m_col, m_line, m_num;
         point2u64 m_pos;
         bool      m_is_look_ahead;
+        bool      m_is_eof;
     };
     
     class parser_string {
@@ -298,6 +305,7 @@ public:
     parsec(shared_stream *s)
         : m_shared_stream(s),
           m_is_result(true),
+          m_is_eof(false),
           m_col(1),
           m_line(1),
           m_num(0),
@@ -400,8 +408,9 @@ public:
     parser_many1<T> parse_many1_char(std::function<T()> func) {
         return parser_many1<T>(*this, func);
     }
-    
+
     bool is_success() { return m_is_result; }
+    bool is_eof() { return m_is_eof; }
     void set_is_success(bool val) { m_is_result = val; }
 
 private:
@@ -410,6 +419,7 @@ private:
     bytes_t  m_bytes;
     message  m_err;
     bool     m_is_result;
+    bool     m_is_eof;
     uint64_t m_col;
     uint64_t m_line;
     uint64_t m_num;

@@ -1,12 +1,13 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 import           Control.Applicative
-import           Control.Monad
+import qualified Control.Monad          as M
 import           Control.Monad.Identity (Identity)
 import qualified Data.Attoparsec.Text   as Atto
 import qualified Data.Char              as C
 import qualified Data.Text              as T
-import           System.IO              as IO
+import           Data.Time
+import qualified System.Environment     as E
 
 data JSON_VAL = JSON_Bool   Bool       |
                 JSON_Double Double     |
@@ -140,9 +141,15 @@ parse_4hexdig =
 print_result (Atto.Partial p) = print_result $ p ""
 print_result x = print x
 
+run_parser linesOfFiles = [Atto.parse parse_value $ T.pack x | x <- linesOfFiles]
+
 main :: IO ()
-main = forever $ do
-  putStr "> "
-  hFlush stdout
-  a <- getLine
-  print_result $ Atto.parse parse_value $ T.pack a
+main = do
+  args <- E.getArgs
+  content <- readFile (args !! 0)
+  let linesOfFiles = lines content
+  putStrLn $ show (length linesOfFiles)
+  start <- getCurrentTime
+  putStrLn $ show (length $ run_parser linesOfFiles)
+  stop <- getCurrentTime
+  putStrLn $ show (diffUTCTime stop start)

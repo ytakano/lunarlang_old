@@ -33,6 +33,29 @@ lunar_ir::compile(std::string mainfile)
 }
 
 void
+lunar_ir::parse_top(lunar_ir_module *module, parsec<char32_t> &ps)
+{
+    for (;;) {
+        ps.parse_many_char(ps.parse_space())();
+        ps.character(U'(')();
+        if (! ps.is_success()) {
+            return;
+        }
+
+        ps.parse_many_char(ps.parse_space())();
+        ps.character(U')')();
+        if (! ps.is_success()) {
+            return;
+        }
+
+        ps.parse_many_char(ps.parse_space())();
+
+        if (ps.is_eof())
+            return;
+    }
+}
+
+void
 lunar_ir::parse_module(std::unique_ptr<lunar_ir_module> module, parsec<char32_t> &ps)
 {
 
