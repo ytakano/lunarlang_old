@@ -163,5 +163,5 @@ main = do
   stop  <- getCurrentTime
   cput0 <- getCPUTime
   cput1 <- getCPUTime
-  print $ show (linesOfFiles `deepseq` start `deepseq` cput0 `deepseq` objs `deepseq` cput1 `deepseq` stop `deepseq` (diffUTCTime stop start))
-  print $ show (cput1 - cput0)
+  print $ (linesOfFiles `deepseq` start `deepseq` cput0 `deepseq` objs `deepseq` cput1 `deepseq` stop `deepseq` (diffUTCTime stop start))
+  print $ (cput1 - cput0)

@@ -6,6 +6,8 @@
 
 #include <stdlib.h>
 
+#include <sys/time.h>
+
 typedef std::numeric_limits< double > dbl;
 
 std::vector<std::string*> lines;
@@ -602,7 +604,7 @@ parser_json(void *arg)
     if (ps.is_success()) {
 //        std::cout.precision(dbl::max_digits10);
 //        std::cout << "input = " << *val << "\n> " << std::flush;
-        std::cout << *val << std::endl;
+//        std::cout << *val << std::endl;
     } else {
         auto msg = ps.get_errmsg();
         std::cout << "failed: column = " << msg.col << "\n" << *lines[cnt] << std::endl;
@@ -617,6 +619,11 @@ parser_json(void *arg)
 void
 read_stdin(void *arg)
 {
+    timeval t0, t1;
+    
+    gettimeofday(&t0, NULL);
+    auto cl0 = clock();
+
     for (auto str: lines) {
         auto rs = new lunar::shared_stream;
         auto ws = new lunar::shared_stream;
@@ -631,6 +638,13 @@ read_stdin(void *arg)
         lunar::deref_ptr_stream(ws);
         delete ws;
     }
+
+    auto cl1 = clock();
+    gettimeofday(&t1, NULL);
+
+    double diff = (t1.tv_sec + t1.tv_usec * 1e-6) - (t0.tv_sec + t0.tv_usec * 1e-6);
+    
+    std::cout << diff << "\n" << (cl1 - cl0) / CLOCKS_PER_SEC << std::endl;
 }
 
 int
