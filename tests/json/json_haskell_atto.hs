@@ -164,4 +164,4 @@ main = do
   cput0 <- getCPUTime
   cput1 <- getCPUTime
   print $ (linesOfFiles `deepseq` start `deepseq` cput0 `deepseq` objs `deepseq` cput1 `deepseq` stop `deepseq` (diffUTCTime stop start))
-  print $ (cput1 - cput0)
+  print $ (fromIntegral (cput1 - cput0)) * 0.000000000001
