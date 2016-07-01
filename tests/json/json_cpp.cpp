@@ -238,7 +238,7 @@ parse_object(lunar::parsec<char> &ps)
     parse_separator(ps, '{');
     if (! ps.is_success())
         return nullptr;
-
+    
     {
         lunar::parsec<char>::parser_try ptry(ps);
         parse_members(ps, ret.get());
@@ -297,7 +297,7 @@ parse_array(lunar::parsec<char> &ps)
     if (! ps.is_success()) {
         return nullptr;
     }
-    
+   
     {
         lunar::parsec<char>::parser_try ptry(ps);
         parse_values(ps, ret.get());
@@ -454,6 +454,14 @@ parse_string(lunar::parsec<char> &ps)
         return ret;
     
     for (;;) {
+        {
+            lunar::parsec<char>::parser_try ptry(ps);
+            ps.character('"')();
+            if (ps.is_success()) {
+                break;
+            }
+        }
+
         char c;
         {
             lunar::parsec<char>::parser_try ptry(ps);
@@ -464,20 +472,18 @@ parse_string(lunar::parsec<char> &ps)
             ret->m_str += c;
         else {
             ps.set_is_success(true);
-        
+
+            ps.character('\\')();
+            if (! ps.is_success())
+                return ret;
+
             {
-                lunar::parsec<char>::parser_try ptry(ps);
-                ps.character('\\')();
-                if (! ps.is_success()) {
-                    ps.set_is_success(true);
-                    break;
-                }
-                
                 auto func = [](char rhs) -> bool {
                     return rhs == '"' || rhs == '\\' || rhs == '/' || rhs == 'b' ||
                            rhs == 'f' || rhs == 'n'  || rhs == 'r' || rhs == 't';
                 };
-                
+
+                lunar::parsec<char>::parser_try ptry(ps);
                 c = ps.satisfy(func)();
             }
 
@@ -492,40 +498,41 @@ parse_string(lunar::parsec<char> &ps)
                 };
                 ret->m_str += conv(c);
             } else {
-                ps.character('u')();
-                if (! ps.is_success())
+                auto cc = ps.character('u')();
+                if (! ps.is_success()) {
                     return ret;
+                }
                 
                 auto is_hexdig = [](char x) -> bool {
                     return ('0' <= x && x <= '9') || ('a' <= x && x <= 'f') || ('A' <= x && x <= 'F');
                 };
                 
                 auto c1 = ps.satisfy(is_hexdig)();
-                if (! ps.is_success())
+                if (! ps.is_success()) {
                     return ret;
+                }
 
                 auto c2 = ps.satisfy(is_hexdig)();
-                if (! ps.is_success())
+                if (! ps.is_success()) {
                     return ret;
+                }
                 
                 ret->m_str += c1 * 16 + c2;
 
                 auto c3 = ps.satisfy(is_hexdig)();
-                if (! ps.is_success())
+                if (! ps.is_success()) {
                     return ret;
+                }
                 
                 auto c4 = ps.satisfy(is_hexdig)();
-                if (! ps.is_success())
+                if (! ps.is_success()) {
                     return ret;
+                }
                 
                 ret->m_str += c3 * 16 + c4;
             }
         }
     }
-    
-    ps.character('"')();
-    if (! ps.is_success())
-        return ret;
 
     return ret;
 }
@@ -593,10 +600,12 @@ parser_json(void *arg)
     
     auto val = parse_value(ps);
     if (ps.is_success()) {
-        std::cout.precision(dbl::max_digits10);
+//        std::cout.precision(dbl::max_digits10);
 //        std::cout << "input = " << *val << "\n> " << std::flush;
+        std::cout << *val << std::endl;
     } else {
-        std::cout << "failed to parse\n" << *lines[cnt] << std::flush;
+        auto msg = ps.get_errmsg();
+        std::cout << "failed: column = " << msg.col << "\n" << *lines[cnt] << std::endl;
     }
 
     cnt++;
@@ -643,7 +652,7 @@ main(int argc, char **argv)
         lines.push_back(line);
     }
 
-    std::cout << lines.size() << std::endl;
+//    std::cout << lines.size() << std::endl;
 
     lunar::init_green_thread(0);
     

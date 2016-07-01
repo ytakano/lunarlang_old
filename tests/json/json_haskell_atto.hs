@@ -1,13 +1,15 @@
+{-# LANGUAGE DeriveGeneric     #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 import           Control.Applicative
-import qualified Control.Monad          as M
-import           Control.Monad.Identity (Identity)
-import qualified Data.Attoparsec.Text   as Atto
-import qualified Data.Char              as C
-import qualified Data.Text              as T
+import           Control.DeepSeq
+import qualified Control.Monad        as M
+import qualified Data.Attoparsec.Text as Atto
+import qualified Data.Char            as C
+import qualified Data.Text            as T
 import           Data.Time
-import qualified System.Environment     as E
+import           System.CPUTime
+import qualified System.Environment   as E
 
 data JSON_VAL = JSON_Bool   Bool       |
                 JSON_Double Double     |
@@ -15,6 +17,14 @@ data JSON_VAL = JSON_Bool   Bool       |
                 JSON_String String     |
                 JSON_Array  [JSON_VAL] |
                 JSON_Object [(String, JSON_VAL)] deriving (Show)
+
+instance NFData JSON_VAL where
+  rnf (JSON_Bool a) = rnf a
+  rnf (JSON_Double a) = rnf a
+  rnf (JSON_Null a) = rnf a
+  rnf (JSON_String a) = rnf a
+  rnf (JSON_Array a) = rnf a
+  rnf (JSON_Object a) = rnf a
 
 parse_separator x = parse_ws >> Atto.char x >> parse_ws >> return ()
 
@@ -139,17 +149,19 @@ parse_4hexdig =
                     | otherwise            = False
 
 print_result (Atto.Partial p) = print_result $ p ""
-print_result x = print x
+print_result x = x
 
-run_parser linesOfFiles = [Atto.parse parse_value $ T.pack x | x <- linesOfFiles]
+run_parser linesOfFiles = [print_result y | x <- linesOfFiles, let y = Atto.parse parse_value $ T.pack x]
 
 main :: IO ()
 main = do
   args <- E.getArgs
   content <- readFile (args !! 0)
   let linesOfFiles = lines content
-  putStrLn $ show (length linesOfFiles)
+  let objs = run_parser linesOfFiles
   start <- getCurrentTime
-  putStrLn $ show (length $ run_parser linesOfFiles)
-  stop <- getCurrentTime
-  putStrLn $ show (diffUTCTime stop start)
+  stop  <- getCurrentTime
+  cput0 <- getCPUTime
+  cput1 <- getCPUTime
+  print $ show (linesOfFiles `deepseq` start `deepseq` cput0 `deepseq` objs `deepseq` cput1 `deepseq` stop `deepseq` (diffUTCTime stop start))
+  print $ show (cput1 - cput0)

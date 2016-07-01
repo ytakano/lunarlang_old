@@ -412,6 +412,7 @@ public:
     bool is_success() { return m_is_result; }
     bool is_eof() { return m_is_eof; }
     void set_is_success(bool val) { m_is_result = val; }
+    message get_errmsg() { return m_err; }
 
 private:
     shared_stream *m_shared_stream;
