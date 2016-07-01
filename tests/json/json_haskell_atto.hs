@@ -3,6 +3,7 @@
 
 import           Control.Applicative
 import           Control.DeepSeq
+import           Control.Exception    (evaluate)
 import qualified Control.Monad        as M
 import qualified Data.Attoparsec.Text as Atto
 import qualified Data.Char            as C
@@ -153,15 +154,33 @@ print_result x = x
 
 run_parser linesOfFiles = [print_result y | x <- linesOfFiles, let y = Atto.parse parse_value $ T.pack x]
 
+benchmarkForce :: NFData a => String -> IO a -> IO a
+benchmarkForce msg action = do
+  before <- getCurrentTime
+
+  -- Force the first time to measure computation + forcing
+  result <- evaluate . force =<< action
+
+  after <- getCurrentTime
+
+  -- Force again to see how long forcing itself takes
+  _ <- evaluate . force $ result
+
+  afterAgain <- getCurrentTime
+  putStrLn $ msg ++ ": " ++ show (diffTimeMs before after) ++ " ms"
+                 ++ " (force time: " ++ show (diffTimeMs after afterAgain) ++ " ms)"
+  return result
+
+  where
+    -- Time difference `t2 - t1` in milliseconds
+    diffTimeMs t1 t2 = realToFrac (t2 `diffUTCTime` t1) * 1000.0 :: Double
+
 main :: IO ()
 main = do
   args <- E.getArgs
   content <- readFile (args !! 0)
   let linesOfFiles = lines content
   let objs = run_parser linesOfFiles
-  start <- getCurrentTime
-  stop  <- getCurrentTime
-  cput0 <- getCPUTime
-  cput1 <- getCPUTime
-  print $ (linesOfFiles `deepseq` start `deepseq` cput0 `deepseq` objs `deepseq` cput1 `deepseq` stop `deepseq` (diffUTCTime stop start))
-  print $ (fromIntegral (cput1 - cput0)) * 0.000000000001
+  benchmarkForce "split" $ return linesOfFiles
+  benchmarkForce "parse" $ return objs
+  return ()
