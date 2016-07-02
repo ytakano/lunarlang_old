@@ -16,7 +16,7 @@ lunar_ir::~lunar_ir()
 }
 
 void
-lunar_ir::compile(std::string mainfile)
+lunar_ir::compile(const std::string &mainfile)
 {
     int num = std::thread::hardware_concurrency();
     std::thread **th = new std::thread*[num];
@@ -33,17 +33,42 @@ lunar_ir::compile(std::string mainfile)
 }
 
 void
-lunar_ir::print_parse_err(std::string str, lunar_ir_module *module, parsec<char32_t> &ps)
+lunar_ir::print_parse_err(const std::string &str, lunar_ir_module *module, parsec<char32_t> &ps)
 {
     auto msg = ps.get_errmsg();
-    fprintf(stderr, "%s:%d:%d: error: %s\n", module->get_filename().c_str(), msg.line, msg.col, str.c_str());
+    fprintf(stderr, "%s:%d:%d: error: %s\n%s\n\n", module->get_filename().c_str(), msg.line, msg.col,
+            str.c_str(), get_line(module->get_filename(), msg.line).c_str());
+}
+
+const std::string&
+lunar_ir::get_line(const std::string &file, uint64_t num)
+{
+    std::vector<std::string> *lines;
+    auto it = m_lines.find(file);
+    if (it == m_lines.end()) {
+        auto vec = llvm::make_unique<std::vector<std::string>>();
+        lines = vec.get();
+        m_lines[file] = std::move(vec);
+
+        // split with '\n'
+        std::stringstream ss(to_string(m_files[file]));
+        std::string item;
+        while (getline(ss, item, '\n')) {
+            lines->push_back(item);
+        }
+    } else {
+        lines = it->second.get();
+    }
+
+    return (*lines)[num - 1];
 }
 
 std::unique_ptr<lunar_ir_def_struct>
 lunar_ir::parse_struct(parsec<char32_t> &ps)
 {
+    auto def = llvm::make_unique<lunar_ir_def_struct>();
 
-    return nullptr;
+    return def;
 }
 
 void
@@ -52,12 +77,18 @@ lunar_ir::parse_top(lunar_ir_module *module, parsec<char32_t> &ps)
     for (;;) {
         ps.parse_many_char(ps.parse_space())();
 
+        uint64_t line, col;
+
+        line = ps.get_line();
+        col  = ps.get_col();
+
         ps.character(U'(')();
         if (! ps.is_success()) {
-            if (ps.is_eof())
+            if (ps.is_eof()) {
                 ps.set_is_success(true);
-            else
+            } else {
                 print_parse_err("expected \"(\"", module, ps);
+            }
 
             return;
         }
@@ -72,8 +103,11 @@ lunar_ir::parse_top(lunar_ir_module *module, parsec<char32_t> &ps)
 
         if (ps.is_success()) {
             auto def = parse_struct(ps);
-            if (ps.is_success())
+            if (ps.is_success()) {
+                def->set_col(col);
+                def->set_line(line);
                 goto success;
+            }
         }
 
 success:
@@ -111,7 +145,7 @@ run_parse(void *ptr)
 
         printf("parse %s\n", file.c_str());
 
-        auto str = new std::u32string;
+        auto str = &ir->m_files[file];
         lunar::shared_stream rs;
         lunar::shared_stream ws;
 
@@ -120,9 +154,8 @@ run_parse(void *ptr)
         push_ptr(&ws, str);
         push_eof(&ws);
 
-        *str = ir->m_files[file];
-
         parsec<char32_t> ps(&rs);
+        ps.set_nodel();
         auto module = llvm::make_unique<lunar_ir_module>(file);
 
         ir->parse_module(std::move(module), ps);

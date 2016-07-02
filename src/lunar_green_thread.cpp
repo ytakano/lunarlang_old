@@ -455,15 +455,15 @@ pop_threadq_green_thread_bool(bool *ptr)
 }
 
 STRM_RESULT
-pop_ptr(void *p, void **ret)
+pop_ptr(void *p, void **data)
 {
-    return lunar_gt->pop_stream<void*>((shared_stream*)p, *ret);
+    return lunar_gt->pop_stream<void*>((shared_stream*)p, *data);
 }
 
 STRM_RESULT
-push_ptr(void *p, void *ret)
+push_ptr(void *p, void *data)
 {
-    return lunar_gt->push_stream<void*>((shared_stream*)p, ret);
+    return lunar_gt->push_stream<void*>((shared_stream*)p, data);
 }
 
 void

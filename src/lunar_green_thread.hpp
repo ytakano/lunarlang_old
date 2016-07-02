@@ -202,8 +202,8 @@ extern "C" {
     STRM_RESULT pop_threadq_green_thread_u8(uint8_t *ptr);
     STRM_RESULT pop_threadq_green_thread_i8(int8_t *ptr);
     STRM_RESULT pop_threadq_green_thread_bool(bool *ptr);
-    STRM_RESULT pop_ptr(void *p, void **ret);
-    STRM_RESULT push_ptr(void *p, void *ret);
+    STRM_RESULT pop_ptr(void *p, void **data);
+    STRM_RESULT push_ptr(void *p, void *data);
     void        push_eof(void *p);
     
     struct fdevent_green_thread {

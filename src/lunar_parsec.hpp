@@ -413,6 +413,13 @@ public:
     bool is_eof() { return m_is_eof; }
     void set_is_success(bool val) { m_is_result = val; }
     message get_errmsg() { return m_err; }
+    uint64_t get_line() { return m_line; }
+    uint64_t get_col() { return m_col; }
+
+    void set_nodel()
+    {
+        m_bytes.set_del_func([](string_t *ptr) { });
+    }
 
 private:
     shared_stream *m_shared_stream;

@@ -19,7 +19,11 @@ public:
         for (auto &data: m_deque) {
             data.remove();
         }
+
+        m_del_func = [](string_t *ptr) { delete ptr; };
     }
+
+    void set_del_func(std::function<void(string_t*)> func) { m_del_func = func; }
     
     STRM_RESULT front(T &c)
     {
@@ -80,7 +84,7 @@ public:
     
     void push_back(string_t *data)
     {
-        m_deque.push_back(data_t(data));
+        m_deque.push_back(data_t(*this, data));
     }
     
     void push_eof() { m_is_eof = true; }
@@ -88,7 +92,7 @@ public:
 private:
     class data_t {
     public:
-        data_t(string_t *data) : m_data(data), m_pos(0) { }
+        data_t(bytestream &bs, string_t *data) : m_bs(bs), m_data(data), m_pos(0) { }
         ~data_t() { }
         
         STRM_RESULT front(T &c, size_t offset)
@@ -115,10 +119,11 @@ private:
         
         void remove()
         {
-            delete m_data;
+            m_bs.m_del_func(m_data);
         }
 
     private:
+        bytestream &m_bs;
         string_t *m_data;
         size_t    m_pos;
     };
@@ -126,6 +131,7 @@ private:
     std::deque<data_t> m_deque;
     point2u64 m_tmp_pos;
     bool      m_is_eof;
+    std::function<void(string_t*)> m_del_func;
 };
 
 };
