@@ -33,32 +33,63 @@ lunar_ir::compile(std::string mainfile)
 }
 
 void
+lunar_ir::print_parse_err(std::string str, lunar_ir_module *module, parsec<char32_t> &ps)
+{
+    auto msg = ps.get_errmsg();
+    fprintf(stderr, "%s:%d:%d: error: %s\n", module->get_filename().c_str(), msg.line, msg.col, str.c_str());
+}
+
+std::unique_ptr<lunar_ir_def_struct>
+lunar_ir::parse_struct(parsec<char32_t> &ps)
+{
+
+    return nullptr;
+}
+
+void
 lunar_ir::parse_top(lunar_ir_module *module, parsec<char32_t> &ps)
 {
     for (;;) {
         ps.parse_many_char(ps.parse_space())();
+
         ps.character(U'(')();
         if (! ps.is_success()) {
+            if (ps.is_eof())
+                ps.set_is_success(true);
+            else
+                print_parse_err("expected \"(\"", module, ps);
+
             return;
         }
 
+        ps.parse_many_char(ps.parse_space())();
+
+        // parse struct
+        {
+            lunar::parsec<char32_t>::parser_try ptry(ps);
+            ps.parse_string(U"struct")();
+        }
+
+        if (ps.is_success()) {
+            auto def = parse_struct(ps);
+            if (ps.is_success())
+                goto success;
+        }
+
+success:
         ps.parse_many_char(ps.parse_space())();
         ps.character(U')')();
         if (! ps.is_success()) {
+            print_parse_err("expected \")\"", module, ps);
             return;
         }
-
-        ps.parse_many_char(ps.parse_space())();
-
-        if (ps.is_eof())
-            return;
     }
 }
 
 void
 lunar_ir::parse_module(std::unique_ptr<lunar_ir_module> module, parsec<char32_t> &ps)
 {
-
+    parse_top(module.get(), ps);
 }
 
 void
@@ -96,7 +127,6 @@ run_parse(void *ptr)
 
         ir->parse_module(std::move(module), ps);
 
-        delete str;
         deref_ptr_stream(&ws);
         deref_ptr_stream(&rs);
     }

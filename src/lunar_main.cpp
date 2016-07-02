@@ -5,14 +5,21 @@
 
 #include "lunar_ir.hpp"
 
+#include <fstream>
+#include <iostream>
+
 int
 main(int argc, char *argv[])
 {
     lunar::lunar_ir ir;
 
-    ir.add_file(U"", "a.lunar.ir");
-    ir.add_file(U"", "b.lunar.ir");
-    ir.add_file(U"", "c.lunar.ir");
+    std::ifstream ifs("tests/ir/test01.lunar.ir");
+
+    std::istreambuf_iterator<char> it(ifs);
+    std::istreambuf_iterator<char> last;
+    std::string str(it, last);
+
+    ir.add_file(lunar::to_u32string(str), "tests/ir/test01.lunar.ir");
 
     ir.compile("a.lunar.ir");
 

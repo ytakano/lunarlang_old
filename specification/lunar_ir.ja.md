@@ -5,7 +5,7 @@ Lunar言語の中間表現であり、ここからLLVM IRへ変換。
 # 構文
 
 - IR           := TOP*
-- TOP          := FUNC | STRUCT | UNION | DATA | GLOBAL | IMPORT
+- TOP          := FUNC | STRUCT | CUNION | UNION | GLOBAL | IMPORT
 - STATEMENT    := LET | COND | WHILE | BREAK | SELECT | RETURN | SCHEDULE
 - STEXPR       := STATMENT | EXPR
 - LITERAL      := STR32 | STR8 | CHAR32 | CHAR8 | INT | FLOAT | HEX | OCT | BIN
@@ -45,7 +45,7 @@ Lunar IRにはオーナーという概念があり、変数を利用する際に
 
 構文：
 - TYPE  := TYPE0 | ( OWNERSHIP TYPE0 )
-- TYPE0 := SCALAR | VECTOR | STRING | BINARY | LIST | STRUCT | DICT | SET | DATA | FUNCTYPE | RSTREAM | WSTREAM | RFILESTREAM | WFILESTREAM | RSOCKSTREAM | WSOCKSTREAM | RSIGSTREAM | RTHREADSTREAM | WTHREADSTREAM | PTR | UNION | PARSEC | IDENTIFIER
+- TYPE0 := SCALAR | VECTOR | STRING | BINARY | LIST | STRUCT | DICT | SET | UNION | FUNCTYPE | RSTREAM | WSTREAM | RFILESTREAM | WFILESTREAM | RSOCKSTREAM | WSOCKSTREAM | RSIGSTREAM | RTHREADSTREAM | WTHREADSTREAM | PTR | CUNION | PARSEC | IDENTIFIER
 
 ここで、IDENTIFIERとは空白文字以外からなる、1文字以上の文字かつ、先頭が数字ではない文字列かつ、
 予約文字（列）以外の文字列である。
@@ -157,13 +157,13 @@ Lunar IRにはオーナーという概念があり、変数を利用する際に
 (set (unique u32))
 ```
 
-## 多相型
+## 多相型（直和集合）
 
 構文：
-- DATA := ( data IDENTIFIER? ( TYPE IDENTIFIER )* )
+- UNION := ( union IDENTIFIER? ( TYPE IDENTIFIER )* )
 
 セマンティクス：
-- ( data 多相型の名前 ( 多相型となる型 型の名前 )* )
+- ( union 多相型の名前 ( 多相型となる型 型の名前 )* )
 
 ## 関数型
 
@@ -229,13 +229,13 @@ C関数と互換性を保つために利用され、それ以外での利用は�
 (ptr (ptr (unique u32)))
 ```
 
-## 共用体
+## C共用体
 
 構文：
-- UNION := ( union IDENTIFIER? ( TYPE IDENTIFIER )* )
+- CUNION := ( cunion IDENTIFIER? ( TYPE IDENTIFIER )* )
 
 セマンティクス：
-- ( union 構造体の名前 ( 構造体メンバの型 構造体メンバの名前 )* )
+- ( cunion 構造体の名前 ( 構造体メンバの型 構造体メンバの名前 )* )
 
 C関数と互換性を保つために利用され、それ以外での利用は非推奨である。
 
