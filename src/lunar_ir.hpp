@@ -7,6 +7,7 @@
 
 #include <vector>
 #include <unordered_map>
+#include <unordered_set>
 
 /*
  * -----------------------------------------------------------------------------
@@ -319,53 +320,57 @@ private:
     IR_TOP m_type;
 };
 
-class lunar_ir_def_struct : public lunar_ir_top {
+class lunar_ir_identifier : public lunar_ir_base
+{
 public:
-    lunar_ir_def_struct() : lunar_ir_top(IR_STRUCT) { }
+    lunar_ir_identifier(std::unique_ptr<std::u32string> id) : m_id(std::move(id)) { }
+    virtual ~lunar_ir_identifier() { }
+
+private:
+    std::unique_ptr<std::u32string> m_id;
+};
+
+class lunar_ir_types {
+public:
+    lunar_ir_types() { }
+    virtual ~lunar_ir_types() { }
+
+    void add_member(std::unique_ptr<lunar_ir_type> type, std::unique_ptr<lunar_ir_identifier> name)
+    {
+        m_member_types.push_back(std::move(type));
+        m_member_names.push_back(std::move(name));
+    }
+
+private:
+    std::vector<std::unique_ptr<lunar_ir_type>>       m_member_types;
+    std::vector<std::unique_ptr<lunar_ir_identifier>> m_member_names;
+};
+
+class lunar_ir_def_struct : public lunar_ir_top, public lunar_ir_types {
+public:
+    lunar_ir_def_struct(std::unique_ptr<lunar_ir_identifier> name) : lunar_ir_top(IR_STRUCT), m_name(std::move(name)) { }
     virtual ~lunar_ir_def_struct() { }
 
-    void add_member(std::unique_ptr<lunar_ir_type> type, const std::u32string &name)
-    {
-        m_member_types.push_back(std::move(type));
-        m_member_names.push_back(name);
-    }
-
 private:
-    std::u32string m_name;
-    std::vector<std::unique_ptr<lunar_ir_type>> m_member_types;
-    std::vector<std::u32string> m_member_names;
+    std::unique_ptr<lunar_ir_identifier> m_name;
 };
 
-class lunar_ir_def_cunion : public lunar_ir_top {
+class lunar_ir_def_cunion : public lunar_ir_top, public lunar_ir_types {
 public:
-    lunar_ir_def_cunion() : lunar_ir_top(IR_STRUCT) { }
+    lunar_ir_def_cunion(std::unique_ptr<lunar_ir_identifier> name) : lunar_ir_top(IR_STRUCT), m_name(std::move(name)) { }
     virtual ~lunar_ir_def_cunion() { }
 
-    void add_member(std::unique_ptr<lunar_ir_type> type, const std::u32string &name)
-    {
-        m_member_types.push_back(std::move(type));
-        m_member_names.push_back(name);
-    }
-
 private:
-    std::vector<std::unique_ptr<lunar_ir_type>> m_member_types;
-    std::vector<std::u32string> m_member_names;
+    std::unique_ptr<lunar_ir_identifier> m_name;
 };
 
-class lunar_ir_def_union : public lunar_ir_top {
+class lunar_ir_def_union : public lunar_ir_top, public lunar_ir_types {
 public:
-    lunar_ir_def_union() : lunar_ir_top(IR_STRUCT) { }
+    lunar_ir_def_union(std::unique_ptr<lunar_ir_identifier> name) : lunar_ir_top(IR_STRUCT), m_name(std::move(name)) { }
     virtual ~lunar_ir_def_union() { }
 
-    void add_member(std::unique_ptr<lunar_ir_type> type, const std::u32string &name)
-    {
-        m_member_types.push_back(std::move(type));
-        m_member_names.push_back(name);
-    }
-
 private:
-    std::vector<std::unique_ptr<lunar_ir_type>> m_member_types;
-    std::vector<std::u32string> m_member_names;
+    std::unique_ptr<lunar_ir_identifier> m_name;
 };
 
 class lunar_ir_import : public lunar_ir_top {
@@ -447,28 +452,24 @@ private:
     std::unique_ptr<lunar_ir_type> m_type;
 };
 
-class lunar_ir_struct : public lunar_ir_type {
+class lunar_ir_struct : public lunar_ir_type, public lunar_ir_types {
 public:
-    lunar_ir_struct(LANG_OWNERSHIP owner_ship, const std::u32string &name,
-                    std::unique_ptr<lunar_ir_def_struct> def)
-        : lunar_ir_type(BT_STRUCT, owner_ship), m_name(name), m_def(std::move(def)) { }
+    lunar_ir_struct(LANG_OWNERSHIP owner_ship, std::unique_ptr<lunar_ir_identifier> name)
+        : lunar_ir_type(BT_STRUCT, owner_ship), m_name(std::move(name)) { }
     virtual ~lunar_ir_struct() { }
 
 private:
-    std::u32string m_name;
-    std::unique_ptr<lunar_ir_def_struct> m_def;
+    std::unique_ptr<lunar_ir_identifier> m_name;
 };
 
-class lunar_ir_cunion : public lunar_ir_type {
+class lunar_ir_cunion : public lunar_ir_type, public lunar_ir_types {
 public:
-    lunar_ir_cunion(LANG_OWNERSHIP owner_ship, const std::u32string &name,
-                   std::unique_ptr<lunar_ir_def_cunion> def)
-        : lunar_ir_type(BT_CUNION, owner_ship), m_name(name), m_def(std::move(def)) { }
+    lunar_ir_cunion(LANG_OWNERSHIP owner_ship, std::unique_ptr<lunar_ir_identifier> name)
+        : lunar_ir_type(BT_CUNION, owner_ship), m_name(std::move(name)) { }
     virtual ~lunar_ir_cunion() { }
 
 private:
-    std::u32string m_name;
-    std::unique_ptr<lunar_ir_def_cunion> m_def;
+    std::unique_ptr<lunar_ir_identifier> m_name;
 };
 
 class lunar_ir_dict : public lunar_ir_type {
@@ -490,16 +491,14 @@ private:
     std::unique_ptr<lunar_ir_type> m_val;
 };
 
-class lunar_ir_union : public lunar_ir_type {
+class lunar_ir_union : public lunar_ir_type, public lunar_ir_types {
 public:
-    lunar_ir_union(LANG_OWNERSHIP owner_ship, const std::u32string &name,
-                  std::unique_ptr<lunar_ir_def_union> def)
-        : lunar_ir_type(BT_UNION, owner_ship), m_name(name), m_def(std::move(def)) { }
+    lunar_ir_union(LANG_OWNERSHIP owner_ship, std::unique_ptr<lunar_ir_identifier> name)
+        : lunar_ir_type(BT_UNION, owner_ship), m_name(std::move(name)) { }
     virtual ~lunar_ir_union() { }
 
 private:
-    std::u32string m_name;
-    std::unique_ptr<lunar_ir_def_union> m_def;
+    std::unique_ptr<lunar_ir_identifier> m_name;
 };
 
 class lunar_ir_functype : public lunar_ir_type {
@@ -1520,7 +1519,8 @@ public:
 private:
     void parse_module(std::unique_ptr<lunar_ir_module> module, parsec<char32_t> &ps);
     void parse_top(lunar_ir_module *module, parsec<char32_t> &ps);
-    std::unique_ptr<lunar_ir_def_struct> parse_struct(parsec<char32_t> &ps);
+    std::unique_ptr<lunar_ir_def_struct> parse_struct(lunar_ir_module *module, parsec<char32_t> &ps);
+    std::unique_ptr<lunar_ir_identifier> parse_identifier(lunar_ir_module *module, parsec<char32_t> &ps);
 
     void print_parse_err(const std::string &str, lunar_ir_module *module, parsec<char32_t> &ps);
     const std::string& get_line(const std::string &file, uint64_t num);

@@ -1,4 +1,3 @@
-(struct 
+(struct bar)
+(struct foo f a
 )
-
-(struct a)
