@@ -198,31 +198,21 @@ public:
         bool      m_is_look_ahead;
         bool      m_is_eof;
     };
-    
-    class parser_string {
-    public:
-        parser_string(parsec &p, const T *str) : m_parsec(p), m_str(str) { }
 
-        virtual ~parser_string() { }
-        
-        bool operator() () {
-            while (*m_str != 0) {
-                m_parsec.character(*m_str);
-                if (m_parsec.is_success()) {
-                    m_str++;
-                } else {
-                    return false;
-                }
+    bool parser_string(parsec &ps, const T *str)
+    {
+        while (*str != 0) {
+            ps.character(*str);
+            if (ps.is_success()) {
+                str++;
+            } else {
+                return false;
             }
-            
-            return true;
         }
         
-    private:
-        parsec  &m_parsec;
-        const T *m_str;
-    };
-    
+        return true;
+    }
+
     template<typename RT>
     class parser_many {
     public:
@@ -363,7 +353,7 @@ public:
     }
     
     bool parse_string(const T *str) {
-        return parser_string(*this, str)();
+        return parser_string(*this, str);
     }
     
     T parse_space() {
