@@ -137,7 +137,7 @@ parse_ws(lunar::parsec<char> &ps)
         return c == '\x20' || c == '\x09' || c == '\x0a' || c == '\x0d';
     };
     
-    auto ws = ps.parse_many_char(ps.satisfy(func))();
+    auto ws = ps.parse_many_char([&]() { return ps.satisfy(func); });
 }
 
 void
@@ -145,7 +145,7 @@ parse_separator(lunar::parsec<char> &ps, char c)
 {
     parse_ws(ps);
     
-    auto x = ps.character(c)();
+    auto x = ps.character(c);
     if (! ps.is_success())
         return;
     
@@ -155,7 +155,7 @@ parse_separator(lunar::parsec<char> &ps, char c)
 std::unique_ptr<json_null>
 parse_null(lunar::parsec<char> &ps)
 {
-    ps.parse_string("null")();
+    ps.parse_string("null");
     if (! ps.is_success())
         return nullptr;
     
@@ -165,7 +165,7 @@ parse_null(lunar::parsec<char> &ps)
 std::unique_ptr<json_bool>
 parse_false(lunar::parsec<char> &ps)
 {
-    ps.parse_string("false")();
+    ps.parse_string("false");
     if (! ps.is_success())
         return nullptr;
     
@@ -175,7 +175,7 @@ parse_false(lunar::parsec<char> &ps)
 std::unique_ptr<json_bool>
 parse_true(lunar::parsec<char> &ps)
 {
-    ps.parse_string("true")();
+    ps.parse_string("true");
     if (! ps.is_success())
         return nullptr;
     
@@ -205,7 +205,7 @@ parse_sp_member(lunar::parsec<char> &ps, json_object *ret)
 {
     parse_ws(ps);
     
-    ps.character(',')();
+    ps.character(',');
     if (! ps.is_success())
         return;
 
@@ -259,7 +259,7 @@ parse_sp_value(lunar::parsec<char> &ps)
 {
     parse_ws(ps);
 
-    ps.character(',')();
+    ps.character(',');
     if (! ps.is_success())
         return nullptr;
 
@@ -318,12 +318,12 @@ parse_frac(lunar::parsec<char> &ps)
 {
     std::string s;
 
-    auto dot = ps.character('.')();
+    auto dot = ps.character('.');
     if (! ps.is_success())
         return s;
     
     s  = ".";
-    s += ps.parse_many1_char(ps.parse_digit())();
+    s += ps.parse_many1_char([&]() { return ps.parse_digit(); });
     
     return s;
 }
@@ -337,12 +337,12 @@ parse_digit1_9(lunar::parsec<char> &ps)
     
     std::string s;
     
-    auto c = ps.satisfy(one2nine)();
+    auto c = ps.satisfy(one2nine);
     if (! ps.is_success())
         return s;
 
     s += c;
-    s += ps.parse_many_char(ps.parse_digit())();
+    s += ps.parse_many_char([&]() { return ps.parse_digit(); });
 
     return s;
 }
@@ -353,7 +353,7 @@ parse_exp(lunar::parsec<char> &ps)
 {
     std::string s;
     
-    auto c = ps.character('e')();
+    auto c = ps.character('e');
     if (! ps.is_success())
         return s;
     
@@ -362,14 +362,14 @@ parse_exp(lunar::parsec<char> &ps)
     char sign;
     {
         lunar::parsec<char>::parser_try ptry(ps);
-        sign = ps.character('-')();
+        sign = ps.character('-');
     }
 
     if (ps.is_success()) {
         s += sign;
     } else {
         lunar::parsec<char>::parser_try ptry(ps);
-        sign = ps.character('+')();
+        sign = ps.character('+');
         
         if (ps.is_success())
             s += sign;
@@ -391,7 +391,7 @@ parse_number(lunar::parsec<char> &ps)
     // [ minus ]
     {
         lunar::parsec<char>::parser_try ptry(ps);
-        auto sign = ps.character('-')();
+        auto sign = ps.character('-');
         if (ps.is_success())
             s += "-";
     }
@@ -400,7 +400,7 @@ parse_number(lunar::parsec<char> &ps)
     // 0
     {
         lunar::parsec<char>::parser_try ptry(ps);
-        auto zero = ps.character('0')();
+        auto zero = ps.character('0');
         if (ps.is_success()) {
             return nullptr;
         }
@@ -451,14 +451,14 @@ parse_string(lunar::parsec<char> &ps)
 {
     auto ret = llvm::make_unique<json_string>();
     
-    ps.character('"')();
+    ps.character('"');
     if (! ps.is_success())
         return ret;
     
     for (;;) {
         {
             lunar::parsec<char>::parser_try ptry(ps);
-            ps.character('"')();
+            ps.character('"');
             if (ps.is_success()) {
                 break;
             }
@@ -467,7 +467,7 @@ parse_string(lunar::parsec<char> &ps)
         char c;
         {
             lunar::parsec<char>::parser_try ptry(ps);
-            c = ps.satisfy(is_unescaped)();
+            c = ps.satisfy(is_unescaped);
         }
 
         if (ps.is_success())
@@ -475,7 +475,7 @@ parse_string(lunar::parsec<char> &ps)
         else {
             ps.set_is_success(true);
 
-            ps.character('\\')();
+            ps.character('\\');
             if (! ps.is_success())
                 return ret;
 
@@ -486,7 +486,7 @@ parse_string(lunar::parsec<char> &ps)
                 };
 
                 lunar::parsec<char>::parser_try ptry(ps);
-                c = ps.satisfy(func)();
+                c = ps.satisfy(func);
             }
 
             if (ps.is_success()) {
@@ -500,7 +500,7 @@ parse_string(lunar::parsec<char> &ps)
                 };
                 ret->m_str += conv(c);
             } else {
-                auto cc = ps.character('u')();
+                auto cc = ps.character('u');
                 if (! ps.is_success()) {
                     return ret;
                 }
@@ -509,24 +509,24 @@ parse_string(lunar::parsec<char> &ps)
                     return ('0' <= x && x <= '9') || ('a' <= x && x <= 'f') || ('A' <= x && x <= 'F');
                 };
                 
-                auto c1 = ps.satisfy(is_hexdig)();
+                auto c1 = ps.satisfy(is_hexdig);
                 if (! ps.is_success()) {
                     return ret;
                 }
 
-                auto c2 = ps.satisfy(is_hexdig)();
+                auto c2 = ps.satisfy(is_hexdig);
                 if (! ps.is_success()) {
                     return ret;
                 }
                 
                 ret->m_str += c1 * 16 + c2;
 
-                auto c3 = ps.satisfy(is_hexdig)();
+                auto c3 = ps.satisfy(is_hexdig);
                 if (! ps.is_success()) {
                     return ret;
                 }
                 
-                auto c4 = ps.satisfy(is_hexdig)();
+                auto c4 = ps.satisfy(is_hexdig);
                 if (! ps.is_success()) {
                     return ret;
                 }

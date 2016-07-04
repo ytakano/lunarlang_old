@@ -216,7 +216,7 @@ public:
         
         bool operator() () {
             while (*m_str != 0) {
-                m_parsec.character(*m_str)();
+                m_parsec.character(*m_str);
                 if (m_parsec.is_success()) {
                     m_str++;
                 } else {
@@ -362,51 +362,51 @@ public:
         m_err.col    = col;
     }
     
-    parser_satisfy satisfy(std::function<bool(T)> f)
+    T satisfy(std::function<bool(T)> f)
     {
-        return parser_satisfy(*this, f);
+        return parser_satisfy(*this, f)();
     }
     
-    parser_satisfy character(T c) {
-        return parser_satisfy(*this, parser_char(c));
+    T character(T c) {
+        return parser_satisfy(*this, parser_char(c))();
     }
     
-    parser_string parse_string(const T *str) {
-        return parser_string(*this, str);
+    bool parse_string(const T *str) {
+        return parser_string(*this, str)();
     }
     
-    parser_satisfy parse_space() {
-        return parser_satisfy(*this, parser_space(m_spaces));
+    T parse_space() {
+        return parser_satisfy(*this, parser_space(m_spaces))();
     }
     
-    parser_satisfy parse_digit() {
-        return parser_satisfy(*this, parser_digit());
+    T parse_digit() {
+        return parser_satisfy(*this, parser_digit())();
     }
     
-    parser_satisfy parse_hex_digit() {
-        return parser_satisfy(*this, parser_hex_digit());
+    T parse_hex_digit() {
+        return parser_satisfy(*this, parser_hex_digit())();
     }
     
-    parser_satisfy parse_oct_digit() {
-        return parser_satisfy(*this, parser_oct_digit());
+    T parse_oct_digit() {
+        return parser_satisfy(*this, parser_oct_digit())();
     }
     
     template<typename RT>
-    parser_many<RT> parse_many(std::function<RT()> func) {
-        return parser_many<RT>(*this, func);
+    std::unique_ptr<std::vector<RT>>parse_many(std::function<RT()> func) {
+        return parser_many<RT>(*this, func)();
     }
     
-    parser_many<T> parse_many_char(std::function<T()> func) {
-        return parser_many<T>(*this, func);
+    string_t parse_many_char(std::function<T()> func) {
+        return parser_many<T>(*this, func)();
     }
 
     template<typename RT>
-    parser_many1<RT> parse_many1(std::function<RT()> func) {
-        return parser_many1<RT>(*this, func);
+    std::unique_ptr<std::vector<RT>> parse_many1(std::function<RT()> func) {
+        return parser_many1<RT>(*this, func)();
     }
     
-    parser_many1<T> parse_many1_char(std::function<T()> func) {
-        return parser_many1<T>(*this, func);
+    string_t parse_many1_char(std::function<T()> func) {
+        return parser_many1<T>(*this, func)();
     }
 
     bool is_success() { return m_is_result; }
