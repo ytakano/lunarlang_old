@@ -63,7 +63,7 @@
  * RTHREADTREAM := ( rthreadstrm TYPE )
  * WTHREADTREAM := ( wthreadstrm TYPE )
  *
- * PTR := (ptr TYPE ) | ( ptr PTR )
+ * PTR := (ptr TYPE )
  *
  * PARSEC := ( parsec string ) | ( parsec binary)
  *
