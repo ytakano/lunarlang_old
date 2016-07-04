@@ -301,6 +301,26 @@ lunar_ir::parse_vector(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNER
     return llvm::make_unique<lunar_ir_vector>(own, std::move(type), std::move(expr));
 }
 
+std::unique_ptr<lunar_ir_set>
+lunar_ir::parse_set(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERSHIP own)
+{
+    auto type = parse_type(module, ps);
+    if (! ps.is_success())
+        return nullptr;
+
+    return llvm::make_unique<lunar_ir_set>(own, std::move(type));
+}
+
+std::unique_ptr<lunar_ir_list>
+lunar_ir::parse_list(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERSHIP own)
+{
+    auto type = parse_type(module, ps);
+    if (! ps.is_success())
+        return nullptr;
+
+    return llvm::make_unique<lunar_ir_list>(own, std::move(type));
+}
+
 std::unique_ptr<lunar_ir_type>
 lunar_ir::parse_type0(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERSHIP own, int ownline, int owncol)
 {
@@ -318,15 +338,19 @@ lunar_ir::parse_type0(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERS
     std::unique_ptr<lunar_ir_type> type;
     if (ps.is_success()) {
         // vector, dict, set, list, struct, union, func, rstrm, wstrm, rthreadstrm, wthreadstrm, ptr, cunion, parsec
+        ps.parse_many_char(ps.parse_space())();
+
         if (parse_type0_str(module, ps, U"vector")) {
             type = parse_vector(module, ps, own);
             if (! ps.is_success()) return nullptr;
         } else if (parse_type0_str(module, ps, U"dict")) {
 
         } else if (parse_type0_str(module, ps, U"set")) {
-            
+            type = parse_set(module, ps, own);
+            if (! ps.is_success()) return nullptr;
         } else if (parse_type0_str(module, ps, U"list")) {
-            
+            type = parse_list(module, ps, own);
+            if (! ps.is_success()) return nullptr;
         } else if (parse_type0_str(module, ps, U"struct")) {
             
         } else if (parse_type0_str(module, ps, U"union")) {

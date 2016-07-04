@@ -1,5 +1,7 @@
 (struct bar (u64 a))
 ( struct b123 ( u64 a )
-        (vector cc)
+        ( ( vector u64 ) cc)
         ( ( unique (vector u32 ) ) dd )
+        ( ( shared (set s64)) ee)
+        ( ( list s64 ) ff )
         ( ( shared bool ) b11 ) )

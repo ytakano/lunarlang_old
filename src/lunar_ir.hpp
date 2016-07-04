@@ -501,11 +501,11 @@ private:
 
 class lunar_ir_set : public lunar_ir_type {
 public:
-    lunar_ir_set(LANG_OWNERSHIP owner_ship, std::unique_ptr<lunar_ir_type> val)
-        : lunar_ir_type(BT_SET, owner_ship), m_val(std::move(val)) { }
+    lunar_ir_set(LANG_OWNERSHIP owner_ship, std::unique_ptr<lunar_ir_type> type)
+        : lunar_ir_type(BT_SET, owner_ship), m_type(std::move(type)) { }
 
 private:
-    std::unique_ptr<lunar_ir_type> m_val;
+    std::unique_ptr<lunar_ir_type> m_type;
 };
 
 class lunar_ir_union : public lunar_ir_type, public lunar_ir_member {
@@ -1543,6 +1543,8 @@ private:
     std::unique_ptr<lunar_ir_type>       parse_type0(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERSHIP own, int ownline, int owncol);
     std::unique_ptr<lunar_ir_vector>     parse_vector(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERSHIP own);
     std::unique_ptr<lunar_ir_expr>       parse_expr(lunar_ir_module *module, parsec<char32_t> &ps);
+    std::unique_ptr<lunar_ir_set>        parse_set(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERSHIP own);
+    std::unique_ptr<lunar_ir_list>       parse_list(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERSHIP own);
     LANG_OWNERSHIP                       parse_ownership(lunar_ir_module *module, parsec<char32_t> &ps);
     template <typename T> std::unique_ptr<T> parse_def_member(lunar_ir_module *module, parsec<char32_t> &ps);
 
