@@ -79,8 +79,7 @@ Lunar IRにはオーナーという概念があり、変数を利用する際に
 ## 配列
 
 構文：
-- VECTOR := ( vector TYPE SIZE )
-- SIZE := 0以上の整数
+- VECTOR := ( vector TYPE EXPRIDENTLIT ) | ( vector TYPE )
 
 例：
 ```lisp

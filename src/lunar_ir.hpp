@@ -32,8 +32,7 @@
  *
  * ATOM := `IDENTIFIER
  *
- * VECTOR := ( vector TYPE SIZE )
- * SIZE := An integer greater than or equal to 0
+ * VECTOR := ( vector TYPE EXPRIDENTLIT ) | ( vector TYPE )
  *
  * STRING := string
  *
@@ -446,18 +445,16 @@ private:
 
 class lunar_ir_vector : public lunar_ir_type {
 public:
-    lunar_ir_vector(LANG_OWNERSHIP owner_ship, std::unique_ptr<lunar_ir_type> type, uint64_t size)
+    lunar_ir_vector(LANG_OWNERSHIP owner_ship, std::unique_ptr<lunar_ir_type> type, std::unique_ptr<lunar_ir_expr> size)
         : lunar_ir_type(BT_VECTOR, owner_ship),
           m_type(std::move(type)),
-          m_size(size) { }
+          m_size(std::move(size)) { }
     
     virtual ~lunar_ir_vector() { }
 
-    uint64_t size() { return m_size; }
-
 private:
     std::unique_ptr<lunar_ir_type> m_type;
-    uint64_t m_size;
+    std::unique_ptr<lunar_ir_expr> m_size;
 };
 
 class lunar_ir_list : public lunar_ir_type {
@@ -1540,9 +1537,12 @@ private:
     void parse_module(std::unique_ptr<lunar_ir_module> module, parsec<char32_t> &ps);
     void parse_top(lunar_ir_module *module, parsec<char32_t> &ps);
     void parse_member(lunar_ir_member *member, lunar_ir_module *module, parsec<char32_t> &ps);
+    bool parse_type0_str(lunar_ir_module *module, parsec<char32_t> &ps, const char32_t *str);
     std::unique_ptr<lunar_ir_identifier> parse_identifier(lunar_ir_module *module, parsec<char32_t> &ps);
     std::unique_ptr<lunar_ir_type>       parse_type(lunar_ir_module *module, parsec<char32_t> &ps);
     std::unique_ptr<lunar_ir_type>       parse_type0(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERSHIP own, int ownline, int owncol);
+    std::unique_ptr<lunar_ir_vector>     parse_vector(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERSHIP own);
+    std::unique_ptr<lunar_ir_expr>       parse_expr(lunar_ir_module *module, parsec<char32_t> &ps);
     LANG_OWNERSHIP                       parse_ownership(lunar_ir_module *module, parsec<char32_t> &ps);
     template <typename T> std::unique_ptr<T> parse_def_member(lunar_ir_module *module, parsec<char32_t> &ps);
 

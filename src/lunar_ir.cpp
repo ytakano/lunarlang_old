@@ -50,16 +50,6 @@ lunar_ir::lunar_ir()
     idh_set.insert(U'?');
     idh_set.insert(U'/');
 
-    idt_set.insert(U'0');
-    idt_set.insert(U'1');
-    idt_set.insert(U'2');
-    idt_set.insert(U'3');
-    idt_set.insert(U'4');
-    idt_set.insert(U'5');
-    idt_set.insert(U'6');
-    idt_set.insert(U'7');
-    idt_set.insert(U'8');
-    idt_set.insert(U'9');
     idt_set.insert(U'!');
     idt_set.insert(U'~');
     idt_set.insert(U'#');
@@ -256,6 +246,62 @@ lunar_ir::parse_ownership(lunar_ir_module *module, parsec<char32_t> &ps)
     return OWN_IMMOVABLE;
 }
 
+bool
+lunar_ir::parse_type0_str(lunar_ir_module *module, parsec<char32_t> &ps, const char32_t *str)
+{
+    {
+        lunar::parsec<char32_t>::parser_try ptry(ps);
+        ps.parse_string(str)();
+    }
+    if (ps.is_success()) {
+        ps.parse_many1_char(ps.parse_space())();
+        if (ps.is_success()) {
+            return true;
+        } else if (! ps.is_success()) {
+            print_parse_err("need white space", module, ps);
+            return false;
+        }
+    }
+
+    return false;
+}
+
+std::unique_ptr<lunar_ir_expr>
+lunar_ir::parse_expr(lunar_ir_module *module, parsec<char32_t> &ps)
+{
+    // TODO:
+    return nullptr;
+}
+
+std::unique_ptr<lunar_ir_vector>
+lunar_ir::parse_vector(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERSHIP own)
+{
+    auto type = parse_type(module, ps);
+    if (! ps.is_success())
+        return nullptr;
+
+    {
+        lunar::parsec<char32_t>::parser_try ptry(ps);
+        ps.parse_many_char(ps.parse_space())();
+        ps.character(U')')();
+    }
+
+    if (ps.is_success())
+        return llvm::make_unique<lunar_ir_vector>(own, std::move(type), nullptr);
+
+    ps.parse_many1_char(ps.parse_space())();
+    if (! ps.is_success()) {
+        print_parse_err("need white space", module, ps);
+        return nullptr;
+    }
+
+    auto expr = parse_expr(module, ps);
+    if (! ps.is_success())
+        return nullptr;
+
+    return llvm::make_unique<lunar_ir_vector>(own, std::move(type), std::move(expr));
+}
+
 std::unique_ptr<lunar_ir_type>
 lunar_ir::parse_type0(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERSHIP own, int ownline, int owncol)
 {
@@ -273,8 +319,41 @@ lunar_ir::parse_type0(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERS
     std::unique_ptr<lunar_ir_type> type;
     if (ps.is_success()) {
         // vector, dict, set, list, struct, union, func, rstrm, wstrm, rthreadstrm, wthreadstrm, ptr, cunion, parsec
+        if (parse_type0_str(module, ps, U"vector")) {
+            type = parse_vector(module, ps, own);
+            if (! ps.is_success()) return nullptr;
+        } else if (parse_type0_str(module, ps, U"dict")) {
 
-        // TODO:
+        } else if (parse_type0_str(module, ps, U"set")) {
+            
+        } else if (parse_type0_str(module, ps, U"list")) {
+            
+        } else if (parse_type0_str(module, ps, U"struct")) {
+            
+        } else if (parse_type0_str(module, ps, U"union")) {
+            
+        } else if (parse_type0_str(module, ps, U"func")) {
+            
+        } else if (parse_type0_str(module, ps, U"rstrm")) {
+            
+        } else if (parse_type0_str(module, ps, U"wstrm")) {
+            
+        } else if (parse_type0_str(module, ps, U"rthreadstrm")) {
+            
+        } else if (parse_type0_str(module, ps, U"wthreadstrm")) {
+            
+        } else if (parse_type0_str(module, ps, U"ptr")) {
+            
+        } else if (parse_type0_str(module, ps, U"union")) {
+            
+        } else if (parse_type0_str(module, ps, U"cunion")) {
+            
+        } else if (parse_type0_str(module, ps, U"parsec")) {
+            
+        } else {
+            print_parse_err("invalid type specifier", module, ps);
+            return nullptr;
+        }
 
         ps.parse_many_char(ps.parse_space())();
         ps.character(U')')();
@@ -287,7 +366,7 @@ lunar_ir::parse_type0(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERS
         auto id = parse_identifier(module, ps);
         if (! ps.is_success())
             return nullptr;
-        
+
         auto it_sc = scalar_set.find(id->get_id());
         if (it_sc != scalar_set.end()) {
             return llvm::make_unique<lunar_ir_scalar>(own, it_sc->second);
@@ -400,6 +479,16 @@ void
 lunar_ir::parse_member(lunar_ir_member *member, lunar_ir_module *module, parsec<char32_t> &ps)
 {
     for (;;) {
+        ps.parse_many_char(ps.parse_space())();
+        {
+            lunar::parsec<char32_t>::parser_try ptry(ps);
+            ps.character(U'(')();
+            if (! ps.is_success()) {
+                ps.set_is_success(true);
+                return;
+            }
+        }
+
         auto type = parse_type(module, ps);
         if (! ps.is_success())
             return;
@@ -413,6 +502,12 @@ lunar_ir::parse_member(lunar_ir_member *member, lunar_ir_module *module, parsec<
         auto name = parse_identifier(module, ps);
         if (! ps.is_success())
             return;
+
+        ps.character(U')')();
+        if (! ps.is_success()) {
+            print_parse_err("expected \")\"", module, ps);
+            return;
+        }
 
         member->add_member(std::move(type), std::move(name));
     }
