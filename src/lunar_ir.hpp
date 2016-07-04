@@ -1546,8 +1546,6 @@ private:
     LANG_OWNERSHIP                       parse_ownership(lunar_ir_module *module, parsec<char32_t> &ps);
     template <typename T> std::unique_ptr<T> parse_def_member(lunar_ir_module *module, parsec<char32_t> &ps);
 
-    void print_parse_err(const std::string &str, lunar_ir_module *module, parsec<char32_t> &ps);
-    void print_parse_err_linecol(const std::string &str, lunar_ir_module *module, parsec<char32_t> &ps, int line, int col);
     const std::string& get_line(const std::string &file, uint64_t num);
 
     std::unordered_map<std::string, std::unique_ptr<lunar_ir_module>> m_modules;

@@ -152,31 +152,30 @@ lunar_ir::compile(const std::string &mainfile)
     delete[] th;
 }
 
-void
-lunar_ir::print_parse_err(const std::string &str, lunar_ir_module *module, parsec<char32_t> &ps)
-{
-    auto msg = ps.get_errmsg();
+#define print_parse_err(str, module, ps)                                \
+do {                                                                    \
+    auto msg = ps.get_errmsg();                                         \
+    std::string spaces;                                                 \
+    for (int i = 1; i < msg.col; i++)                                   \
+        spaces += ' ';                                                  \
+    fprintf(stderr, "%s:%d\n%s:%d:%d: error: %s\n%s\n%s^\n",            \
+            __FILE__, __LINE__, module->get_filename().c_str(),         \
+            msg.line, msg.col,                                          \
+            str, get_line(module->get_filename(), msg.line).c_str(),    \
+            spaces.c_str());                                            \
+} while (0)
 
-    std::string spaces;
-
-    for (int i = 1; i < msg.col; i++)
-        spaces += ' ';
-
-    fprintf(stderr, "%s:%d:%d: error: %s\n%s\n%s^\n", module->get_filename().c_str(), msg.line, msg.col,
-            str.c_str(), get_line(module->get_filename(), msg.line).c_str(), spaces.c_str());
-}
-
-void
-lunar_ir::print_parse_err_linecol(const std::string &str, lunar_ir_module *module, parsec<char32_t> &ps, int line, int col)
-{
-    std::string spaces;
-
-    for (int i = 1; i < col; i++)
-        spaces += ' ';
-
-    fprintf(stderr, "%s:%d:%d: error: %s\n%s\n%s^\n", module->get_filename().c_str(), line, col,
-            str.c_str(), get_line(module->get_filename(), line).c_str(), spaces.c_str());
-}
+#define print_parse_err_linecol(str, module, ps, line, col)     \
+do {                                                            \
+    std::string spaces;                                         \
+    for (int i = 1; i < col; i++)                               \
+        spaces += ' ';                                          \
+    fprintf(stderr, "%s:%d\n%s:%d:%d: error: %s\n%s\n%s^\n",    \
+            __FILE__, __LINE__, module->get_filename().c_str(), \
+            line, col, str,                                     \
+            get_line(module->get_filename(), line).c_str(),     \
+            spaces.c_str());                                    \
+} while (0)
 
 const std::string&
 lunar_ir::get_line(const std::string &file, uint64_t num)
@@ -281,7 +280,7 @@ lunar_ir::parse_vector(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNER
         return nullptr;
 
     {
-        lunar::parsec<char32_t>::parser_try ptry(ps);
+        lunar::parsec<char32_t>::parser_look_ahead plahead(ps);
         ps.parse_many_char(ps.parse_space())();
         ps.character(U')')();
     }
@@ -503,6 +502,7 @@ lunar_ir::parse_member(lunar_ir_member *member, lunar_ir_module *module, parsec<
         if (! ps.is_success())
             return;
 
+        ps.parse_many_char(ps.parse_space())();
         ps.character(U')')();
         if (! ps.is_success()) {
             print_parse_err("expected \")\"", module, ps);

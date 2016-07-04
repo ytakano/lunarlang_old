@@ -1,3 +1,5 @@
 (struct bar (u64 a))
-(struct b123 (u64 a)
-        ((shared bool) b11))
+( struct b123 ( u64 a )
+        (vector cc)
+        ( ( unique (vector u32 ) ) dd )
+        ( ( shared bool ) b11 ) )
