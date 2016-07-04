@@ -75,68 +75,59 @@ public:
             return (T)'0' <= c && c <= (T)'7';
         }
     };
-    
-    class parser_satisfy {
-    public:
-        parser_satisfy(parsec &p, std::function<bool(T)> func) : m_parsec(p), m_func(func) { }
-        virtual ~parser_satisfy() { }
 
-        T operator() () {
-            T c;
-            for (;;) {
-                auto result = m_parsec.m_bytes.front(c);
+    T parser_satisfy(parsec &ps, std::function<bool(T)> func)
+    {
+        T c;
+        for (;;) {
+            auto result = ps.m_bytes.front(c);
 
-                if (result == STRM_SUCCESS) {
-                    break;
-                } else if (result == STRM_NO_MORE_DATA) {
-                    string_t *ptr;
-                    auto result2 = pop_ptr(m_parsec.m_shared_stream, (void**)&ptr);
-                    if (result2 == STRM_SUCCESS) {
-                        m_parsec.m_bytes.push_back(ptr);
-                    } else if (result2 == STRM_CLOSED) {
-                        m_parsec.m_bytes.push_eof();
-                    } else {
-                        select_green_thread(nullptr, 0, (void**)&m_parsec.m_shared_stream, 1, false, 0);
-                    }
+            if (result == STRM_SUCCESS) {
+                break;
+            } else if (result == STRM_NO_MORE_DATA) {
+                string_t *ptr;
+                auto result2 = pop_ptr(ps.m_shared_stream, (void**)&ptr);
+                if (result2 == STRM_SUCCESS) {
+                    ps.m_bytes.push_back(ptr);
+                } else if (result2 == STRM_CLOSED) {
+                    ps.m_bytes.push_eof();
                 } else {
-                    m_parsec.m_is_eof = true;
-                    m_parsec.m_is_result = false;
-                    m_parsec.set_err(result, m_parsec.m_line, m_parsec.m_col);
-
-                    return 0;
+                    select_green_thread(nullptr, 0, (void**)&ps.m_shared_stream, 1, false, 0);
                 }
+            } else {
+                ps.m_is_eof = true;
+                ps.m_is_result = false;
+                ps.set_err(result, ps.m_line, ps.m_col);
+
+                return 0;
+            }
+        }
+        
+        if (func(c)) {
+            ps.m_is_result = true;
+            ps.m_num++;
+            
+            if (c == (T)'\n') {
+                ps.m_line++;
+                ps.m_col = 1;
+            } else {
+                ps.m_col++;
             }
             
-            if (m_func(c)) {
-                m_parsec.m_is_result = true;
-                m_parsec.m_num++;
-                
-                if (c == (T)'\n') {
-                    m_parsec.m_line++;
-                    m_parsec.m_col = 1;
-                } else {
-                    m_parsec.m_col++;
-                }
-                
-                if (m_parsec.m_is_look_ahead || m_parsec.m_is_try) {
-                    m_parsec.m_bytes.move_tmp_pos(1);
-                } else {
-                    m_parsec.m_bytes.consume(1);
-                }
-                
-                return c;
+            if (ps.m_is_look_ahead || ps.m_is_try) {
+                ps.m_bytes.move_tmp_pos(1);
+            } else {
+                ps.m_bytes.consume(1);
             }
-            
-            m_parsec.m_is_result = false;
-            m_parsec.set_err(STRM_SUCCESS, m_parsec.m_line, m_parsec.m_col);
             
             return c;
         }
-    
-    private:
-        parsec &m_parsec;
-        std::function<bool(T)> m_func;
-    };
+        
+        ps.m_is_result = false;
+        ps.set_err(STRM_SUCCESS, ps.m_line, ps.m_col);
+        
+        return c;
+    }
 
     class parser_try {
     public:
@@ -364,11 +355,11 @@ public:
     
     T satisfy(std::function<bool(T)> f)
     {
-        return parser_satisfy(*this, f)();
+        return parser_satisfy(*this, f);
     }
     
     T character(T c) {
-        return parser_satisfy(*this, parser_char(c))();
+        return parser_satisfy(*this, parser_char(c));
     }
     
     bool parse_string(const T *str) {
@@ -376,19 +367,19 @@ public:
     }
     
     T parse_space() {
-        return parser_satisfy(*this, parser_space(m_spaces))();
+        return parser_satisfy(*this, parser_space(m_spaces));
     }
     
     T parse_digit() {
-        return parser_satisfy(*this, parser_digit())();
+        return parser_satisfy(*this, parser_digit());
     }
     
     T parse_hex_digit() {
-        return parser_satisfy(*this, parser_hex_digit())();
+        return parser_satisfy(*this, parser_hex_digit());
     }
     
     T parse_oct_digit() {
-        return parser_satisfy(*this, parser_oct_digit())();
+        return parser_satisfy(*this, parser_oct_digit());
     }
     
     template<typename RT>
