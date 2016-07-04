@@ -8,7 +8,6 @@ namespace lunar {
 std::unordered_set<char32_t> idh_set;
 std::unordered_set<char32_t> idt_set;
 std::unordered_map<std::u32string, LANG_SCALAR> scalar_set;
-std::unordered_map<std::u32string, LANG_BASIC_TYPE> basictype_set;
 
 lunar_ir::lunar_ir()
 {
@@ -137,33 +136,13 @@ lunar_ir::lunar_ir()
     scalar_set[U"double"] = SC_DOUBLE;
     scalar_set[U"float"]  = SC_FLOAT;
     scalar_set[U"char"]   = SC_CHAR;
-
-    basictype_set[U"vector"]      = BT_VECTOR;
-    basictype_set[U"string"]      = BT_STRING;
-    basictype_set[U"binary"]      = BT_BINARY;
-    basictype_set[U"list"]        = BT_LIST;
-    basictype_set[U"dict"]        = BT_DICT;
-    basictype_set[U"set"]         = BT_SET;
-    basictype_set[U"union"]       = BT_UNION;
-    basictype_set[U"cunion"]      = BT_CUNION;
-    basictype_set[U"func"]        = BT_FUNCTYPE;
-    basictype_set[U"rstrm"]       = BT_RSTREAM;
-    basictype_set[U"wstrm"]       = BT_WSTREAM;
-    basictype_set[U"rsockstrm"]   = BT_RSOCKSTREAM;
-    basictype_set[U"wsockstrm"]   = BT_WSOCKSTREAM;
-    basictype_set[U"rfilestrm"]   = BT_RFILESTREAM;
-    basictype_set[U"wfilestrm"]   = BT_WFILESTREAM;
-    basictype_set[U"rthreadstrm"] = BT_RTHREADSTREAM;
-    basictype_set[U"wthreadstrm"] = BT_WTHREADSTREAM;
-    basictype_set[U"rsigstrm"]    = BT_RSIGSTREAM;
-    basictype_set[U"ptr"]         = BT_PTR;
-    basictype_set[U"parsec"]      = BT_PARSEC;
 }
 
 lunar_ir::~lunar_ir()
 {
     idh_set.clear();
     idt_set.clear();
+    scalar_set.clear();
 }
 
 void
@@ -195,6 +174,18 @@ lunar_ir::print_parse_err(const std::string &str, lunar_ir_module *module, parse
 
     fprintf(stderr, "%s:%d:%d: error: %s\n%s\n%s^\n", module->get_filename().c_str(), msg.line, msg.col,
             str.c_str(), get_line(module->get_filename(), msg.line).c_str(), spaces.c_str());
+}
+
+void
+lunar_ir::print_parse_err_linecol(const std::string &str, lunar_ir_module *module, parsec<char32_t> &ps, int line, int col)
+{
+    std::string spaces;
+
+    for (int i = 1; i < col; i++)
+        spaces += ' ';
+
+    fprintf(stderr, "%s:%d:%d: error: %s\n%s\n%s^\n", module->get_filename().c_str(), line, col,
+            str.c_str(), get_line(module->get_filename(), line).c_str(), spaces.c_str());
 }
 
 const std::string&
@@ -241,8 +232,6 @@ tail_identifier(char32_t c)
 LANG_OWNERSHIP
 lunar_ir::parse_ownership(lunar_ir_module *module, parsec<char32_t> &ps)
 {
-    ps.parse_many_char(ps.parse_space())();
-
     {
         lunar::parsec<char32_t>::parser_try ptry(ps);
         ps.parse_string(U"shared")();
@@ -268,9 +257,91 @@ lunar_ir::parse_ownership(lunar_ir_module *module, parsec<char32_t> &ps)
 }
 
 std::unique_ptr<lunar_ir_type>
-lunar_ir::parse_type0(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERSHIP own)
+lunar_ir::parse_type0(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERSHIP own, int ownline, int owncol)
 {
-    return nullptr;
+    ps.parse_many_char(ps.parse_space())();
+
+    int line, col;
+    line = ps.get_line();
+    col  = ps.get_col();
+
+    {
+        lunar::parsec<char32_t>::parser_try ptry(ps);
+        ps.character(U'(')();
+    }
+
+    std::unique_ptr<lunar_ir_type> type;
+    if (ps.is_success()) {
+        // vector, dict, set, list, struct, union, func, rstrm, wstrm, rthreadstrm, wthreadstrm, ptr, cunion, parsec
+
+        // TODO:
+
+        ps.parse_many_char(ps.parse_space())();
+        ps.character(U')')();
+        if (! ps.is_success()) {
+            print_parse_err("expected \")\"", module, ps);
+            return nullptr;
+        }
+    } else {
+        // SCALAR, string, binary, rfilestrm, wfilestrm, rsockstrm, wsockstrm, rsigstrm, IDENTIFIER
+        auto id = parse_identifier(module, ps);
+        if (! ps.is_success())
+            return nullptr;
+        
+        auto it_sc = scalar_set.find(id->get_id());
+        if (it_sc != scalar_set.end()) {
+            return llvm::make_unique<lunar_ir_scalar>(own, it_sc->second);
+        }
+
+        auto s = id->get_id();
+        if (s == U"string") {
+            type = llvm::make_unique<lunar_ir_string>(own);
+        } else if (s == U"binary") {
+            type = llvm::make_unique<lunar_ir_binary>(own);
+        } else if (s == U"rfilestrm") {
+            if (own != OWN_UNIQUE) {
+                print_parse_err_linecol("rfilestrm must be unique", module, ps, ownline, owncol);
+                ps.set_is_success(false);
+                return nullptr;
+            }
+            type = llvm::make_unique<lunar_ir_rfilestream>();
+        } else if (s == U"wfilestrm") {
+            if (own != OWN_SHARED) {
+                print_parse_err_linecol("wfilestrm must be shared", module, ps, ownline, owncol);
+                ps.set_is_success(false);
+                return nullptr;
+            }
+            type = llvm::make_unique<lunar_ir_wfilestream>();
+        } else if (s == U"rsockstrm") {
+            if (own != OWN_UNIQUE) {
+                print_parse_err_linecol("rsockstrm must be unique", module, ps, ownline, owncol);
+                ps.set_is_success(false);
+                return nullptr;
+            }
+            type = llvm::make_unique<lunar_ir_rsockstream>();
+        } else if (s == U"wsockstrm") {
+            if (own != OWN_SHARED) {
+                print_parse_err_linecol("wsockstrm must be shared", module, ps, ownline, owncol);
+                ps.set_is_success(false);
+                return nullptr;
+            }
+            type = llvm::make_unique<lunar_ir_wsockstream>();
+        } else if (s == U"rsigstrm") {
+            if (own != OWN_UNIQUE) {
+                print_parse_err_linecol("rsigstrm must be unique", module, ps, ownline, owncol);
+                ps.set_is_success(false);
+                return nullptr;
+            }
+            type = llvm::make_unique<lunar_ir_rsigstream>();
+        } else {
+            type = llvm::make_unique<lunar_ir_type_id>(own, std::move(id));
+        }
+    }
+
+    type->set_line(line);
+    type->set_col(col);
+
+    return type;
 }
 
 std::unique_ptr<lunar_ir_type>
@@ -278,7 +349,7 @@ lunar_ir::parse_type(lunar_ir_module *module, parsec<char32_t> &ps)
 {
     ps.parse_many_char(ps.parse_space())();
 
-    uint64_t line, col;
+    int line, col, ownline, owncol;
     line = ps.get_line();
     col  = ps.get_col();
 
@@ -287,8 +358,12 @@ lunar_ir::parse_type(lunar_ir_module *module, parsec<char32_t> &ps)
     {
         lunar::parsec<char32_t>::parser_try ptry(ps);
         ps.character(U'(')();
-        if (ps.is_success())
+        if (ps.is_success()) {
+            ps.parse_many_char(ps.parse_space())();
+            ownline = ps.get_line();
+            owncol  = ps.get_col();
             own = parse_ownership(module, ps);
+        }
     }
 
     if (ps.is_success()) {
@@ -299,7 +374,7 @@ lunar_ir::parse_type(lunar_ir_module *module, parsec<char32_t> &ps)
             return nullptr;
         }
 
-        type = parse_type0(module, ps, own);
+        type = parse_type0(module, ps, own, ownline, owncol);
 
         ps.parse_many_char(ps.parse_space())();
         ps.character(U')')();
@@ -309,7 +384,7 @@ lunar_ir::parse_type(lunar_ir_module *module, parsec<char32_t> &ps)
         }
     } else {
         // TYPE := TYPE0
-        type = parse_type0(module, ps, OWN_IMMOVABLE);
+        type = parse_type0(module, ps, OWN_IMMOVABLE, line, col);
         if (! ps.is_success()) {
             return nullptr;
         }
@@ -348,7 +423,7 @@ lunar_ir::parse_identifier(lunar_ir_module *module, parsec<char32_t> &ps)
 {
     auto id = llvm::make_unique<std::u32string>();
 
-    uint64_t line, col;
+    int line, col;
     line = ps.get_line();
     col  = ps.get_col();
 

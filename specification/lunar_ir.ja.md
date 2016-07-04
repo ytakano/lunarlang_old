@@ -196,17 +196,17 @@ Lunar IRにはオーナーという概念があり、変数を利用する際に
 
 ### ファイルストリーム型
 
-- RFILESTREAM := ( rfilestrm )
-- WFILESTREAM := ( wfilestrm )
+- RFILESTREAM := rfilestrm
+- WFILESTREAM := wfilestrm
 
 ### ソケットストリーム型
 
-- RSOCKSTREAM := ( rsockstrm )
-- WSOCKSTREAM := ( wsockstrm )
+- RSOCKSTREAM := rsockstrm
+- WSOCKSTREAM := wsockstrm
 
 ### シグナルストリーム型
 
-- RSIGSTREAM := ( rsigstrm )
+- RSIGSTREAM  := rsigstrm
 
 ### スレッドデータストリーム型
 
@@ -242,7 +242,7 @@ C関数と互換性を保つために利用され、それ以外での利用は�
 ## パーサ型
 
 構文：
-- PARSEC := parsec
+- PARSEC := ( parsec string ) | ( parsec binary)
 
 # 関数
 

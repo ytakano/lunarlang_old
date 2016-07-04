@@ -55,10 +55,17 @@
  *
  * RSTREAM := ( rstrm TYPE )
  * WSTREAM := ( wstrm TYPE )
+ * RFILESTREAM := rfilestrm
+ * WFILESTREAM := wfilestrm
+ * RSOCKSTREAM := rsockstrm
+ * WSOCKSTREAM := wsockstrm
+ * RSIGSTREAM  := rsigstrm
+ * RTHREADTREAM := ( rthreadstrm TYPE )
+ * WTHREADTREAM := ( wthreadstrm TYPE )
  *
  * PTR := (ptr TYPE ) | ( ptr PTR )
  *
- * PARSEC := parsec
+ * PARSEC := ( parsec string ) | ( parsec binary)
  *
  * -----------------------------------------------------------------------------
  *
@@ -307,6 +314,8 @@ class lunar_ir_identifier : public lunar_ir_base
 public:
     lunar_ir_identifier(std::unique_ptr<std::u32string> id) : m_id(std::move(id)) { }
     virtual ~lunar_ir_identifier() { }
+
+    const std::u32string& get_id() { return *m_id; }
 
 private:
     std::unique_ptr<std::u32string> m_id;
@@ -1533,11 +1542,12 @@ private:
     void parse_member(lunar_ir_member *member, lunar_ir_module *module, parsec<char32_t> &ps);
     std::unique_ptr<lunar_ir_identifier> parse_identifier(lunar_ir_module *module, parsec<char32_t> &ps);
     std::unique_ptr<lunar_ir_type>       parse_type(lunar_ir_module *module, parsec<char32_t> &ps);
-    std::unique_ptr<lunar_ir_type>       parse_type0(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERSHIP own);
+    std::unique_ptr<lunar_ir_type>       parse_type0(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERSHIP own, int ownline, int owncol);
     LANG_OWNERSHIP                       parse_ownership(lunar_ir_module *module, parsec<char32_t> &ps);
     template <typename T> std::unique_ptr<T> parse_def_member(lunar_ir_module *module, parsec<char32_t> &ps);
 
     void print_parse_err(const std::string &str, lunar_ir_module *module, parsec<char32_t> &ps);
+    void print_parse_err_linecol(const std::string &str, lunar_ir_module *module, parsec<char32_t> &ps, int line, int col);
     const std::string& get_line(const std::string &file, uint64_t num);
 
     std::unordered_map<std::string, std::unique_ptr<lunar_ir_module>> m_modules;

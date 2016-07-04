@@ -134,8 +134,8 @@ public:
         }
     
     private:
-        std::function<bool(T)> m_func;
         parsec &m_parsec;
+        std::function<bool(T)> m_func;
     };
 
     class parser_try {
