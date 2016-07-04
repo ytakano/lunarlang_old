@@ -12,15 +12,13 @@ class bytestream {
     typedef std::basic_string<T> string_t;
 
 public:
-    bytestream() : m_is_eof(false) { }
+    bytestream() : m_is_eof(false), m_del_func([](string_t *ptr) { delete ptr; }) { }
 
     ~bytestream()
     {
         for (auto &data: m_deque) {
             data.remove();
         }
-
-        m_del_func = [](string_t *ptr) { delete ptr; };
     }
 
     void set_del_func(std::function<void(string_t*)> func) { m_del_func = func; }
