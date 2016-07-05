@@ -222,21 +222,21 @@ LANG_OWNERSHIP
 lunar_ir::parse_ownership(lunar_ir_module *module, parsec<char32_t> &ps)
 {
     {
-        lunar::parsec<char32_t>::parser_try ptry(ps);
+        parsec<char32_t>::parser_try ptry(ps);
         ps.parse_string(U"shared");
     }
     if (ps.is_success())
         return OWN_SHARED;
 
     {
-        lunar::parsec<char32_t>::parser_try ptry(ps);
+        parsec<char32_t>::parser_try ptry(ps);
         ps.parse_string(U"unique");
     }
     if (ps.is_success())
         return OWN_UNIQUE;
 
     {
-        lunar::parsec<char32_t>::parser_try ptry(ps);
+        parsec<char32_t>::parser_try ptry(ps);
         ps.parse_string(U"ref");
     }
     if (ps.is_success())
@@ -249,7 +249,7 @@ bool
 lunar_ir::parse_type0_str(lunar_ir_module *module, parsec<char32_t> &ps, const char32_t *str)
 {
     {
-        lunar::parsec<char32_t>::parser_try ptry(ps);
+        parsec<char32_t>::parser_try ptry(ps);
         ps.parse_string(str);
     }
     if (ps.is_success()) {
@@ -280,7 +280,7 @@ lunar_ir::parse_vector(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNER
         return nullptr;
 
     {
-        lunar::parsec<char32_t>::parser_look_ahead plahead(ps);
+        parsec<char32_t>::parser_look_ahead plahead(ps);
         ps.parse_many_char([&]() { return ps.parse_space(); });
         ps.character(U')');
     }
@@ -321,6 +321,80 @@ lunar_ir::parse_list(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERSH
     return llvm::make_unique<lunar_ir_list>(own, std::move(type));
 }
 
+std::unique_ptr<lunar_ir_rstream>
+lunar_ir::parse_rstrm(lunar_ir_module *module, parsec<char32_t> &ps)
+{
+    auto type = parse_type(module, ps);
+    if (! ps.is_success())
+        return nullptr;
+
+    return llvm::make_unique<lunar_ir_rstream>(std::move(type));
+}
+
+std::unique_ptr<lunar_ir_wstream>
+lunar_ir::parse_wstrm(lunar_ir_module *module, parsec<char32_t> &ps)
+{
+    auto type = parse_type(module, ps);
+    if (! ps.is_success())
+        return nullptr;
+
+    return llvm::make_unique<lunar_ir_wstream>(std::move(type));
+}
+
+std::unique_ptr<lunar_ir_rthreadstream>
+lunar_ir::parse_rthreadstrm(lunar_ir_module *module, parsec<char32_t> &ps)
+{
+    auto type = parse_type(module, ps);
+    if (! ps.is_success())
+        return nullptr;
+
+    return llvm::make_unique<lunar_ir_rthreadstream>(std::move(type));
+}
+
+std::unique_ptr<lunar_ir_wthreadstream>
+lunar_ir::parse_wthreadstrm(lunar_ir_module *module, parsec<char32_t> &ps)
+{
+    auto type = parse_type(module, ps);
+    if (! ps.is_success())
+        return nullptr;
+
+    return llvm::make_unique<lunar_ir_wthreadstream>(std::move(type));
+}
+
+std::unique_ptr<lunar_ir_parsec>
+lunar_ir::parse_parsec(lunar_ir_module *module, parsec<char32_t> &ps)
+{
+    {
+        parsec<char32_t>::parser_try ptry(ps);
+        ps.parse_string(U"string");
+    }
+
+    if (ps.is_success())
+        return llvm::make_unique<lunar_ir_parsec>(true);
+
+    {
+        parsec<char32_t>::parser_try ptry(ps);
+        ps.parse_string(U"binary");
+    }
+
+    if (ps.is_success())
+        return llvm::make_unique<lunar_ir_parsec>(true);
+
+    print_parse_err("expected \"string\" or \"binary\"", module, ps);
+
+    return nullptr;
+}
+
+std::unique_ptr<lunar_ir_ptr>
+lunar_ir::parse_ptr(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERSHIP own)
+{
+    auto type = parse_type(module, ps);
+    if (! ps.is_success())
+        return nullptr;
+
+    return llvm::make_unique<lunar_ir_ptr>(own, std::move(type));
+}
+
 std::unique_ptr<lunar_ir_type>
 lunar_ir::parse_type0(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERSHIP own, int ownline, int owncol)
 {
@@ -331,7 +405,7 @@ lunar_ir::parse_type0(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERS
     col  = ps.get_col();
 
     {
-        lunar::parsec<char32_t>::parser_try ptry(ps);
+        parsec<char32_t>::parser_try ptry(ps);
         ps.character(U'(');
     }
 
@@ -343,35 +417,64 @@ lunar_ir::parse_type0(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERS
         if (parse_type0_str(module, ps, U"vector")) {
             type = parse_vector(module, ps, own);
             if (! ps.is_success()) return nullptr;
-        } else if (parse_type0_str(module, ps, U"dict")) {
-
         } else if (parse_type0_str(module, ps, U"set")) {
             type = parse_set(module, ps, own);
             if (! ps.is_success()) return nullptr;
         } else if (parse_type0_str(module, ps, U"list")) {
             type = parse_list(module, ps, own);
             if (! ps.is_success()) return nullptr;
-        } else if (parse_type0_str(module, ps, U"struct")) {
-            
-        } else if (parse_type0_str(module, ps, U"union")) {
-            
-        } else if (parse_type0_str(module, ps, U"func")) {
-            
-        } else if (parse_type0_str(module, ps, U"rstrm")) {
-            
-        } else if (parse_type0_str(module, ps, U"wstrm")) {
-            
-        } else if (parse_type0_str(module, ps, U"rthreadstrm")) {
-            
-        } else if (parse_type0_str(module, ps, U"wthreadstrm")) {
-            
         } else if (parse_type0_str(module, ps, U"ptr")) {
+            type = parse_ptr(module, ps, own);
+            if (! ps.is_success()) return nullptr;
+        } else if (parse_type0_str(module, ps, U"dict")) {
+
+        } else if (parse_type0_str(module, ps, U"struct")) {
             
         } else if (parse_type0_str(module, ps, U"union")) {
             
         } else if (parse_type0_str(module, ps, U"cunion")) {
             
+        } else if (parse_type0_str(module, ps, U"rstrm")) {
+            if (own != OWN_UNIQUE) {
+                print_parse_err_linecol("rstrm must be unique", module, ps, ownline, owncol);
+                ps.set_is_success(false);
+                return nullptr;
+            }
+            type = parse_rstrm(module, ps);
+            if (! ps.is_success()) return nullptr;
+        } else if (parse_type0_str(module, ps, U"wstrm")) {
+            if (own != OWN_SHARED) {
+                print_parse_err_linecol("wstrm must be shared", module, ps, ownline, owncol);
+                ps.set_is_success(false);
+                return nullptr;
+            }
+            type = parse_wstrm(module, ps);
+            if (! ps.is_success()) return nullptr;
+        } else if (parse_type0_str(module, ps, U"rthreadstrm")) {
+            if (own != OWN_UNIQUE) {
+                print_parse_err_linecol("rthreadstrm must be unique", module, ps, ownline, owncol);
+                ps.set_is_success(false);
+                return nullptr;
+            }
+            type = parse_rthreadstrm(module, ps);
+            if (! ps.is_success()) return nullptr;
+        } else if (parse_type0_str(module, ps, U"wthreadstrm")) {
+            if (own != OWN_SHARED) {
+                print_parse_err_linecol("wthreadstrm must be shared", module, ps, ownline, owncol);
+                ps.set_is_success(false);
+                return nullptr;
+            }
+            type = parse_wthreadstrm(module, ps);
+            if (! ps.is_success()) return nullptr;
         } else if (parse_type0_str(module, ps, U"parsec")) {
+            if (own != OWN_UNIQUE) {
+                print_parse_err_linecol("parsec must be unique", module, ps, ownline, owncol);
+                ps.set_is_success(false);
+                return nullptr;
+            }
+            type = parse_parsec(module, ps);
+            if (! ps.is_success()) return nullptr;
+        } else if (parse_type0_str(module, ps, U"func")) {
             
         } else {
             print_parse_err("invalid type specifier", module, ps);
@@ -458,7 +561,7 @@ lunar_ir::parse_type(lunar_ir_module *module, parsec<char32_t> &ps)
     std::unique_ptr<lunar_ir_type> type;
     LANG_OWNERSHIP own = OWN_IMMOVABLE;
     {
-        lunar::parsec<char32_t>::parser_try ptry(ps);
+        parsec<char32_t>::parser_try ptry(ps);
         ps.character(U'(');
         if (ps.is_success()) {
             ps.parse_many_char([&]() { return ps.parse_space(); });
@@ -504,7 +607,7 @@ lunar_ir::parse_member(lunar_ir_member *member, lunar_ir_module *module, parsec<
     for (;;) {
         ps.parse_many_char([&]() { return ps.parse_space(); });
         {
-            lunar::parsec<char32_t>::parser_try ptry(ps);
+            parsec<char32_t>::parser_try ptry(ps);
             ps.character(U'(');
             if (! ps.is_success()) {
                 ps.set_is_success(true);
@@ -583,7 +686,7 @@ lunar_ir::parse_def_member(lunar_ir_module *module, parsec<char32_t> &ps)
     }
 
     {
-        lunar::parsec<char32_t>::parser_look_ahead plahead(ps);
+        parsec<char32_t>::parser_look_ahead plahead(ps);
         ps.character(U'(');
         if (! ps.is_success()) {
             print_parse_err("expected \"(\"", module, ps);
@@ -625,7 +728,7 @@ lunar_ir::parse_top(lunar_ir_module *module, parsec<char32_t> &ps)
 
         // parse struct
         {
-            lunar::parsec<char32_t>::parser_try ptry(ps);
+            parsec<char32_t>::parser_try ptry(ps);
             ps.parse_string(U"struct");
         }
 
@@ -676,8 +779,8 @@ run_parse(void *ptr)
         printf("parse %s\n", file.c_str());
 
         auto str = &ir->m_files[file];
-        lunar::shared_stream rs;
-        lunar::shared_stream ws;
+        shared_stream rs;
+        shared_stream ws;
 
         make_ptr_stream(&rs, &ws, 2);
         
@@ -698,9 +801,9 @@ run_parse(void *ptr)
 void
 lunar_ir::run(int idx)
 {
-    lunar::init_green_thread(idx);
-    lunar::spawn_green_thread(run_parse, this);
-    lunar::run_green_thread();
+    init_green_thread(idx);
+    spawn_green_thread(run_parse, this);
+    run_green_thread();
 }
 
 }
