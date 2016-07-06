@@ -1537,6 +1537,8 @@ private:
     void parse_top(lunar_ir_module *module, parsec<char32_t> &ps);
     void parse_member(lunar_ir_member *member, lunar_ir_module *module, parsec<char32_t> &ps);
     bool parse_type0_str(lunar_ir_module *module, parsec<char32_t> &ps, const char32_t *str);
+    void parse_types(std::function<void(std::unique_ptr<lunar_ir_type>)> add_type,
+                     lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERSHIP own);
     std::unique_ptr<lunar_ir_identifier>     parse_identifier(lunar_ir_module *module, parsec<char32_t> &ps);
     std::unique_ptr<lunar_ir_type>           parse_type(lunar_ir_module *module, parsec<char32_t> &ps);
     std::unique_ptr<lunar_ir_type>           parse_type0(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERSHIP own, int ownline, int owncol);
@@ -1551,6 +1553,7 @@ private:
     std::unique_ptr<lunar_ir_parsec>         parse_parsec(lunar_ir_module *module, parsec<char32_t> &ps);
     std::unique_ptr<lunar_ir_ptr>            parse_ptr(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERSHIP own);
     std::unique_ptr<lunar_ir_dict>           parse_dict(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERSHIP own);
+    std::unique_ptr<lunar_ir_functype>       parse_functype(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERSHIP own);
     LANG_OWNERSHIP                           parse_ownership(lunar_ir_module *module, parsec<char32_t> &ps);
     template <typename T> std::unique_ptr<T> parse_def_member(lunar_ir_module *module, parsec<char32_t> &ps);
     template <typename T> std::unique_ptr<T> parse_def_member_own(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERSHIP own);
