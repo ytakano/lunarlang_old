@@ -563,6 +563,71 @@ lunar_ir::parse_type0(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERS
                 return nullptr;
             }
             type = llvm::make_unique<lunar_ir_rsigstream>();
+        } else  if (s == U"vector") {
+            print_parse_err_linecol("vector needs a type specifier", module, ps, ownline, owncol);
+            ps.set_is_success(false);
+            return nullptr;
+        } else  if (s == U"list") {
+            print_parse_err_linecol("list needs a type specifier", module, ps, ownline, owncol);
+            ps.set_is_success(false);
+            return nullptr;
+        } else  if (s == U"set") {
+            print_parse_err_linecol("set needs a type specifier", module, ps, ownline, owncol);
+            ps.set_is_success(false);
+            return nullptr;
+        } else  if (s == U"dict") {
+            print_parse_err_linecol("dict needs 2 type specifiers", module, ps, ownline, owncol);
+            ps.set_is_success(false);
+            return nullptr;
+        } else  if (s == U"ptr") {
+            print_parse_err_linecol("ptr needs a type specifier", module, ps, ownline, owncol);
+            ps.set_is_success(false);
+            return nullptr;
+        } else  if (s == U"rstrm") {
+            if (own != OWN_UNIQUE) {
+                print_parse_err_linecol("rstrm must be unique", module, ps, ownline, owncol);
+            } else {
+                print_parse_err("rstrm needs type specifier", module, ps);
+            }
+            ps.set_is_success(false);
+            return nullptr;
+        } else  if (s == U"wstrm") {
+            if (own != OWN_SHARED) {
+                print_parse_err_linecol("wstrm must be shared", module, ps, ownline, owncol);
+            } else {
+                print_parse_err("wstrm needs a type specifier", module, ps);
+            }
+            ps.set_is_success(false);
+            return nullptr;
+        } else  if (s == U"rthreadstrm") {
+            if (own != OWN_UNIQUE) {
+                print_parse_err_linecol("rthreadstrm must be unique", module, ps, ownline, owncol);
+            } else {
+                print_parse_err("rthreadstrm needs type specifier\n", module, ps);
+            }
+            ps.set_is_success(false);
+            return nullptr;
+        } else  if (s == U"wthreadstrm") {
+            if (own != OWN_SHARED) {
+                print_parse_err_linecol("wthreadstrm must be shared", module, ps, ownline, owncol);
+            } else {
+                print_parse_err("wthreadstrm needs a type specifier", module, ps);
+            }
+            ps.set_is_success(false);
+            return nullptr;
+        } else  if (s == U"parsec") {
+            if (own != OWN_UNIQUE) {
+                print_parse_err("parsec must be unique", module, ps);
+            } else {
+                print_parse_err("parsec needs a type specifier", module, ps);
+            }
+            ps.set_is_success(false);
+            return nullptr;
+        } else if (s == U"struct" || s == U"union" || s == U"cunion") {
+            s += U" needs members";
+            print_parse_err(to_string(s).c_str(), module, ps);
+            ps.set_is_success(false);
+            return nullptr;
         } else {
             type = llvm::make_unique<lunar_ir_type_id>(own, std::move(id));
         }
@@ -605,6 +670,8 @@ lunar_ir::parse_type(lunar_ir_module *module, parsec<char32_t> &ps)
         }
 
         type = parse_type0(module, ps, own, ownline, owncol);
+        if (! ps.is_success())
+            return nullptr;
 
         ps.parse_many_char([&]() { return ps.parse_space(); });
         ps.character(U')');
