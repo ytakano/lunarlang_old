@@ -12,11 +12,12 @@
 /*
  * -----------------------------------------------------------------------------
  *
- * IR  := TOP*
- * TOP := FUNC | GLOBAL | IMPORT | EXPR | STATEMENT
- * STATEMENT := LET | COND | WHILE | BREAK | SELECT | RETURN | SCHEDULE | STRUCT | CUNION | UNION
- * GLOBAL := ( global ( ( TYPE (IDENTIFIER+) EXPRIDENTLIT )+ ) )
- * IMPORT := ( import STR32+ )
+ * IR           := TOP*
+ * TOP          := FUNC | GLOBAL | IMPORT | EXPR | STATEMENT
+ * TOPSTATEMENT := LET | COND | WHILE | SELECT | SCHEDULE | STRUCT | CUNION | UNION
+ * STATEMENT    := LET | COND | WHILE | BREAK | SELECT | RETURN | SCHEDULE | STRUCT | CUNION | UNION
+ * GLOBAL       := ( global ( ( TYPE (IDENTIFIER+) EXPRIDENTLIT )+ ) )
+ * IMPORT       := ( import STR32+ )
  *
  * -----------------------------------------------------------------------------
  *
@@ -1510,6 +1511,11 @@ public:
     virtual ~lunar_ir_module() { }
 
     const std::string& get_filename() { return m_file; }
+
+    void add_top_elm(std::unique_ptr<lunar_ir_top> elm)
+    {
+        m_top_elms.push_back(std::move(elm));
+    }
 
 private:
     std::string m_file;

@@ -12,3 +12,5 @@
         ( ( vector s16 ) v2)
         ( ( unique ( rstrm char )) rs )
         ( ( shared ( wstrm u16 )) ws ))
+( union uni ( u32 a ) ( u16 b) )
+( cunion uni ( u32 a ) ( u16 b) )

@@ -941,6 +941,43 @@ lunar_ir::parse_top(lunar_ir_module *module, parsec<char32_t> &ps)
             if (ps.is_success()) {
                 def->set_col(col);
                 def->set_line(line);
+                module->add_top_elm(std::move(def));
+                goto success;
+            } else {
+                return;
+            }
+        }
+
+        // parse union
+        {
+            parsec<char32_t>::parser_try ptry(ps);
+            ps.parse_string(U"union");
+        }
+
+        if (ps.is_success()) {
+            auto def = parse_def_member<lunar_ir_def_union>(module, ps);
+            if (ps.is_success()) {
+                def->set_col(col);
+                def->set_line(line);
+                module->add_top_elm(std::move(def));
+                goto success;
+            } else {
+                return;
+            }
+        }
+
+        // parse cunion
+        {
+            parsec<char32_t>::parser_try ptry(ps);
+            ps.parse_string(U"cunion");
+        }
+
+        if (ps.is_success()) {
+            auto def = parse_def_member<lunar_ir_def_cunion>(module, ps);
+            if (ps.is_success()) {
+                def->set_col(col);
+                def->set_line(line);
+                module->add_top_elm(std::move(def));
                 goto success;
             } else {
                 return;
