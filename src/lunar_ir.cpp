@@ -321,6 +321,27 @@ lunar_ir::parse_list(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERSH
     return llvm::make_unique<lunar_ir_list>(own, std::move(type));
 }
 
+std::unique_ptr<lunar_ir_dict>
+lunar_ir::parse_dict(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERSHIP own)
+{
+    auto key = parse_type(module, ps);
+    if (! ps.is_success())
+        return nullptr;
+
+    ps.parse_many1_char([&]() { return ps.parse_space(); });
+    if (! ps.is_success()) {
+        print_parse_err("need white space", module, ps);
+        return nullptr;
+    }
+
+    auto val = parse_type(module, ps);
+    if (! ps.is_success())
+        return nullptr;
+
+    return llvm::make_unique<lunar_ir_dict>(own, std::move(key), std::move(val));
+}
+
+
 std::unique_ptr<lunar_ir_rstream>
 lunar_ir::parse_rstrm(lunar_ir_module *module, parsec<char32_t> &ps)
 {
@@ -427,13 +448,17 @@ lunar_ir::parse_type0(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERS
             type = parse_ptr(module, ps, own);
             if (! ps.is_success()) return nullptr;
         } else if (parse_type0_str(module, ps, U"dict")) {
-
+            type = parse_dict(module, ps, own);
+            if (! ps.is_success()) return nullptr;
         } else if (parse_type0_str(module, ps, U"struct")) {
-            
+            type = parse_def_member_own<lunar_ir_struct>(module, ps, own);
+            if (! ps.is_success()) return nullptr;
         } else if (parse_type0_str(module, ps, U"union")) {
-            
+            type = parse_def_member_own<lunar_ir_union>(module, ps, own);
+            if (! ps.is_success()) return nullptr;
         } else if (parse_type0_str(module, ps, U"cunion")) {
-            
+            type = parse_def_member_own<lunar_ir_cunion>(module, ps, own);
+            if (! ps.is_success()) return nullptr;
         } else if (parse_type0_str(module, ps, U"rstrm")) {
             if (own != OWN_UNIQUE) {
                 print_parse_err_linecol("rstrm must be unique", module, ps, ownline, owncol);
@@ -663,6 +688,37 @@ lunar_ir::parse_identifier(lunar_ir_module *module, parsec<char32_t> &ps)
     ret->set_col(col);
 
     return ret;
+}
+
+template <typename T>
+std::unique_ptr<T>
+lunar_ir::parse_def_member_own(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERSHIP own)
+{
+    auto name = parse_identifier(module, ps);
+
+    if (ps.is_success()) {
+        ps.parse_many1_char([&]() { return ps.parse_space(); });
+        if (! ps.is_success()) {
+            print_parse_err("need white space", module, ps);
+            return nullptr;
+        }
+    }
+
+    {
+        parsec<char32_t>::parser_look_ahead plahead(ps);
+        ps.character(U'(');
+        if (! ps.is_success()) {
+            print_parse_err("expected \"(\"", module, ps);
+            return nullptr;
+        }
+    }
+
+    auto def = llvm::make_unique<T>(own, std::move(name));
+    parse_member(def.get(), module, ps);
+    if (! ps.is_success())
+        return nullptr;
+
+    return def;
 }
 
 template <typename T>

@@ -13,8 +13,8 @@
  * -----------------------------------------------------------------------------
  *
  * IR  := TOP*
- * TOP := FUNC | STRUCT | CUNION | UNION | GLOBAL | IMPORT | EXPR | STATEMENT
- * STATEMENT := LET | COND | WHILE | BREAK | SELECT | RETURN | SCHEDULE
+ * TOP := FUNC | GLOBAL | IMPORT | EXPR | STATEMENT
+ * STATEMENT := LET | COND | WHILE | BREAK | SELECT | RETURN | SCHEDULE | STRUCT | CUNION | UNION
  * GLOBAL := ( global ( ( TYPE (IDENTIFIER+) EXPRIDENTLIT )+ ) )
  * IMPORT := ( import STR32+ )
  *
@@ -287,9 +287,6 @@ enum LANG_LITERAL {
 
 enum IR_TOP {
     IR_FUNC,
-    IR_STRUCT,
-    IR_CUNION,
-    IR_UNION,
     IR_GLOBAL,
     IR_IMPORT,
     IR_EXPR,
@@ -341,6 +338,18 @@ private:
     IR_TOP m_type;
 };
 
+class lunar_ir_expr : public lunar_ir_top {
+public:
+    lunar_ir_expr() : lunar_ir_top(IR_EXPR) { }
+    virtual ~lunar_ir_expr() { }
+};
+
+class lunar_ir_statement : public lunar_ir_top {
+public:
+    lunar_ir_statement() : lunar_ir_top(IR_STATEMENT) { }
+    virtual ~lunar_ir_statement() { }
+};
+
 class lunar_ir_member {
 public:
     lunar_ir_member() { }
@@ -357,27 +366,27 @@ private:
     std::vector<std::unique_ptr<lunar_ir_identifier>> m_member_names;
 };
 
-class lunar_ir_def_struct : public lunar_ir_top, public lunar_ir_member {
+class lunar_ir_def_struct : public lunar_ir_statement, public lunar_ir_member {
 public:
-    lunar_ir_def_struct(std::unique_ptr<lunar_ir_identifier> name) : lunar_ir_top(IR_STRUCT), m_name(std::move(name)) { }
+    lunar_ir_def_struct(std::unique_ptr<lunar_ir_identifier> name) : m_name(std::move(name)) { }
     virtual ~lunar_ir_def_struct() { }
 
 private:
     std::unique_ptr<lunar_ir_identifier> m_name;
 };
 
-class lunar_ir_def_cunion : public lunar_ir_top, public lunar_ir_member {
+class lunar_ir_def_cunion : public lunar_ir_statement, public lunar_ir_member {
 public:
-    lunar_ir_def_cunion(std::unique_ptr<lunar_ir_identifier> name) : lunar_ir_top(IR_STRUCT), m_name(std::move(name)) { }
+    lunar_ir_def_cunion(std::unique_ptr<lunar_ir_identifier> name) : m_name(std::move(name)) { }
     virtual ~lunar_ir_def_cunion() { }
 
 private:
     std::unique_ptr<lunar_ir_identifier> m_name;
 };
 
-class lunar_ir_def_union : public lunar_ir_top, public lunar_ir_member {
+class lunar_ir_def_union : public lunar_ir_statement, public lunar_ir_member {
 public:
-    lunar_ir_def_union(std::unique_ptr<lunar_ir_identifier> name) : lunar_ir_top(IR_STRUCT), m_name(std::move(name)) { }
+    lunar_ir_def_union(std::unique_ptr<lunar_ir_identifier> name) : m_name(std::move(name)) { }
     virtual ~lunar_ir_def_union() { }
 
 private:
@@ -396,18 +405,6 @@ public:
 
 private:
     std::vector<std::u32string> m_modules;
-};
-
-class lunar_ir_expr : public lunar_ir_top {
-public:
-    lunar_ir_expr() : lunar_ir_top(IR_EXPR) { }
-    virtual ~lunar_ir_expr() { }
-};
-
-class lunar_ir_statement : public lunar_ir_top {
-public:
-    lunar_ir_statement() : lunar_ir_top(IR_STATEMENT) { }
-    virtual ~lunar_ir_statement() { }
 };
 
 class lunar_ir_stexpr : public lunar_ir_base {
@@ -1553,8 +1550,10 @@ private:
     std::unique_ptr<lunar_ir_wthreadstream>  parse_wthreadstrm(lunar_ir_module *module, parsec<char32_t> &ps);
     std::unique_ptr<lunar_ir_parsec>         parse_parsec(lunar_ir_module *module, parsec<char32_t> &ps);
     std::unique_ptr<lunar_ir_ptr>            parse_ptr(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERSHIP own);
+    std::unique_ptr<lunar_ir_dict>           parse_dict(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERSHIP own);
     LANG_OWNERSHIP                           parse_ownership(lunar_ir_module *module, parsec<char32_t> &ps);
     template <typename T> std::unique_ptr<T> parse_def_member(lunar_ir_module *module, parsec<char32_t> &ps);
+    template <typename T> std::unique_ptr<T> parse_def_member_own(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERSHIP own);
 
     const std::string& get_line(const std::string &file, uint64_t num);
 
