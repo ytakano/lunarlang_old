@@ -13,7 +13,7 @@
  * -----------------------------------------------------------------------------
  *
  * IR  := TOP*
- * TOP := FUNC | STRUCT | CUNION | UNION | GLOBAL | IMPORT
+ * TOP := FUNC | STRUCT | CUNION | UNION | GLOBAL | IMPORT | EXPR | STATEMENT
  * STATEMENT := LET | COND | WHILE | BREAK | SELECT | RETURN | SCHEDULE
  * GLOBAL := ( global ( ( TYPE (IDENTIFIER+) EXPRIDENTLIT )+ ) )
  * IMPORT := ( import STR32+ )
@@ -292,6 +292,8 @@ enum IR_TOP {
     IR_UNION,
     IR_GLOBAL,
     IR_IMPORT,
+    IR_EXPR,
+    IR_STATEMENT,
 };
 
 class lunar_ir_base {
@@ -396,15 +398,15 @@ private:
     std::vector<std::u32string> m_modules;
 };
 
-class lunar_ir_expr : public lunar_ir_base {
+class lunar_ir_expr : public lunar_ir_top {
 public:
-    lunar_ir_expr() { }
+    lunar_ir_expr() : lunar_ir_top(IR_EXPR) { }
     virtual ~lunar_ir_expr() { }
 };
 
-class lunar_ir_statement : public lunar_ir_base {
+class lunar_ir_statement : public lunar_ir_top {
 public:
-    lunar_ir_statement() { }
+    lunar_ir_statement() : lunar_ir_top(IR_STATEMENT) { }
     virtual ~lunar_ir_statement() { }
 };
 

@@ -5,7 +5,7 @@ Lunar言語の中間表現であり、ここからLLVM IRへ変換。
 # 構文
 
 - IR           := TOP*
-- TOP          := FUNC | STRUCT | CUNION | UNION | GLOBAL | IMPORT
+- TOP          := FUNC | STRUCT | CUNION | UNION | GLOBAL | IMPORT | EXPR | STATEMENT
 - STATEMENT    := LET | COND | WHILE | BREAK | SELECT | RETURN | SCHEDULE
 - STEXPR       := STATMENT | EXPR
 - LITERAL      := STR32 | STR8 | CHAR32 | CHAR8 | INT | FLOAT | HEX | OCT | BIN
@@ -76,6 +76,60 @@ Lunar IRにはオーナーという概念があり、変数を利用する際に
 
 ただしここで、INITSCALARは数値、真偽値、文字リテラル、atomリテラルのいずれかである。
 
+## 関数型
+
+構文：
+- FUNCTYPE := ( func ( TYPE\* ) ( TYPE\* ) )
+
+セマンティクス：
+- ( func ( 戻り値の型\* ) ( 引数の型\* ) )
+
+関数には所有権という概念はない。
+
+## 構造体
+
+構文：
+- STRUCT := ( struct IDENTIFIER? ( TYPE IDENTIFIER )* )
+
+セマンティクス：
+- ( struct 構造体の名前 ( 構造体メンバの型 構造体メンバの名前 )* )
+
+## 多相型（直和集合）
+
+構文：
+- UNION := ( union IDENTIFIER? ( TYPE IDENTIFIER )* )
+
+セマンティクス：
+- ( union 多相型の名前 ( 多相型となる型 型の名前 )* )
+
+## C共用体
+
+構文：
+- CUNION := ( cunion IDENTIFIER? ( TYPE IDENTIFIER )* )
+
+セマンティクス：
+- ( cunion 構造体の名前 ( 構造体メンバの型 構造体メンバの名前 )* )
+
+C関数と互換性を保つために利用され、それ以外での利用は非推奨である。
+
+## ポインタ型
+
+C関数と互換性を保つために利用され、それ以外での利用は非推奨である。
+
+構文：
+- PTR := ( ptr TYPE )
+
+セマンティクス：
+- ( ptr ポインタの型 )
+
+```lisp
+(ptr u64)
+(ptr (shared mystruct))
+(ptr (ptr (unique u32)))
+```
+
+# 第二級オブジェクト
+
 ## 配列
 
 構文：
@@ -114,14 +168,6 @@ Lunar IRにはオーナーという概念があり、変数を利用する際に
 (list (ref u16))
 ```
 
-## 構造体
-
-構文：
-- STRUCT := ( struct IDENTIFIER? ( TYPE IDENTIFIER )* )
-
-セマンティクス：
-- ( struct 構造体の名前 ( 構造体メンバの型 構造体メンバの名前 )* )
-
 例：
 ```lisp
 (struct my_data
@@ -155,24 +201,6 @@ Lunar IRにはオーナーという概念があり、変数を利用する際に
 ```lisp
 (set (unique u32))
 ```
-
-## 多相型（直和集合）
-
-構文：
-- UNION := ( union IDENTIFIER? ( TYPE IDENTIFIER )* )
-
-セマンティクス：
-- ( union 多相型の名前 ( 多相型となる型 型の名前 )* )
-
-## 関数型
-
-構文：
-- FUNCTYPE := ( func ( TYPE\* ) ( TYPE\* ) )
-
-セマンティクス：
-- ( func ( 戻り値の型\* ) ( 引数の型\* ) )
-
-関数には所有権という概念はない。
 
 ### ストリーム型
 
@@ -211,32 +239,6 @@ Lunar IRにはオーナーという概念があり、変数を利用する際に
 
 - RTHREADTREAM := ( rthreadstrm TYPE )
 - WTHREADTREAM := ( wthreadstrm TYPE )
-
-## ポインタ型
-
-C関数と互換性を保つために利用され、それ以外での利用は非推奨である。
-
-構文：
-- PTR := ( ptr TYPE )
-
-セマンティクス：
-- ( ptr ポインタの型 )
-
-```lisp
-(ptr u64)
-(ptr (shared mystruct))
-(ptr (ptr (unique u32)))
-```
-
-## C共用体
-
-構文：
-- CUNION := ( cunion IDENTIFIER? ( TYPE IDENTIFIER )* )
-
-セマンティクス：
-- ( cunion 構造体の名前 ( 構造体メンバの型 構造体メンバの名前 )* )
-
-C関数と互換性を保つために利用され、それ以外での利用は非推奨である。
 
 ## パーサ型
 
