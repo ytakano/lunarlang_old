@@ -21,7 +21,9 @@ main(int argc, char *argv[])
 
     ir.add_file(lunar::to_u32string(str), "tests/ir/test01.lunar.ir");
 
-    ir.compile("a.lunar.ir");
+    ir.compile("tests/ir/test01.lunar.ir");
+
+    ir.print();
 
     return 0;
 }

@@ -818,7 +818,7 @@ lunar_ir::parse_identifier(lunar_ir_module *module, parsec<char32_t> &ps)
 {
     auto id = llvm::make_unique<std::u32string>();
 
-    int line, col;
+    uint64_t line, col;
     line = ps.get_line();
     col  = ps.get_col();
 
@@ -852,6 +852,10 @@ lunar_ir::parse_def_member_own(lunar_ir_module *module, parsec<char32_t> &ps, LA
         }
     }
 
+    uint64_t line, col;
+    line = ps.get_line();
+    col  = ps.get_col();
+
     {
         parsec<char32_t>::parser_look_ahead plahead(ps);
         ps.character(U'(');
@@ -865,6 +869,9 @@ lunar_ir::parse_def_member_own(lunar_ir_module *module, parsec<char32_t> &ps, LA
     parse_member(def.get(), module, ps);
     if (! ps.is_success())
         return nullptr;
+
+    def->set_line_mem(line);
+    def->set_col_mem(col);
 
     return def;
 }
@@ -889,6 +896,10 @@ lunar_ir::parse_def_member(lunar_ir_module *module, parsec<char32_t> &ps)
         return nullptr;
     }
 
+    uint64_t line, col;
+    line = ps.get_line();
+    col  = ps.get_col();
+
     {
         parsec<char32_t>::parser_look_ahead plahead(ps);
         ps.character(U'(');
@@ -903,10 +914,13 @@ lunar_ir::parse_def_member(lunar_ir_module *module, parsec<char32_t> &ps)
     if (! ps.is_success())
         return nullptr;
 
+    def->set_line_mem(line);
+    def->set_col_mem(col);
+
     return def;
 }
 
-void
+bool
 lunar_ir::parse_top(lunar_ir_module *module, parsec<char32_t> &ps)
 {
     for (;;) {
@@ -921,11 +935,11 @@ lunar_ir::parse_top(lunar_ir_module *module, parsec<char32_t> &ps)
         if (! ps.is_success()) {
             if (ps.is_eof()) {
                 ps.set_is_success(true);
+                return true;
             } else {
                 print_parse_err("expected \"(\"", module, ps);
+                return false;
             }
-
-            return;
         }
 
         ps.parse_many_char([&]() { return ps.parse_space(); });
@@ -944,7 +958,7 @@ lunar_ir::parse_top(lunar_ir_module *module, parsec<char32_t> &ps)
                 module->add_top_elm(std::move(def));
                 goto success;
             } else {
-                return;
+                return false;
             }
         }
 
@@ -962,7 +976,7 @@ lunar_ir::parse_top(lunar_ir_module *module, parsec<char32_t> &ps)
                 module->add_top_elm(std::move(def));
                 goto success;
             } else {
-                return;
+                return false;
             }
         }
 
@@ -980,7 +994,7 @@ lunar_ir::parse_top(lunar_ir_module *module, parsec<char32_t> &ps)
                 module->add_top_elm(std::move(def));
                 goto success;
             } else {
-                return;
+                return false;
             }
         }
 
@@ -989,15 +1003,19 @@ success:
         ps.character(U')');
         if (! ps.is_success()) {
             print_parse_err("expected \")\"", module, ps);
-            return;
+            return false;
         }
     }
+
+    return true;
 }
 
 void
 lunar_ir::parse_module(std::unique_ptr<lunar_ir_module> module, parsec<char32_t> &ps)
 {
-    parse_top(module.get(), ps);
+    if (parse_top(module.get(), ps)) {
+        m_modules[module->get_filename()] = std::move(module);
+    }
 }
 
 void
@@ -1016,8 +1034,6 @@ run_parse(void *ptr)
             file = *it;
             ir->m_fileq.pop_front();
         }
-
-        printf("parse %s\n", file.c_str());
 
         auto str = &ir->m_files[file];
         shared_stream rs;
