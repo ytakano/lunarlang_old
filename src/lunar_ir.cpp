@@ -273,7 +273,7 @@ lunar_ir::parse_expr(lunar_ir_module *module, parsec<char32_t> &ps)
 }
 
 std::unique_ptr<lunar_ir_vector>
-lunar_ir::parse_vector(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERSHIP own)
+lunar_ir::parse_array(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERSHIP own)
 {
     auto type = parse_type(module, ps);
     if (! ps.is_success())
@@ -499,11 +499,11 @@ lunar_ir::parse_type0(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERS
 
     std::unique_ptr<lunar_ir_type> type;
     if (ps.is_success()) {
-        // vector, dict, set, list, struct, union, func, rstrm, wstrm, rthreadstrm, wthreadstrm, ptr, cunion, parsec
+        // array, dict, set, list, struct, union, func, rstrm, wstrm, rthreadstrm, wthreadstrm, ptr, cunion, parsec
         ps.parse_many_char([&]() { return ps.parse_space(); });
 
-        if (parse_type0_str(module, ps, U"vector")) {
-            type = parse_vector(module, ps, own);
+        if (parse_type0_str(module, ps, U"array")) {
+            type = parse_array(module, ps, own);
             if (! ps.is_success()) return nullptr;
         } else if (parse_type0_str(module, ps, U"set")) {
             type = parse_set(module, ps, own);
@@ -631,8 +631,8 @@ lunar_ir::parse_type0(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERS
                 return nullptr;
             }
             type = llvm::make_unique<lunar_ir_rsigstream>();
-        } else  if (s == U"vector") {
-            print_parse_err_linecol("vector needs a type specifier", module, ps, ownline, owncol);
+        } else  if (s == U"array") {
+            print_parse_err_linecol("array needs a type specifier", module, ps, ownline, owncol);
             ps.set_is_success(false);
             return nullptr;
         } else  if (s == U"list") {
