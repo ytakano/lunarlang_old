@@ -22,18 +22,17 @@
  * -----------------------------------------------------------------------------
  *
  * TYPE  := TYPE0 | ( OWNERSHIP TYPE0 )
- * TYPE0 := SCALAR | VECTOR | STRING | BINARY | LIST | STRUCT | DICT | SET | UNION | FUNCTYPE |
+ * TYPE0 := SCALAR | ARRAY | STRING | BINARY | LIST | STRUCT | DICT | SET | UNION | FUNCTYPE |
  *          RSTREAM | WSTREAM | RFILESTREAM | WFILESTREAM | RSOCKSTREAM | WSOCKSTREAM |
  *          RSIGSTREAM | RTHREADSTREAM | WTHREADSTREAM | PTR | CUNION | PARSEC | IDENTIFIER
  *
  * OWNERSHIP := unique | shared | ref
  *
  * SCALAR     := SCALARTYPE INITSCALAR | SCALARTYPE
- * SCALARTYPE := bool | u64 | s64 | u32 | s32 | u16 | s16 | u8 | s8 | double | float | char | ATOM
+ * SCALARTYPE := bool | u64 | s64 | u32 | s32 | u16 | s16 | u8 | s8 | double | float | char | atom
  *
- * ATOM := `IDENTIFIER
- *
- * VECTOR := ( vector TYPE EXPRIDENTLIT ) | ( vector TYPE )
+ * ARRAY := ( array TYPE SIZE ) | ( array TYPE )
+ * SIZE  := INT | HEX | OCT | BIN
  *
  * STRING := string
  *
@@ -189,7 +188,9 @@
  *
  * -----------------------------------------------------------------------------
  *
- * LITERAL := STR32 | STR8 | CHAR32 | CHAR8 | INT | FLOAT | HEX | OCT | BIN
+ * LITERAL := STR32 | STR8 | CHAR32 | CHAR8 | INT | FLOAT | HEX | OCT | BIN | ATOM
+ *
+ * ATOM := `IDENTIFIER
  *
  * STR32  := " CHARS* "
  * STR8   := b " CHARS* "
@@ -272,18 +273,6 @@ enum LANG_BASIC_TYPE {
     BT_PTR,
     BT_PARSEC,
     BT_ID,
-};
-
-enum LANG_LITERAL {
-    LIT_STR32,
-    LIT_STR8,
-    LIT_CHAR32,
-    LIT_CHAR8,
-    LIT_INT,
-    LIT_FLOAT,
-    LIT_HEX,
-    LIT_OCT,
-    LIT_BIN,
 };
 
 enum IR_TOP {
@@ -1781,6 +1770,15 @@ private:
     SOCKTYPE   m_type;
 };
 
+class lunar_ir_lit_atom : public lunar_ir_expr {
+public:
+    lunar_ir_lit_atom(std::u32string str) : m_str(str) { }
+    virtual ~lunar_ir_lit_atom() { }
+
+private:
+    std::u32string m_str;
+};
+
 class lunar_ir_lit_str32 : public lunar_ir_expr {
 public:
     lunar_ir_lit_str32(std::u32string str) : m_str(str) { }
@@ -1790,10 +1788,10 @@ private:
     std::u32string m_str;
 };
 
-class lunar_ir_lit_str : public lunar_ir_expr {
+class lunar_ir_lit_str8 : public lunar_ir_expr {
 public:
-    lunar_ir_lit_str(std::u32string str) : m_str(str) { }
-    virtual ~lunar_ir_lit_str() { }
+    lunar_ir_lit_str8(std::u32string str) : m_str(str) { }
+    virtual ~lunar_ir_lit_str8() { }
 
 private:
     std::u32string m_str;
@@ -1801,17 +1799,17 @@ private:
 
 class lunar_ir_lit_char32 : public lunar_ir_expr {
 public:
-    lunar_ir_lit_char32(uint32_t c) : m_char(c) { }
+    lunar_ir_lit_char32(char32_t c) : m_char(c) { }
     virtual ~lunar_ir_lit_char32() { }
 
 private:
-    uint32_t m_char;
+    char32_t m_char;
 };
 
-class lunar_ir_lit_char : public lunar_ir_expr {
+class lunar_ir_lit_char8 : public lunar_ir_expr {
 public:
-    lunar_ir_lit_char(char c) : m_char(c) { }
-    virtual ~lunar_ir_lit_char() { }
+    lunar_ir_lit_char8(char c) : m_char(c) { }
+    virtual ~lunar_ir_lit_char8() { }
 
 private:
     char m_char;

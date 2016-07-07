@@ -9,14 +9,14 @@ Lunar言語の中間表現であり、ここからLLVM IRへ変換。
 - TOPSTATEMENT := LET | COND | WHILE | SELECT | SCHEDULE | STRUCT | CUNION | UNION
 - STATEMENT    := LET | COND | WHILE | BREAK | SELECT | RETURN | SCHEDULE | STRUCT | CUNION | UNION
 - STEXPR       := STATMENT | EXPR
-- LITERAL      := STR32 | STR8 | CHAR32 | CHAR8 | INT | FLOAT | HEX | OCT | BIN
+- LITERAL      := STR32 | STR8 | CHAR32 | CHAR8 | INT | FLOAT | HEX | OCT | BIN | ATOM
 - EXPRIDENT    := EXPR | IDENTIFIER
 - EXPRIDENTLIT := EXPR | IDENTIFIER | LITERAL
 - EXPR         := SPAWN | THREAD | COPY | ASSOC | INCCNT | DECCNT | IF | LAMBDA | NEW | CALLFUNC | TYPEOF | MKSTREAM | MKFILESTREAM | MKSOCKSTREAM | PUSH | POP | SPIN_LOCK_INIT | SPIN_LOCK | SPIN_TRY_LOCK | SPIN_UNLOCK | PARSE | CCALL | DLOPEN | DLCLOSE | TOPTR | DEREF | ADD | MINUS | MULTI | DIV | MOD | PRINT | TOSTR | BAND | BOR | BXOR | BNOT | BSL | BSR | BASL | BASR | BPOPCNT | BLZCNT | AND | OR | EQ | NOT | SOCKET | OPEN | MKSIGNALSTREAM
 
 # グローバル変数定義
 
-- GLOBAL := ( global ( ( TYPE (IDENTIFIER+) EXPRIDENTLIT )+ ) )
+- GLOBAL := ( global ( ( TYPE ( IDENTIFIER+ ) EXPRIDENTLIT )+ ) )
 
 # インポート
 
@@ -46,7 +46,7 @@ Lunar IRにはオーナーという概念があり、変数を利用する際に
 
 構文：
 - TYPE  := TYPE0 | ( OWNERSHIP TYPE0 )
-- TYPE0 := SCALAR | VECTOR | STRING | BINARY | LIST | STRUCT | DICT | SET | UNION | FUNCTYPE | RSTREAM | WSTREAM | RFILESTREAM | WFILESTREAM | RSOCKSTREAM | WSOCKSTREAM | RSIGSTREAM | RTHREADSTREAM | WTHREADSTREAM | PTR | CUNION | PARSEC | IDENTIFIER
+- TYPE0 := SCALAR | ARRAY | STRING | BINARY | LIST | STRUCT | DICT | SET | UNION | FUNCTYPE | RSTREAM | WSTREAM | RFILESTREAM | WFILESTREAM | RSOCKSTREAM | WSOCKSTREAM | RSIGSTREAM | RTHREADSTREAM | WTHREADSTREAM | PTR | CUNION | PARSEC | IDENTIFIER
 
 ここで、IDENTIFIERとは空白文字以外からなる、1文字以上の文字かつ、先頭が数字ではない文字列かつ、
 予約文字（列）以外の文字列である。
@@ -71,11 +71,8 @@ Lunar IRにはオーナーという概念があり、変数を利用する際に
 - atom
 
 構文：
-- SCALAR := SCALARTYPE INITSCALAR | SCALARTYPE
-- SCALARTYPE := bool | u64 | s64 | u32 | s32 | u16 | s16 | u8 | s8 | double | float | char |ATOM
-- ATOM := `IDENTIFIER
-
-ただしここで、INITSCALARは数値、真偽値、文字リテラル、atomリテラルのいずれかである。
+- SCALAR := SCALARTYPE LITERAL | SCALARTYPE
+- SCALARTYPE := bool | u64 | s64 | u32 | s32 | u16 | s16 | u8 | s8 | double | float | char | atom
 
 ## 関数型
 
@@ -134,14 +131,17 @@ C関数と互換性を保つために利用され、それ以外での利用は�
 ## 配列
 
 構文：
-- VECTOR := ( vector TYPE EXPRIDENTLIT ) | ( vector TYPE )
+- ARRAY := ( array TYPE SIZE ) | ( array TYPE )
+- SIZE  := INT | HEX | OCT | BIN
+
+SIZEを指定した場合は、固定長となる。
 
 例：
 ```lisp
-(vector u64 10)
-(vector (shared u32) 5)
-(vector (unique u32) 5)
-(vector (ref u32) 5)
+(array u64 10)
+(array (shared u32) 5)
+(array (unique u32) 5)
+(array (ref u32) 5)
 ```
 
 ## 文字列
@@ -648,6 +648,10 @@ PTR型の参照外し
 引数を文字列へ変換。immovalなstring型を返す。 
 
 # リテラル
+
+## atom
+
+- ATOM := `IDENTIFIER
 
 ## 文字列
 
