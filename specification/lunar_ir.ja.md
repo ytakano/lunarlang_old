@@ -676,10 +676,12 @@ PTR型の参照外し
 
 ## 浮動小数
 
-- FLOAT := NUM . EXP
+- FLOAT := NUM . EXP? f?
 - EXP   := EE SIGN NUM+
 - EE    := e | E
 - SIGN  := - | +
+
+最後にfがついた場合は単精度で、つかない場合は倍精度となる。
 
 ## 16進数
 

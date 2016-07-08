@@ -1025,7 +1025,7 @@ lunar_ir::parse_lit_hex(lunar_ir_module *module, parsec<char32_t> &ps)
 
     auto str = ps.parse_many1_char([&]() { return ps.parse_hex_digit(); });
     if (! ps.is_success()) {
-        print_parse_err("expected \"0..F\"", module, ps);
+        print_parse_err("expected \"0..f\" or \"0..F\"", module, ps);
         return nullptr;
     }
 
