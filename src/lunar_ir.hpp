@@ -74,7 +74,7 @@
  *
  * STEXPR := STATMENT | EXPR
  *
- * LET := ( let ( (TYPE IDENTIFIER)+ EXPRIDENTLIT )+ STEXPR\* )
+ * LET := ( let ( ( ( TYPE IDENTIFIER )+ EXPRIDENTLIT )+ ) STEXPR\* )
  *
  * COND := ( cond ( EXPRIDENTLIT STEXPR* )+ ( else STEXPR* )? )
  *
@@ -205,7 +205,7 @@
  * NUM1to9 := 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
  * NUM0to9 := 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
  *
- * FLOAT := NUM . EXP
+ * FLOAT := NUM . EXP? f?
  * EXP   := EE SIGN NUM+
  * EE    := e | E
  * SIGN  := - | +
