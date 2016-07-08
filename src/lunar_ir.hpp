@@ -217,7 +217,7 @@
  * OCT    := 0 OCTNUM*
  * OCTNUM := 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7
  *
- * BIN    := b BINNUM\* | B BINNUM\*
+ * BIN    := 0b BINNUM\* | 0B BINNUM\*
  * BINNUM := 0 | 1
  *
  * TRUE  := true
