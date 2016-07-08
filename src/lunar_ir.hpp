@@ -762,10 +762,10 @@ private:
     std::unique_ptr<lunar_ir_identifier> m_name;
 };
 
-class lunar_ir_functype : public lunar_ir_type {
+class lunar_ir_func : public lunar_ir_type {
 public:
-    lunar_ir_functype(LANG_OWNERSHIP owner_ship) : lunar_ir_type(BT_FUNCTYPE, owner_ship) { }
-    virtual ~lunar_ir_functype() { }
+    lunar_ir_func(LANG_OWNERSHIP owner_ship) : lunar_ir_type(BT_FUNCTYPE, owner_ship) { }
+    virtual ~lunar_ir_func() { }
 
     void add_ret(std::unique_ptr<lunar_ir_type> ret)
     {
@@ -780,7 +780,7 @@ public:
     virtual void print(const std::string &from)
     {
         std::ostringstream os;
-        os << "\"" << get_line() << ":" << get_col() << ": functype\"";
+        os << "\"" << get_line() << ":" << get_col() << ": func\"";
         printf("%s -> %s;\n", from.c_str(), os.str().c_str());
         print_ownership(os.str());
 
@@ -1033,10 +1033,10 @@ private:
     std::u32string m_name;
 };
 
-class lunar_ir_func : public lunar_ir_top {
+class lunar_ir_defun : public lunar_ir_top {
 public:
-    lunar_ir_func(const std::u32string &name) : lunar_ir_top(IR_FUNC), m_name(name) { }
-    virtual ~lunar_ir_func() { }
+    lunar_ir_defun(const std::u32string &name) : lunar_ir_top(IR_FUNC), m_name(name) { }
+    virtual ~lunar_ir_defun() { }
 
     void add_ret(std::unique_ptr<lunar_ir_type> ret)
     {
@@ -1281,7 +1281,7 @@ private:
     std::unique_ptr<lunar_ir_identifier>     parse_identifier(lunar_ir_module *module, parsec<char32_t> &ps);
     std::unique_ptr<lunar_ir_type>           parse_type(lunar_ir_module *module, parsec<char32_t> &ps);
     std::unique_ptr<lunar_ir_type>           parse_type0(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERSHIP own, int ownline, int owncol);
-    std::unique_ptr<lunar_ir_array>         parse_array(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERSHIP own);
+    std::unique_ptr<lunar_ir_array>          parse_array(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERSHIP own);
     std::unique_ptr<lunar_ir_expr>           parse_expr(lunar_ir_module *module, parsec<char32_t> &ps);
     std::unique_ptr<lunar_ir_set>            parse_set(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERSHIP own);
     std::unique_ptr<lunar_ir_list>           parse_list(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERSHIP own);
@@ -1292,7 +1292,7 @@ private:
     std::unique_ptr<lunar_ir_parsec>         parse_parsec(lunar_ir_module *module, parsec<char32_t> &ps);
     std::unique_ptr<lunar_ir_ptr>            parse_ptr(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERSHIP own);
     std::unique_ptr<lunar_ir_dict>           parse_dict(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERSHIP own);
-    std::unique_ptr<lunar_ir_functype>       parse_functype(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERSHIP own);
+    std::unique_ptr<lunar_ir_func>           parse_func(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERSHIP own);
     std::unique_ptr<lunar_ir_lit_uint>       parse_lit_uint(lunar_ir_module *module, parsec<char32_t> &ps);
     std::unique_ptr<lunar_ir_lit_int>        parse_lit_int(lunar_ir_module *module, parsec<char32_t> &ps);
     std::unique_ptr<lunar_ir_lit_uint>       parse_lit_hex(lunar_ir_module *module, parsec<char32_t> &ps);

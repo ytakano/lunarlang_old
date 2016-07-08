@@ -475,10 +475,10 @@ lunar_ir::parse_types(std::function<void(std::unique_ptr<lunar_ir_type>)> add_ty
     }
 }
 
-std::unique_ptr<lunar_ir_functype>
-lunar_ir::parse_functype(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERSHIP own)
+std::unique_ptr<lunar_ir_func>
+lunar_ir::parse_func(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERSHIP own)
 {
-    auto func = llvm::make_unique<lunar_ir_functype>(own);
+    auto func = llvm::make_unique<lunar_ir_func>(own);
 
     parse_types([&](std::unique_ptr<lunar_ir_type> t) { func->add_ret(std::move(t)); }, module, ps, own);
     if (! ps.is_success())
@@ -580,8 +580,8 @@ lunar_ir::parse_type0(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERS
             }
             type = parse_parsec(module, ps);
             if (! ps.is_success()) return nullptr;
-        } else if (parse_type0_str(module, ps, U"functype")) {
-            type = parse_functype(module, ps, own);
+        } else if (parse_type0_str(module, ps, U"func")) {
+            type = parse_func(module, ps, own);
             if (! ps.is_success()) return nullptr;
         } else {
             print_parse_err("invalid type specifier", module, ps);
