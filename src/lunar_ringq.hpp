@@ -52,7 +52,7 @@ ringq<T>::pop(T &retval)
     if (m_head == m_buf_end) {
         m_head = m_buf;
     }
-    
+
     return STRM_SUCCESS;
 }
 
@@ -62,7 +62,7 @@ ringq<T>::push(const T &val)
 {
     if (m_is_eof)
         return STRM_CLOSED;
-    
+
     if (m_len == m_max_len)
         return STRM_NO_VACANCY;
 
@@ -74,7 +74,7 @@ ringq<T>::push(const T &val)
     if (m_tail == m_buf_end) {
         m_tail = m_buf;
     }
-    
+
     return STRM_SUCCESS;
 }
 

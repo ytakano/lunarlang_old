@@ -120,12 +120,12 @@ init_green_thread(uint64_t thid)
     } else {
         return false;
     }
-    
+
     if (! result) {
         delete lunar_gt;
         return false;
     }
-    
+
     return true;
 }
 
@@ -187,10 +187,10 @@ push_threadq_green_thread(uint64_t id, alltype p)
             fb->inc_refcnt_threadq();
         }
     }
-    
+
     auto ret = fb->push_threadq(p);
     fb->dec_refcnt_threadq();
-    
+
     return ret;
 }
 
@@ -485,13 +485,13 @@ STRM_RESULT
 green_thread::pop_stream(shared_stream *p, T &ret)
 {
     assert(p->flag & shared_stream::READ);
-    
+
     ringq<T> *q = (ringq<T>*)p->shared_data->stream.ptr;
-    
+
     auto result = q->pop(ret);
-    
+
     assert(result != STRM_NO_VACANCY);
-    
+
     return result;
 }
 
@@ -511,14 +511,14 @@ STRM_RESULT
 green_thread::push_stream(shared_stream *p, T data)
 {
     assert(p->flag & shared_stream::WRITE);
-    
+
     ringq<T> *q = (ringq<T>*)p->shared_data->stream.ptr;
-    
+
     if (p->shared_data->flag_shared & shared_stream::CLOSED_READ || q->is_eof()) {
         NOTIFY_STREAM(p, q);
         return STRM_CLOSED;
     }
-    
+
     auto result = q->push(data);
     if (result == STRM_SUCCESS) {
         NOTIFY_STREAM(p, q);
@@ -532,11 +532,11 @@ void
 green_thread::push_eof_stream(shared_stream *p)
 {
     assert(p->flag & shared_stream::WRITE);
-    
+
     ringq<T> *q = (ringq<T>*)p->shared_data->stream.ptr;
-    
+
     q->push_eof();
-    
+
     if (p->flag & shared_stream::READ) {
         p->shared_data->flag_shared |= shared_stream::CLOSED_READ;
     }
@@ -589,7 +589,7 @@ green_thread::~green_thread()
         } else {
             break;
         }
-    } 
+    }
 #elif (defined EPOLL)
     for (;;) {
         if (close(m_epoll) == -1) {
@@ -609,18 +609,18 @@ green_thread::select_fd(bool is_block)
 #ifdef KQUEUE
     auto size = m_wait_fd.size();
     struct kevent *kev = new struct kevent[size + 1];
-    
+
     int ret;
-    
+
     if (is_block) {
         if (m_timeout.empty()) {
             ret = kevent(m_kq, nullptr, 0, kev, size, nullptr);
         } else {
             auto &tout = m_timeout.get<0>();
             auto it = tout.begin();
-            
+
             uint64_t clock = lunar_clock;
-            
+
             if (clock >= it->m_clock) {
                 timespec tm;
                 tm.tv_sec  = 0;
@@ -637,9 +637,9 @@ green_thread::select_fd(bool is_block)
                 }
             } else {
                 intptr_t msec = it->m_clock - clock;
-                
+
                 assert(msec > 0);
-                
+
                 if (size > 0) {
                     timespec tm;
                     tm.tv_sec = msec * 1e-3;
@@ -681,11 +681,11 @@ green_thread::select_fd(bool is_block)
             fprintf(stderr, "error on kevent: %s\n", strerror(kev[i].data));
             continue;
         }
-        
+
         // invoke the green_thread waiting the thread queue
         if (m_wait_thq && m_threadq.get_wait_type() == threadq::QWAIT_PIPE &&
             kev[i].ident == (uintptr_t)m_threadq.get_read_fd() && kev[i].filter == EVFILT_READ) {
-            
+
             if (! (m_wait_thq->m_state & context::SUSPENDING)) {
                 m_wait_thq->m_state |= context::SUSPENDING;
                 m_suspend.push_back(m_wait_thq);
@@ -693,17 +693,17 @@ green_thread::select_fd(bool is_block)
 
             m_threadq.set_wait_type(threadq::QWAIT_NONE);
             m_wait_thq = nullptr;
-            
+
             assert(! (kev[i].flags & EV_EOF));
             m_threadq.pop_pipe(kev[i].data);
-            
+
             continue;
         }
-        
+
         auto it = m_wait_fd.find({kev[i].ident, kev[i].filter});
-        
+
         assert (it != m_wait_fd.end());
-        
+
         // invoke the green_threads waiting the file descriptors
         for (auto it2 = it->second.begin(); it2 != it->second.end(); ++it2) {
             if (! ((*it2)->m_state & context::SUSPENDING)) {
@@ -712,7 +712,7 @@ green_thread::select_fd(bool is_block)
             }
             (*it2)->m_events.push_back({it->first.m_fd, it->first.m_event, kev[i].flags, kev[i].fflags, kev[i].data});
         }
-        
+
         m_wait_fd.erase(it);
     }
 
@@ -720,18 +720,18 @@ green_thread::select_fd(bool is_block)
 #elif (defined EPOLL)
     auto size = m_wait_fd.size();
     epoll_event *eev = new epoll_event[size];
-    
+
     int ret;
-    
+
     if (is_block) {
         if (m_timeout.empty()) {
             ret = epoll_wait(m_epoll, eev, size, -1);
         } else {
             auto &tout = m_timeout.get<0>();
             auto it = tout.begin();
-            
+
             uint64_t clock = lunar_clock;
-            
+
             if (clock >= it->m_clock) {
                 for (;;) {
                     ret = epoll_wait(m_epoll, eev, size, 0);
@@ -745,9 +745,9 @@ green_thread::select_fd(bool is_block)
                 }
             } else {
                 intptr_t msec = it->m_clock - clock;
-                
+
                 assert(msec > 0);
-                
+
                 if (size > 0) {
                     for (;;) {
                         ret = epoll_wait(m_epoll, eev, size, msec);
@@ -777,7 +777,7 @@ green_thread::select_fd(bool is_block)
             }
         }
     }
-    
+
     auto func = [&](int fd, uint32_t event) {
         auto it = m_wait_fd.find({fd, event});
         assert(it != m_wait_fd.end());
@@ -789,7 +789,7 @@ green_thread::select_fd(bool is_block)
             }
             (*it2)->m_events.push_back({it->first.m_fd, it->first.m_event, 0, 0, 0});
         }
-        
+
         m_wait_fd.erase(it);
     };
 
@@ -797,7 +797,7 @@ green_thread::select_fd(bool is_block)
         // invoke the green_thread waiting the thread queue
         if (m_wait_thq && m_threadq.get_wait_type() == threadq::QWAIT_PIPE &&
             eev[i].data.fd == m_threadq.get_read_fd() && (eev[i].events & EPOLLIN)) {
-            
+
             if (! (m_wait_thq->m_state & context::SUSPENDING)) {
                 m_wait_thq->m_state |= context::SUSPENDING;
                 m_suspend.push_back(m_wait_thq);
@@ -805,23 +805,23 @@ green_thread::select_fd(bool is_block)
 
             m_threadq.set_wait_type(threadq::QWAIT_NONE);
             m_wait_thq = nullptr;
-            
+
             m_threadq.pop_pipe(1);
-            
+
             continue;
         }
-        
+
         if (eev[i].events & EPOLLIN) {
             func(eev[i].data.fd, EPOLLIN);
         }
-        
+
         if (eev[i].events & EPOLLOUT) {
             func(eev[i].data.fd, EPOLLOUT);
         }
 
         auto it_in  = m_wait_fd.find({eev[i].data.fd, EPOLLIN});
         auto it_out = m_wait_fd.find({eev[i].data.fd, EPOLLOUT});
-        
+
         epoll_event eev2;
         if (it_in == m_wait_fd.end() && it_out == m_wait_fd.end()) {
             for (;;) {
@@ -855,7 +855,7 @@ green_thread::select_fd(bool is_block)
             }
         }
     }
-    
+
     delete[] eev;
 #endif // KQUEUE
 }
@@ -876,31 +876,31 @@ green_thread::spawn(void (*func)(void*), void *arg, int stack_size)
             m_count = 1;
         }
     }
-    
+
     int pagesize = sysconf(_SC_PAGE_SIZE);
     stack_size -= stack_size % pagesize;
-    
+
     ctx->m_id    = m_count;
     ctx->m_state = context::READY;
-    
+
     void *addr;
     posix_memalign(&addr, pagesize, stack_size);
     ctx->m_stack = (uint64_t*)addr;
     ctx->m_stack_size = stack_size / sizeof(uint64_t);
-    
+
     auto s = ctx->m_stack_size;
     ctx->m_stack[s - 2] = (uint64_t)ctx.get(); // push context
     ctx->m_stack[s - 3] = (uint64_t)arg;       // push argument
     ctx->m_stack[s - 4] = (uint64_t)func;      // push func
-    
+
     if (mprotect(&ctx->m_stack[0], pagesize, PROT_NONE) < 0) {
         PRINTERR("failed mprotect!: %s", strerror(errno));
         exit(-1);
     }
-    
+
     m_suspend.push_back(ctx.get());
     m_id2context[m_count] = std::move(ctx);
-    
+
     return m_count;
 }
 
@@ -928,7 +928,7 @@ green_thread::resume_timeout()
         it->m_ctx->m_state |= context::SUSPENDING;
         it->m_ctx->m_is_ev_timeout = true;
         m_suspend.push_back(it->m_ctx);
-        
+
         tout.erase(it++);
     }
 }
@@ -941,7 +941,7 @@ green_thread::schedule()
 
     for (;;) {
         context *ctx = nullptr;
-        
+
         if (m_running) {
             ctx = m_running;
             if (m_running->m_state == context::RUNNING) {
@@ -952,7 +952,7 @@ green_thread::schedule()
                 m_stop.push_back(m_running);
             }
         }
-        
+
         if (! m_timeout.empty())
             resume_timeout();
 
@@ -965,14 +965,14 @@ green_thread::schedule()
             m_wait_thq->m_is_ev_thq = true;
             m_wait_thq = nullptr;
         }
-        
+
         // invoke READY state thread
         if (! m_suspend.empty()) {
             m_running = m_suspend.front();
             auto state = m_running->m_state;
             m_running->m_state = context::RUNNING;
             m_suspend.pop_front();
-            
+
             if (state & context::READY) {
                 if (ctx) {
                     if (_setjmp(ctx->m_jmp_buf) == 0) {
@@ -1013,13 +1013,13 @@ green_thread::schedule()
                             continue;
 
                         it->second.erase(m_running);
-                        
+
                         if (it->second.empty()) {
                             m_wait_fd.erase(it);
                             EV_SET(&kev[i++], ev.m_fd, ev.m_event, EV_DELETE, 0, 0, nullptr);
                         }
                     }
-                    
+
                     if (i > 0) {
                         for (;;) {
                             if(kevent(m_kq, kev, i, nullptr, 0, nullptr) == -1) {
@@ -1035,24 +1035,24 @@ green_thread::schedule()
                     delete[] kev;
 #elif (defined EPOLL)
                     std::vector<int> fds;
-                    
+
                     for (auto &ev: m_running->m_fd) {
                         auto it = m_wait_fd.find(ev);
                         if (it == m_wait_fd.end())
                             continue;
-                        
+
                         it->second.erase(m_running);
-                        
+
                         if (it->second.empty())
                             m_wait_fd.erase(it);
-                        
+
                         fds.push_back(ev.m_fd);
                     }
-                    
+
                     for (int fd: fds) {
                         auto it_in  = m_wait_fd.find({fd, EPOLLIN});
                         auto it_out = m_wait_fd.find({fd, EPOLLOUT});
-                        
+
                         epoll_event eev;
                         if (it_in == m_wait_fd.end() && it_out == m_wait_fd.end()) {
                             for (;;) {
@@ -1061,7 +1061,7 @@ green_thread::schedule()
                                     PRINTERR("failed epoll_ctl!: %s", strerror(errno));
                                     exit(-1);
                                 } else {
-                                    break; 
+                                    break;
                                 }
                             }
                         } else if (it_in != m_wait_fd.end()) {
@@ -1094,23 +1094,23 @@ green_thread::schedule()
 
                     m_running->m_fd.clear();
                 }
-                
+
                 for (auto strm: m_running->m_stream) {
                     m_wait_stream.erase(strm);
                 }
-                
+
                 m_running->m_stream.clear();
-                
+
                 if (state & context::WAITING_TIMEOUT)
                     m_timeout.get<1>().erase(m_running);
 
                 if (state & context::WAITING_THQ) {
-                    
+
                     spin_lock_acquire_unsafe lock(m_threadq.m_qlock);
                     if (m_threadq.m_qwait_type == threadq::QWAIT_PIPE) {
                         m_threadq.m_qwait_type = threadq::QWAIT_NONE;
                         lock.unlock();
-                        
+
                         if (m_threadq.m_qlen > 0) {
                             m_running->m_is_ev_thq = true;
                             uint8_t buf[32];
@@ -1142,10 +1142,10 @@ green_thread::schedule()
                     } else {
                         lock.unlock();
                     }
-                    
+
                     m_wait_thq = nullptr;
                 }
-                
+
                 if (ctx == m_running)
                     return;
 
@@ -1159,7 +1159,7 @@ green_thread::schedule()
                 }
             }
         }
-        
+
         if (m_wait_thq) {
             spin_lock_acquire_unsafe lock(m_threadq.m_qlock);
             if (m_threadq.m_qlen > 0) {
@@ -1183,7 +1183,7 @@ green_thread::schedule()
                         std::unique_lock<std::mutex> mlock(m_threadq.m_qmutex);
                         if (m_threadq.m_qlen == 0)
                             m_threadq.m_qcond.wait(mlock);
-                        
+
                         m_threadq.m_qwait_type = threadq::QWAIT_NONE;
                     }
 
@@ -1199,7 +1199,7 @@ green_thread::schedule()
                     // wait the notificication via pipe
                     m_threadq.m_qwait_type = threadq::QWAIT_PIPE;
                     lock.unlock();
-                    
+
 #ifdef KQUEUE
                     struct kevent kev;
                     EV_SET(&kev, m_threadq.m_qpipe[0], EVFILT_READ, EV_ADD | EV_ENABLE | EV_ONESHOT, 0, 0, NULL);
@@ -1261,7 +1261,7 @@ green_thread::select_stream(epoll_event *eev, int num_eev,
     m_running->m_ev_stream.clear();
     m_running->m_is_ev_thq = false;
     m_running->m_is_ev_timeout = false;
-    
+
     if (timeout) {
         m_running->m_state |= context::WAITING_TIMEOUT;
         m_timeout.insert(ctx_time(lunar_clock + (uint64_t)timeout, m_running));
@@ -1330,18 +1330,18 @@ green_thread::select_stream(epoll_event *eev, int num_eev,
             m_running->m_stream.push_back(s);
         }
     }
-    
+
     if (is_threadq) {
         assert(m_wait_thq == nullptr);
         m_wait_thq = m_running;
         m_wait_thq->m_state |= context::WAITING_THQ;
     }
-    
+
     if (m_running->m_state == 0) {
         m_running->m_state = context::SUSPENDING;
         m_suspend.push_back(m_running);
     }
-    
+
     schedule();
 }
 
@@ -1357,7 +1357,7 @@ green_thread::remove_stopped()
         free(ctx->m_stack);
         m_id2context.erase(ctx->m_id);
     }
-    
+
     m_stop.clear();
 }
 
@@ -1384,7 +1384,7 @@ green_thread::threadq::threadq(int qsize)
 green_thread::threadq::~threadq()
 {
     while (m_refcnt);
-    
+
     delete[] m_q;
 
     for (;;) {

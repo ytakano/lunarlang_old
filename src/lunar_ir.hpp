@@ -128,14 +128,14 @@
  * PUSH := ( push! EXPRIDENTLIT )
  *
  * POP := ( pop! EXPRIDENTLIT )
- * 
+ *
  * SPIN_LOCK_INIT := ( spin_lock_init EXPRIDENT )
  * SPIN_LOCK      := ( spin_lock EXPRIDENT )
  * SPIN_TRY_LOCK  := ( spin_try_lock EXPRIDENT )
  * SPIN_UNLOCK    := ( spin_unlock EXPRIDENT )
  *
  * PARSE        := ( parse EXPRIDENT PARSECOPS EXPRIDENTLIT* )
- * PARSECOPS    := PARSECCHAR | PARSECMANY | PARSECMANY1 | PARSECTRY | PARSECTRYEND | PARSECLA | PARSECLAEND | PARSECDIGIT | PARSECHEX | PARSECOCT | PARSECSPACE | PARSECSATIS | PARSECSTR 
+ * PARSECOPS    := PARSECCHAR | PARSECMANY | PARSECMANY1 | PARSECTRY | PARSECTRYEND | PARSECLA | PARSECLAEND | PARSECDIGIT | PARSECHEX | PARSECOCT | PARSECSPACE | PARSECSATIS | PARSECSTR
  * PARSECCHAR   := character
  * PARSECTRY    := try
  * PARSERTRYEND := try_end
@@ -251,7 +251,7 @@ enum LANG_SCALAR {
 
 enum LANG_BASIC_TYPE {
     BT_SCALAR,
-    BT_VECTOR,
+    BT_ARRAY,
     BT_STRING,
     BT_BINARY,
     BT_LIST,
@@ -286,7 +286,7 @@ enum IR_TOP {
 class lunar_ir_base {
 public:
     lunar_ir_base() : m_line(0), m_col(0) { }
-    ~lunar_ir_base() { }
+    virtual ~lunar_ir_base() { }
 
     void set_col(uint64_t col) { m_col = col; }
     void set_line(uint64_t line) { m_line = line; }
@@ -383,7 +383,7 @@ public:
         os << "\"" << m_line << ":" << m_col << ": member\"";
         printf("%s -> %s;\n", from.c_str(), os.str().c_str());
 
-        for (int i = 0; i < m_member_types.size(); i++) {
+        for (uint64_t i = 0; i < m_member_types.size(); i++) {
             std::ostringstream os2;
             os2 << "\"" << m_line << ":" << m_col << ": member" << "[" << i << "]\"";
             printf("%s -> %s;\n", os.str().c_str(), os2.str().c_str());
@@ -503,6 +503,87 @@ private:
     std::unique_ptr<lunar_ir_identifier> m_id;
 };
 
+class lunar_ir_lit_atom : public lunar_ir_expr {
+public:
+    lunar_ir_lit_atom(std::u32string str) : m_str(str) { }
+    virtual ~lunar_ir_lit_atom() { }
+
+private:
+    std::u32string m_str;
+};
+
+class lunar_ir_lit_str32 : public lunar_ir_expr {
+public:
+    lunar_ir_lit_str32(std::u32string str) : m_str(str) { }
+    virtual ~lunar_ir_lit_str32() { }
+
+private:
+    std::u32string m_str;
+};
+
+class lunar_ir_lit_str8 : public lunar_ir_expr {
+public:
+    lunar_ir_lit_str8(std::u32string str) : m_str(str) { }
+    virtual ~lunar_ir_lit_str8() { }
+
+private:
+    std::u32string m_str;
+};
+
+class lunar_ir_lit_char32 : public lunar_ir_expr {
+public:
+    lunar_ir_lit_char32(char32_t c) : m_char(c) { }
+    virtual ~lunar_ir_lit_char32() { }
+
+private:
+    char32_t m_char;
+};
+
+class lunar_ir_lit_char8 : public lunar_ir_expr {
+public:
+    lunar_ir_lit_char8(char c) : m_char(c) { }
+    virtual ~lunar_ir_lit_char8() { }
+
+private:
+    char m_char;
+};
+
+class lunar_ir_lit_int : public lunar_ir_expr {
+public:
+    lunar_ir_lit_int(int64_t num, const std::u32string &str) : m_num(num), m_str(str) { }
+    virtual ~lunar_ir_lit_int() { }
+
+private:
+    int64_t m_num;
+    std::u32string m_str;
+};
+
+class lunar_ir_lit_uint : public lunar_ir_expr {
+public:
+    lunar_ir_lit_uint(uint64_t num, const std::u32string &str) : m_num(num), m_str(str) { }
+    virtual ~lunar_ir_lit_uint() { }
+
+    virtual void print(const std::string &from)
+    {
+        std::ostringstream os;
+        os << "\"" << get_line() << ":" << get_col() << ": uint literal: " << m_num;
+        printf("%s -> %s\";\n", from.c_str(), os.str().c_str());
+    }
+
+private:
+    uint64_t m_num;
+    std::u32string m_str;
+};
+
+class lunar_ir_lit_float : public lunar_ir_expr {
+public:
+    lunar_ir_lit_float(double num) : m_num(num) { }
+    virtual ~lunar_ir_lit_float() { }
+
+private:
+    double m_num;
+};
+
 class lunar_ir_scalar : public lunar_ir_type {
 public:
     lunar_ir_scalar(LANG_OWNERSHIP owner_ship, LANG_SCALAR scalar)
@@ -552,21 +633,21 @@ private:
     LANG_SCALAR m_scalar;
 };
 
-class lunar_ir_vector : public lunar_ir_type {
+class lunar_ir_array : public lunar_ir_type {
 public:
-    lunar_ir_vector(LANG_OWNERSHIP owner_ship, std::unique_ptr<lunar_ir_type> type, std::unique_ptr<lunar_ir_expr> size)
-        : lunar_ir_type(BT_VECTOR, owner_ship),
+    lunar_ir_array(LANG_OWNERSHIP owner_ship, std::unique_ptr<lunar_ir_type> type, std::unique_ptr<lunar_ir_lit_uint> size)
+        : lunar_ir_type(BT_ARRAY, owner_ship),
           m_type(std::move(type)),
           m_size(std::move(size)) { }
-    virtual ~lunar_ir_vector() { }
+    virtual ~lunar_ir_array() { }
 
     virtual void print(const std::string &from)
     {
         std::ostringstream os;
         std::ostringstream os_type;
 
-        os << "\"" << get_line() << ":" << get_col() << ": vector\"";
-        os_type << "\"" << get_line() << ":" << get_col() << ": vector type\"";
+        os << "\"" << get_line() << ":" << get_col() << ": array\"";
+        os_type << "\"" << get_line() << ":" << get_col() << ": array type\"";
 
         printf("%s -> %s;\n", from.c_str(), os.str().c_str());
         printf("%s -> %s;\n", os.str().c_str(), os_type.str().c_str());
@@ -576,14 +657,15 @@ public:
 
         if (m_size) {
             std::ostringstream os_size;
-            os_type << "\"" << get_line() << ":" << get_col() << ": vector size\"";
+            os_size << "\"" << get_line() << ":" << get_col() << ": array size\"";
+            printf("%s -> %s;\n", os.str().c_str(), os_size.str().c_str());
             m_size->print(os_size.str());
         }
     }
 
 private:
     std::unique_ptr<lunar_ir_type> m_type;
-    std::unique_ptr<lunar_ir_expr> m_size;
+    std::unique_ptr<lunar_ir_lit_uint> m_size;
 };
 
 class lunar_ir_list : public lunar_ir_type {
@@ -591,7 +673,7 @@ public:
     lunar_ir_list(LANG_OWNERSHIP owner_ship, std::unique_ptr<lunar_ir_type> type)
         : lunar_ir_type(BT_LIST, owner_ship),
           m_type(std::move(type)) { }
-    
+
     virtual ~lunar_ir_list() { }
 
     virtual void print(const std::string &from)
@@ -720,7 +802,7 @@ class lunar_ir_functype : public lunar_ir_type {
 public:
     lunar_ir_functype(LANG_OWNERSHIP owner_ship) : lunar_ir_type(BT_FUNCTYPE, owner_ship) { }
     virtual ~lunar_ir_functype() { }
-    
+
     void add_ret(std::unique_ptr<lunar_ir_type> ret)
     {
         m_ret.push_back(std::move(ret));
@@ -979,7 +1061,7 @@ class lunar_ir_var : public lunar_ir_base {
 public:
     lunar_ir_var(std::unique_ptr<lunar_ir_type> type, const std::u32string &name)
         : m_type(std::move(type)), m_name(name) { }
-    
+
     std::u32string& get_name() { return m_name; }
 
 private:
@@ -991,7 +1073,7 @@ class lunar_ir_func : public lunar_ir_top {
 public:
     lunar_ir_func(const std::u32string &name) : lunar_ir_top(IR_FUNC), m_name(name) { }
     virtual ~lunar_ir_func() { }
-    
+
     void add_ret(std::unique_ptr<lunar_ir_type> ret)
     {
         m_ret.push_back(std::move(ret));
@@ -1044,7 +1126,7 @@ public:
     {
         m_defs.push_back(std::move(def));
     }
-    
+
     void add_stexpr(std::unique_ptr<lunar_ir_stexpr> stexpr)
     {
         m_stexprs.push_back(std::move(stexpr));
@@ -1276,7 +1358,7 @@ class lunar_ir_lambda : public lunar_ir_expr {
 public:
     lunar_ir_lambda() { }
     virtual ~lunar_ir_lambda() { }
-    
+
     void add_ret(std::unique_ptr<lunar_ir_type> ret)
     {
         m_ret.push_back(std::move(ret));
@@ -1770,78 +1852,6 @@ private:
     SOCKTYPE   m_type;
 };
 
-class lunar_ir_lit_atom : public lunar_ir_expr {
-public:
-    lunar_ir_lit_atom(std::u32string str) : m_str(str) { }
-    virtual ~lunar_ir_lit_atom() { }
-
-private:
-    std::u32string m_str;
-};
-
-class lunar_ir_lit_str32 : public lunar_ir_expr {
-public:
-    lunar_ir_lit_str32(std::u32string str) : m_str(str) { }
-    virtual ~lunar_ir_lit_str32() { }
-
-private:
-    std::u32string m_str;
-};
-
-class lunar_ir_lit_str8 : public lunar_ir_expr {
-public:
-    lunar_ir_lit_str8(std::u32string str) : m_str(str) { }
-    virtual ~lunar_ir_lit_str8() { }
-
-private:
-    std::u32string m_str;
-};
-
-class lunar_ir_lit_char32 : public lunar_ir_expr {
-public:
-    lunar_ir_lit_char32(char32_t c) : m_char(c) { }
-    virtual ~lunar_ir_lit_char32() { }
-
-private:
-    char32_t m_char;
-};
-
-class lunar_ir_lit_char8 : public lunar_ir_expr {
-public:
-    lunar_ir_lit_char8(char c) : m_char(c) { }
-    virtual ~lunar_ir_lit_char8() { }
-
-private:
-    char m_char;
-};
-
-class lunar_ir_lit_int : public lunar_ir_expr {
-public:
-    lunar_ir_lit_int(int64_t num) : m_num(num) { }
-    virtual ~lunar_ir_lit_int() { }
-
-private:
-    int64_t m_num;
-};
-
-class lunar_ir_lit_uint : public lunar_ir_expr {
-public:
-    lunar_ir_lit_uint(uint64_t num) : m_num(num) { }
-    virtual ~lunar_ir_lit_uint() { }
-
-private:
-    uint64_t m_num;
-};
-
-class lunar_ir_lit_float : public lunar_ir_expr {
-public:
-    lunar_ir_lit_float(double num) : m_num(num) { }
-    virtual ~lunar_ir_lit_float() { }
-
-private:
-    double m_num;
-};
-
 class lunar_ir_module {
 public:
     lunar_ir_module(std::string file) : m_file(file) { }
@@ -1901,7 +1911,7 @@ private:
     std::unique_ptr<lunar_ir_identifier>     parse_identifier(lunar_ir_module *module, parsec<char32_t> &ps);
     std::unique_ptr<lunar_ir_type>           parse_type(lunar_ir_module *module, parsec<char32_t> &ps);
     std::unique_ptr<lunar_ir_type>           parse_type0(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERSHIP own, int ownline, int owncol);
-    std::unique_ptr<lunar_ir_vector>         parse_array(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERSHIP own);
+    std::unique_ptr<lunar_ir_array>         parse_array(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERSHIP own);
     std::unique_ptr<lunar_ir_expr>           parse_expr(lunar_ir_module *module, parsec<char32_t> &ps);
     std::unique_ptr<lunar_ir_set>            parse_set(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERSHIP own);
     std::unique_ptr<lunar_ir_list>           parse_list(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERSHIP own);
@@ -1913,6 +1923,12 @@ private:
     std::unique_ptr<lunar_ir_ptr>            parse_ptr(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERSHIP own);
     std::unique_ptr<lunar_ir_dict>           parse_dict(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERSHIP own);
     std::unique_ptr<lunar_ir_functype>       parse_functype(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERSHIP own);
+    std::unique_ptr<lunar_ir_lit_uint>       parse_lit_uint(lunar_ir_module *module, parsec<char32_t> &ps);
+    std::unique_ptr<lunar_ir_lit_int>        parse_lit_int(lunar_ir_module *module, parsec<char32_t> &ps);
+    std::unique_ptr<lunar_ir_lit_uint>       parse_lit_hex(lunar_ir_module *module, parsec<char32_t> &ps);
+    std::unique_ptr<lunar_ir_lit_uint>       parse_lit_oct(lunar_ir_module *module, parsec<char32_t> &ps);
+    std::unique_ptr<lunar_ir_lit_uint>       parse_lit_bin(lunar_ir_module *module, parsec<char32_t> &ps);
+    std::unique_ptr<lunar_ir_lit_uint>       parse_size(lunar_ir_module *module, parsec<char32_t> &ps);
     LANG_OWNERSHIP                           parse_ownership(lunar_ir_module *module, parsec<char32_t> &ps);
     template <typename T> std::unique_ptr<T> parse_def_member(lunar_ir_module *module, parsec<char32_t> &ps);
     template <typename T> std::unique_ptr<T> parse_def_member_own(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERSHIP own);

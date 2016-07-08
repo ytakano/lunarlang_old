@@ -6,7 +6,7 @@
 #include <codecvt>
 
 namespace lunar {
-    
+
 static std::wstring_convert<std::codecvt_utf8<char32_t>, char32_t> string_converter;
 
 inline
@@ -82,12 +82,12 @@ to_int(const std::string &str)
 {
     int n = 0;
     int i = 1;
-    
+
     for (auto it = str.rbegin(); it != str.rend(); ++it) {
         n += i * (*it - U'0');
         i *= 10;
     }
-    
+
     return n;
 }
 

@@ -132,7 +132,7 @@ C関数と互換性を保つために利用され、それ以外での利用は�
 
 構文：
 - ARRAY := ( array TYPE SIZE ) | ( array TYPE )
-- SIZE  := INT | HEX | OCT | BIN
+- SIZE  := DIGIT | HEX | OCT | BIN
 
 SIZEを指定した場合は、固定長となる。
 
@@ -441,7 +441,7 @@ STRM_SUCCESS, STRM_CLOSED, STRM_NO_VACANCYのいずれかの値を返す。
 - ( pop! ストリーム )
 
 ストリームから先頭のデータを取り出す。
-返り値は、(取り出した値 エラー)となり、エラーはSTRM_SUCCESS, STRM_CLOSED, 
+返り値は、(取り出した値 エラー)となり、エラーはSTRM_SUCCESS, STRM_CLOSED,
 STRM_NO_VACANCYのいずれかとなる。
 
 ## マルチタスキング
@@ -497,7 +497,7 @@ OSネイティブなデタッチスレッドを生成。
 ## Parser Combinator
 
 - PARSE        := (parse EXPRIDENT PARSECOPS EXPRIDENTLIT*)
-- PARSECOPS    := PARSECCHAR | PARSECMANY | PARSECMANY1 | PARSECTRY | PARSECTRYEND | PARSECLA | PARSECLAEND | PARSECDIGIT | PARSECHEX | PARSECOCT | PARSECSPACE | PARSECSATIS | PARSECSTR 
+- PARSECOPS    := PARSECCHAR | PARSECMANY | PARSECMANY1 | PARSECTRY | PARSECTRYEND | PARSECLA | PARSECLAEND | PARSECDIGIT | PARSECHEX | PARSECOCT | PARSECSPACE | PARSECSATIS | PARSECSTR
 - PARSECCHAR   := character
 - PARSECTRY    := try
 - PARSERTRYEND := try_end
@@ -645,7 +645,7 @@ PTR型の参照外し
 
 - TOSTR := ( tostr EXPRIDENTLIT )
 
-引数を文字列へ変換。immovalなstring型を返す。 
+引数を文字列へ変換。immovalなstring型を返す。
 
 # リテラル
 
@@ -694,7 +694,7 @@ PTR型の参照外し
 
 ## 2進数
 
-- BIN    := b BINNUM\* | B BINNUM\*
+- BIN    := 0b BINNUM\* | 0B BINNUM\*
 - BINNUM := 0 | 1
 
 ## 真偽値

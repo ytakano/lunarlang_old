@@ -24,7 +24,7 @@ struct shared_stream {
     static const uint32_t SOCKET       = 0x0040; // stream socket?
 
     uint32_t flag;  // READ or WRITE
-    
+
     struct shared_data_t {
         uint32_t  flag_shared; // CLOSED_READ, CLOSED_WRITE, ENABLE_MT, SHARED_MT, SOCKET
         uint32_t  refcnt;  // for read and write stream

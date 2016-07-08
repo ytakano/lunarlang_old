@@ -3,6 +3,9 @@
 
 #include <functional>
 
+#include <stdlib.h>
+#include <limits.h>
+
 namespace lunar {
 
 std::unordered_set<char32_t> idh_set;
@@ -177,6 +180,18 @@ do {                                                            \
             spaces.c_str());                                    \
 } while (0)
 
+#define print_parse_warn_linecol(str, module, ps, line, col)    \
+do {                                                            \
+    std::string spaces;                                         \
+    for (int i = 1; i < col; i++)                               \
+        spaces += ' ';                                          \
+    fprintf(stderr, "%s:%d\n%s:%d:%d: warning: %s\n%s\n%s^\n",  \
+            __FILE__, __LINE__, module->get_filename().c_str(), \
+            line, col, str,                                     \
+            get_line(module->get_filename(), line).c_str(),     \
+            spaces.c_str());                                    \
+} while (0)
+
 const std::string&
 lunar_ir::get_line(const std::string &file, uint64_t num)
 {
@@ -272,7 +287,7 @@ lunar_ir::parse_expr(lunar_ir_module *module, parsec<char32_t> &ps)
     return nullptr;
 }
 
-std::unique_ptr<lunar_ir_vector>
+std::unique_ptr<lunar_ir_array>
 lunar_ir::parse_array(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERSHIP own)
 {
     auto type = parse_type(module, ps);
@@ -286,7 +301,7 @@ lunar_ir::parse_array(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERS
     }
 
     if (ps.is_success())
-        return llvm::make_unique<lunar_ir_vector>(own, std::move(type), nullptr);
+        return llvm::make_unique<lunar_ir_array>(own, std::move(type), nullptr);
 
     ps.parse_many1_char([&]() { return ps.parse_space(); });
     if (! ps.is_success()) {
@@ -294,11 +309,11 @@ lunar_ir::parse_array(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERS
         return nullptr;
     }
 
-    auto expr = parse_expr(module, ps);
+    auto size = parse_size(module, ps);
     if (! ps.is_success())
         return nullptr;
 
-    return llvm::make_unique<lunar_ir_vector>(own, std::move(type), std::move(expr));
+    return llvm::make_unique<lunar_ir_array>(own, std::move(type), std::move(size));
 }
 
 std::unique_ptr<lunar_ir_set>
@@ -340,7 +355,6 @@ lunar_ir::parse_dict(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERSH
 
     return llvm::make_unique<lunar_ir_dict>(own, std::move(key), std::move(val));
 }
-
 
 std::unique_ptr<lunar_ir_rstream>
 lunar_ir::parse_rstrm(lunar_ir_module *module, parsec<char32_t> &ps)
@@ -920,6 +934,241 @@ lunar_ir::parse_def_member(lunar_ir_module *module, parsec<char32_t> &ps)
     return def;
 }
 
+std::unique_ptr<lunar_ir_lit_uint>
+lunar_ir::parse_lit_uint(lunar_ir_module *module, parsec<char32_t> &ps)
+{
+    int line, col;
+    line = ps.get_line();
+    col  = ps.get_col();
+
+    auto c = ps.satisfy([](char32_t c) { return U'1' <= c && c <= U'9'; });
+    if (!ps.is_success()) {
+        print_parse_err_linecol("expected \"1..9\"", module, ps, line, col);
+        return nullptr;
+    }
+
+    auto tail = ps.parse_many_char([&]() { return ps.parse_digit(); });
+    auto str = c + tail;
+
+    uint64_t num = strtoull(to_string(str).c_str(), nullptr, 10);
+    if (errno == ERANGE) {
+        print_parse_warn_linecol("integer overflow", module, ps, line, col);
+    } else if (errno == EINVAL) {
+        print_parse_err_linecol("could not convert to integer", module, ps, line, col);
+        ps.set_is_success(false);
+        return nullptr;
+    }
+
+    auto literal = llvm::make_unique<lunar_ir_lit_uint>(num, str);
+    literal->set_line(line);
+    literal->set_col(col);
+
+    return literal;
+}
+
+std::unique_ptr<lunar_ir_lit_int>
+lunar_ir::parse_lit_int(lunar_ir_module *module, parsec<char32_t> &ps)
+{
+    int line, col;
+    line = ps.get_line();
+    col  = ps.get_col();
+
+    ps.character(U'-');
+    if (! ps.is_success()) {
+        print_parse_err_linecol("expected \"-\"", module, ps, line, col);
+        return nullptr;
+    }
+
+    auto c = ps.satisfy([](char32_t c) { return U'1' <= c && c <= U'9'; });
+    if (! ps.is_success()) {
+        print_parse_err_linecol("expected \"1..9\"", module, ps, line, col);
+        return nullptr;
+    }
+
+    auto tail = ps.parse_many_char([&]() { return ps.parse_digit(); });
+    auto str = U'-' + (c + tail);
+
+    int64_t num = strtoll(to_string(str).c_str(), nullptr, 10);
+    if (errno == ERANGE) {
+        print_parse_warn_linecol("integer overflow or underflow", module, ps, line, col);
+    } else if (errno == EINVAL) {
+        print_parse_err_linecol("could not convert to integer", module, ps, line, col);
+        ps.set_is_success(false);
+        return nullptr;
+    }
+
+    auto literal = llvm::make_unique<lunar_ir_lit_int>(num, str);
+    literal->set_line(line);
+    literal->set_col(col);
+
+    return literal;
+}
+
+std::unique_ptr<lunar_ir_lit_uint>
+lunar_ir::parse_lit_hex(lunar_ir_module *module, parsec<char32_t> &ps)
+{
+    int line, col;
+    line = ps.get_line();
+    col  = ps.get_col();
+
+    ps.character(U'0');
+    if (! ps.is_success()) {
+        print_parse_err("expected \"0\"", module, ps);
+        return nullptr;
+    }
+
+    ps.satisfy([&](char32_t c) { return c == U'x' || c == U'X'; });
+    if (! ps.is_success()) {
+        print_parse_err("expected \"x\" or \"X\"", module, ps);
+        return nullptr;
+    }
+
+    auto str = ps.parse_many1_char([&]() { return ps.parse_hex_digit(); });
+    if (! ps.is_success()) {
+        print_parse_err("expected \"0..F\"", module, ps);
+        return nullptr;
+    }
+
+    uint64_t num = strtoull(to_string(str).c_str(), nullptr, 16);
+    if (errno == ERANGE) {
+        print_parse_warn_linecol("integer overflow", module, ps, line, col);
+    } else if (errno == EINVAL) {
+        print_parse_err_linecol("could not convert to integer", module, ps, line, col);
+        ps.set_is_success(false);
+        return nullptr;
+    }
+
+    auto literal = llvm::make_unique<lunar_ir_lit_uint>(num, str);
+    literal->set_line(line);
+    literal->set_col(col);
+
+    return literal;
+}
+
+std::unique_ptr<lunar_ir_lit_uint>
+lunar_ir::parse_lit_oct(lunar_ir_module *module, parsec<char32_t> &ps)
+{
+    int line, col;
+    line = ps.get_line();
+    col  = ps.get_col();
+
+    ps.character(U'0');
+    if (! ps.is_success()) {
+        print_parse_err("expected \"0\"", module, ps);
+        return nullptr;
+    }
+
+    auto str = ps.parse_many1_char([&]() { return ps.parse_oct_digit(); });
+    if (! ps.is_success()) {
+        print_parse_err("expected \"0..7\"", module, ps);
+        return nullptr;
+    }
+
+    uint64_t num = strtoull(to_string(str).c_str(), nullptr, 8);
+    if (errno == ERANGE) {
+        print_parse_warn_linecol("integer overflow", module, ps, line, col);
+    } else if (errno == EINVAL) {
+        print_parse_err_linecol("could not convert to integer", module, ps, line, col);
+        ps.set_is_success(false);
+        return nullptr;
+    }
+
+    auto literal = llvm::make_unique<lunar_ir_lit_uint>(num, str);
+    literal->set_line(line);
+    literal->set_col(col);
+
+    return literal;
+}
+
+std::unique_ptr<lunar_ir_lit_uint>
+lunar_ir::parse_lit_bin(lunar_ir_module *module, parsec<char32_t> &ps)
+{
+    int line, col;
+    line = ps.get_line();
+    col  = ps.get_col();
+
+    ps.character(U'0');
+    if (! ps.is_success()) {
+        print_parse_err("expected \"0\"", module, ps);
+        return nullptr;
+    }
+
+    ps.satisfy([&](char32_t c) { return c == U'b' || c == U'B'; });
+    if (! ps.is_success()) {
+        print_parse_err("expected \"b\" or \"B\"", module, ps);
+        return nullptr;
+    }
+
+    auto func = [](char32_t c) { return c == U'0' || c == U'1'; };
+
+    auto str = ps.parse_many1_char([&]() { return ps.satisfy(func); });
+    if (! ps.is_success()) {
+        print_parse_err("expected \"0\" or \"1\"", module, ps);
+        return nullptr;
+    }
+
+    uint64_t num = strtoull(to_string(str).c_str(), nullptr, 2);
+    if (errno == ERANGE) {
+        print_parse_warn_linecol("integer overflow", module, ps, line, col);
+    } else if (errno == EINVAL) {
+        print_parse_err_linecol("could not convert to integer", module, ps, line, col);
+        ps.set_is_success(false);
+        return nullptr;
+    }
+
+    auto literal = llvm::make_unique<lunar_ir_lit_uint>(num, str);
+    literal->set_line(line);
+    literal->set_col(col);
+
+    return literal;
+}
+
+std::unique_ptr<lunar_ir_lit_uint>
+lunar_ir::parse_size(lunar_ir_module *module, parsec<char32_t> &ps)
+{
+    {
+        parsec<char32_t>::parser_look_ahead plahead(ps);
+        ps.parse_string(U"0x");
+    }
+
+    if (ps.is_success())
+        return parse_lit_hex(module, ps);
+
+    {
+        parsec<char32_t>::parser_look_ahead plahead(ps);
+        ps.parse_string(U"0X");
+    }
+
+    if (ps.is_success())
+        return parse_lit_hex(module, ps);
+
+    {
+        parsec<char32_t>::parser_look_ahead plahead(ps);
+        ps.parse_string(U"0b");
+    }
+
+    if (ps.is_success())
+        return parse_lit_bin(module, ps);
+
+    {
+        parsec<char32_t>::parser_look_ahead plahead(ps);
+        ps.parse_string(U"0B");
+    }
+
+    if (ps.is_success())
+        return parse_lit_bin(module, ps);
+
+    {
+        parsec<char32_t>::parser_look_ahead plahead(ps);
+        ps.character(U'0');
+    }
+
+    if (ps.is_success())
+        return parse_lit_oct(module, ps);
+
+    return parse_lit_uint(module, ps);
+}
+
 bool
 lunar_ir::parse_top(lunar_ir_module *module, parsec<char32_t> &ps)
 {
@@ -1040,7 +1289,7 @@ run_parse(void *ptr)
         shared_stream ws;
 
         make_ptr_stream(&rs, &ws, 2);
-        
+
         push_ptr(&ws, str);
         push_eof(&ws);
 

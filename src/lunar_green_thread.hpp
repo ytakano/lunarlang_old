@@ -92,7 +92,7 @@
 #ifdef __APPLE__
     #define FD_EV_MACHPORT         EVFILT_MACHPORT
 #endif // __APPLE__
-    
+
     // for read or write events
     #define FD_EV_FLAG_EOF         EV_EOF
 
@@ -122,7 +122,7 @@
 #ifdef EPOLL
     #define FD_EV_READ             EPOLLIN
     #define FD_EV_WRITE            EPOLLOUT
-    
+
     // for read or write events
     #define FD_EV_FLAG_EOF         1
 
@@ -205,7 +205,7 @@ extern "C" {
     STRM_RESULT pop_ptr(void *p, void **data);
     STRM_RESULT push_ptr(void *p, void *data);
     void        push_eof(void *p);
-    
+
     struct fdevent_green_thread {
 #ifdef KQUEUE
         uintptr_t fd;
@@ -218,8 +218,8 @@ extern "C" {
         uint32_t  fflags;
         intptr_t  data;
     };
-    
-    void get_streams_ready_green_thread(void ***streams, ssize_t *len); 
+
+    void get_streams_ready_green_thread(void ***streams, ssize_t *len);
     bool is_timeout_green_thread();
     bool is_ready_threadq_green_thread();
     void get_fds_ready_green_thread(fdevent_green_thread **events, ssize_t *len);
@@ -266,7 +266,7 @@ public:
 #elif (defined EPOLL)
         ev_key(int fd, uint32_t event) : m_fd(fd), m_event(event) { }
 #endif // KQUEUE
-        
+
         bool operator== (const ev_key &rhs) const {
             return (m_fd == rhs.m_fd) && (m_event == rhs.m_event);
         }
@@ -281,27 +281,27 @@ public:
             return hash<uintptr_t>()(k.m_fd) ^ hash<int16_t>()(k.m_event);
         }
     };
-        
+
     struct event_data {
         uint16_t m_flags;
         uint32_t m_fflags;
         intptr_t m_data;
-        
+
         event_data(uint16_t flags, uint32_t fflags, intptr_t data)
             : m_flags(flags), m_fflags(fflags), m_data(data) { }
     };
-    
+
     // get functions for invoked events
     void get_fds_ready(fdevent_green_thread **events, ssize_t *len) {
         *events = &m_running->m_events[0];
         *len    = m_running->m_events.size();
     }
-    
+
     void get_streams_ready(void ***streams, ssize_t *len) {
         *streams = &m_running->m_ev_stream[0];
         *len    =   m_running->m_ev_stream.size();
     }
-    
+
     bool is_timeout() { return m_running->m_is_ev_timeout; }
     bool is_ready_threadq() { return m_running->m_is_ev_thq; }
 
@@ -316,14 +316,14 @@ private:
         static const int WAITING_THQ     = 0x0020;
         static const int WAITING_TIMEOUT = 0x0040;
         static const int STOP            = 0x0080;
-        
+
         uint32_t m_state;
         jmp_buf m_jmp_buf;
-        
+
         // waiting events
         std::vector<ev_key> m_fd;       // waiting file descriptors to read
         std::vector<void*>  m_stream;   // waiting streams to read
-        
+
         // invoked events
         std::vector<void*> m_ev_stream; // streams ready to read
         std::vector<fdevent_green_thread> m_events; // file descriptors ready to read
@@ -338,10 +338,10 @@ private:
     struct ctx_time {
         uint64_t  m_clock;
         context  *m_ctx;
-        
+
         ctx_time(uint64_t clock, context *ctx) : m_clock(clock), m_ctx(ctx) { }
     };
-    
+
     typedef boost::multi_index::multi_index_container<
         ctx_time,
         boost::multi_index::indexed_by<
@@ -364,7 +364,7 @@ private:
     std::unordered_map<int64_t, std::unique_ptr<context>> m_id2context;
     std::unordered_map<ev_key, std::unordered_set<context*>, ev_key_hasher> m_wait_fd;
     std::unordered_map<void*, context*> m_wait_stream;
-    
+
     // for circular buffer
     class threadq {
     public:
@@ -373,24 +373,24 @@ private:
             QWAIT_PIPE,
             QWAIT_NONE,
         };
-        
+
         threadq(int qsize);
         virtual ~threadq();
-        
+
         inline STRM_RESULT push(alltype p) {
-            if (m_qlen == m_max_qlen) 
+            if (m_qlen == m_max_qlen)
                 return STRM_NO_VACANCY;
-            
+
             spin_lock_acquire_unsafe lock(m_qlock);
-        
+
             *m_qtail = p;
             m_qlen++;
             m_qtail++;
-        
+
             if (m_qtail == m_qend) {
                 m_qtail = m_q;
             }
-            
+
             if (! m_is_qnotified) {
                 m_is_qnotified = true;
                 if (m_qwait_type == QWAIT_COND) {
@@ -405,12 +405,12 @@ private:
                         exit(-1);
                     }
                 }
-                
+
                 return STRM_SUCCESS;
             }
-            
+
             lock.unlock();
-            
+
             return STRM_SUCCESS;
         }
 
@@ -420,30 +420,30 @@ private:
                 if (n++ > 1000)
                     return STRM_NO_MORE_DATA;
             }
-            
+
             *p = *m_qhead;
-            
+
             {
                 spin_lock_acquire lock(m_qlock);
                 m_qlen--;
             }
-            
+
             m_qhead++;
-            
+
             if (m_qhead == m_qend) {
                 m_qhead = m_q;
             }
-            
+
             return STRM_SUCCESS;
         }
-        
+
         int get_len() { return m_qlen; }
         int get_read_fd() { return m_qpipe[0]; }
         qwait_type get_wait_type() { return m_qwait_type; }
         void set_wait_type(qwait_type t) { m_qwait_type = t; }
         void inc_refcnt() { __sync_fetch_and_add(&m_refcnt, 1); }
         void dec_refcnt() { __sync_fetch_and_sub(&m_refcnt, 1); }
-        
+
         void pop_pipe(ssize_t len) {
             char buf[16];
             ssize_t n;
@@ -458,14 +458,14 @@ private:
                     PRINTERR("could not read data from pipe");
                     exit(-1);
                 }
-                
+
                 assert(n != 0);
                 assert(n <= len);
-                
+
                 len -= n;
             } while (len > 0);
         }
-    
+
     private:
         volatile int  m_qlen;
         volatile int  m_refcnt;
@@ -480,7 +480,7 @@ private:
         spin_lock  m_qlock;
         std::mutex m_qmutex;
         std::condition_variable m_qcond;
-        
+
         friend void green_thread::schedule();
     };
 

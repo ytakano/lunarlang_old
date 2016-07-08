@@ -22,7 +22,7 @@ public:
     }
 
     void set_del_func(std::function<void(string_t*)> func) { m_del_func = func; }
-    
+
     STRM_RESULT front(T &c)
     {
         assert(m_tmp_pos.x <= m_deque.size());
@@ -33,14 +33,14 @@ public:
             return STRM_SUCCESS;
         }
     }
-    
+
     const point2u64 & get_tmp_pos() const { return m_tmp_pos; }
-    
+
     void move_tmp_pos(uint64_t num)
     {
         assert(num > 0);
         assert((size_t)m_tmp_pos.x < m_deque.size());
-        
+
         while ((size_t)m_tmp_pos.x < m_deque.size()) {
             auto size = m_deque[m_tmp_pos.x].size() - m_tmp_pos.y;
             if (size > num) {
@@ -57,7 +57,7 @@ public:
             }
         }
     }
-    
+
     void restore_tmp_pos(const point2u64 &pos)
     {
         m_tmp_pos = pos;
@@ -68,7 +68,7 @@ public:
         while (! m_deque.empty() && num > 0) {
             data_t   &data = m_deque.front();
             uint64_t  len  = data.size();
-            
+
             if (num >= len) {
                 data.remove();
                 m_deque.pop_front();
@@ -79,12 +79,12 @@ public:
             }
         }
     }
-    
+
     void push_back(string_t *data)
     {
         m_deque.push_back(data_t(*this, data));
     }
-    
+
     void push_eof() { m_is_eof = true; }
 
 private:
@@ -92,7 +92,7 @@ private:
     public:
         data_t(bytestream &bs, string_t *data) : m_bs(bs), m_data(data), m_pos(0) { }
         ~data_t() { }
-        
+
         STRM_RESULT front(T &c, size_t offset)
         {
             auto pos = m_pos + offset;
@@ -103,18 +103,18 @@ private:
                 return STRM_SUCCESS;
             }
         }
-        
+
         size_t size()
         {
             return m_data->size() - m_pos;
         }
-        
+
         void consume(uint64_t num)
         {
             m_pos += num;
             assert(m_pos <= m_data->size());
         }
-        
+
         void remove()
         {
             m_bs.m_del_func(m_data);

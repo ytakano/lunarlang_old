@@ -11,7 +11,7 @@ namespace lunar{
 
 struct point2u64 {
     uint64_t x, y;
-    
+
     point2u64() : x(0), y(0) { }
     point2u64(uint64_t x, uint64_t y) : x(x), y(y) { }
 };
