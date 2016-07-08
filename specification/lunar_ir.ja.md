@@ -12,7 +12,7 @@ Lunar言語の中間表現であり、ここからLLVM IRへ変換。
 - LITERAL      := STR32 | STR8 | CHAR32 | CHAR8 | INT | FLOAT | HEX | OCT | BIN | ATOM
 - EXPRIDENT    := EXPR | IDENTIFIER
 - EXPRIDENTLIT := EXPR | IDENTIFIER | LITERAL
-- EXPR         := SPAWN | THREAD | COPY | ASSOC | INCCNT | DECCNT | IF | LAMBDA | NEW | CALLFUNC | TYPEOF | MKSTREAM | MKFILESTREAM | MKSOCKSTREAM | PUSH | POP | SPIN_LOCK_INIT | SPIN_LOCK | SPIN_TRY_LOCK | SPIN_UNLOCK | PARSE | CCALL | DLOPEN | DLCLOSE | TOPTR | DEREF | ADD | MINUS | MULTI | DIV | MOD | PRINT | TOSTR | BAND | BOR | BXOR | BNOT | BSL | BSR | BASL | BASR | BPOPCNT | BLZCNT | AND | OR | EQ | NOT | SOCKET | OPEN | MKSIGNALSTREAM
+- EXPR         := CALLFUNC
 
 # グローバル変数定義
 
@@ -292,18 +292,18 @@ TYPE型の値を返す。
 ## 変数の値書き換え式
 
 構文：
-- COPY := ( copy! EXPRIDENT EXPRIDENTLIT )
+- COPY := ( copy EXPRIDENT EXPRIDENTLIT )
 
 セマンティクス：
-- ( copy! 書き換える変数 書き換える値 )
+- ( copy 書き換える変数 書き換える値 )
 
 ## 変数の束縛先変更式
 
 構文：
-- ASSOC := ( assoc! EXPRIDENT EXPRIDENT )
+- ASSOC := ( assoc EXPRIDENT EXPRIDENT )
 
 セマンティクス：
-- ( assoc! 変数 束縛先 )
+- ( assoc 変数 束縛先 )
 
 ただし、束縛先を変更できるのはuniqueかshared変数のみである。
 
@@ -423,10 +423,10 @@ type 式は真偽値を返す式であり、多相型変数の型を動的に検
 ### push式
 
 構文：
-- PUSH := ( push! EXPRIDENTLIT EXPRIDENTLIT )
+- PUSH := ( push EXPRIDENTLIT EXPRIDENTLIT )
 
 セマンティクス：
-- ( push! ストリーム型 挿入するデータ )
+- ( push ストリーム型 挿入するデータ )
 
 ストリームの最後尾にデータを挿入する。
 STRM_SUCCESS, STRM_CLOSED, STRM_NO_VACANCYのいずれかの値を返す。
@@ -434,10 +434,10 @@ STRM_SUCCESS, STRM_CLOSED, STRM_NO_VACANCYのいずれかの値を返す。
 ### pop式
 
 構文：
-- POP := ( pop! EXPRIDENT )
+- POP := ( pop EXPRIDENT )
 
 セマンティクス：
-- ( pop! ストリーム )
+- ( pop ストリーム )
 
 ストリームから先頭のデータを取り出す。
 返り値は、(取り出した値 エラー)となり、エラーはSTRM_SUCCESS, STRM_CLOSED,
@@ -587,10 +587,10 @@ PTR型の参照外し
 
 ### 四則演算・剰余算
 
-- ADD   := ( + EXPRIDENTLIT EXPRIDENTLIT+ )
-- MINUS := ( - EXPRIDENTLIT EXPRIDENTLIT+ )
-- MULTI := ( * EXPRIDENTLIT EXPRIDENTLIT+ )
-- DIV   := ( / EXPRIDENTLIT EXPRIDENTLIT+ )
+- ADD   := ( add EXPRIDENTLIT EXPRIDENTLIT+ )
+- MINUS := ( minus EXPRIDENTLIT EXPRIDENTLIT+ )
+- MULTI := ( mul EXPRIDENTLIT EXPRIDENTLIT+ )
+- DIV   := ( div EXPRIDENTLIT EXPRIDENTLIT+ )
 - MOD   := ( mod EXPRIDENTLIT EXPRIDENTLIT+ )
 
 ### ビット演算
@@ -610,7 +610,7 @@ PTR型の参照外し
 
 - AND := ( and EXPRIDENTLIT EXPRIDENTLIT+ )
 - OR  := ( or EXPRIDENTLIT EXPRIDENTLIT+ )
-- EQ  := ( = EXPRIDENTLIT EXPRIDENTLIT+ )
+- EQ  := ( eq EXPRIDENTLIT EXPRIDENTLIT+ )
 - NOT := ( not EXPRIDENTLIT )
 
 ## IO

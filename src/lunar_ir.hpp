@@ -90,101 +90,11 @@
  *
  * -----------------------------------------------------------------------------
  *
- * EXPR := SPAWN | THREAD | COPY | ASSOC | INCCNT | DECCNT | IF | LAMBDA | NEW | CALLFUNC |
- *         TYPEOF | MKSTREAM | MKFILESTREAM | MKSOCKSTREAM | PUSH | POP | SPIN_LOCK_INIT |
- *         SPIN_LOCK | SPIN_TRY_LOCK | SPIN_UNLOCK | PARSE | CCALL | DLOPEN | DLCLOSE |
- *         TOPTR | DEREF | ADD | MINUS | MULTI | DIV | MOD | PRINT | TOSTR | BAND | BOR |
- *         BXOR | BNOT | BSL | BSR | BASL | BASR | BPOPCNT | BLZCNT | AND | OR | EQ | NOT
- *         SOCKET | OPEN | MKSIGNALSTREAM
+ * EXPR := CALLFUNC
  *
  * EXPRIDENT := EXPR | IDENTIFIER
  *
- * SPAWN := ( spawn EXPRIDENTLIT EXPRIDENT EXPRIDENTLIT )
- *
- * THREAD := ( thread EXPRIDENTLIT TYPE EXPRIDENTLIT EXPRIDENT EXPRIDENTLIT )
- *
- * COPY := ( copy! EXPRIDENT EXPRIDENTLIT )
- *
- * ASSOC := ( assoc! EXPRIDENT EXPRIDENT )
- *
- * INCCNT := ( inccnt EXPRIDENT )
- * DECCNT := ( deccnt EXPRIDENT )
- *
- * IF := ( if EXPRIDENTLIT EXPRIDENTLIT EXPRIDENTLIT )
- *
- * LAMBDA := ( lambda ( TYPE* ) ( TYPE IDENTIFIER )* STEXPR* )
- *
- * NEW := ( new TYPE EXPRIDENTLIT* )
- *
  * CALLFUNC := ( EXPRIDENT EXPRIDENTLIT* )
- *
- * TYPEOF := ( type TYPE0 EXPRIDENTLIT )
- *
- * MKSTREAM       := ( mkstream TYPE EXPRIDENTLIT )
- * MKFILESTREAM   := ( mkfilestream EXPRIDENTLIT )
- * MKSOCKSTREAM   := ( mksockstream EXPRIDENTLIT )
- * MKSIGNALSTREAM := ( mksognalstream EXPRIDENTLIT )
- *
- * PUSH := ( push! EXPRIDENTLIT )
- *
- * POP := ( pop! EXPRIDENTLIT )
- *
- * SPIN_LOCK_INIT := ( spin_lock_init EXPRIDENT )
- * SPIN_LOCK      := ( spin_lock EXPRIDENT )
- * SPIN_TRY_LOCK  := ( spin_try_lock EXPRIDENT )
- * SPIN_UNLOCK    := ( spin_unlock EXPRIDENT )
- *
- * PARSE        := ( parse EXPRIDENT PARSECOPS EXPRIDENTLIT* )
- * PARSECOPS    := PARSECCHAR | PARSECMANY | PARSECMANY1 | PARSECTRY | PARSECTRYEND | PARSECLA | PARSECLAEND | PARSECDIGIT | PARSECHEX | PARSECOCT | PARSECSPACE | PARSECSATIS | PARSECSTR
- * PARSECCHAR   := character
- * PARSECTRY    := try
- * PARSERTRYEND := try_end
- * PARSECLA     := look_ahead
- * PARSECLAEND  := look_ahead_end
- * PARSECDIGT   := digit
- * PARSECHEX    := hex
- * PARSECOCT    := oct
- * PARSECSPACE  := space
- * PARSECSATIS  := satisfy
- * PARSECSTR    := string
- * PARSECRESULT := result
- *
- * DLOPEN  := ( dlopen EXPRIDENTLIT )
- * DLCLOSE := ( dlclose EXPRIDENT )
- * DLSYM   := ( dlsym EXPRIDENT EXPRIDENTLIT )
- * CCALL   := ( ccall EXPRIDENT EXPRIDENTLIT* )
- *
- * TOPTR := ( toptr EXPRIDENT )
- * DEREF := ( deref EXPRIDENT )
- *
- * ADD   := ( + EXPRIDENTLIT EXPRIDENTLIT+ )
- * MINUS := ( - EXPRIDENTLIT EXPRIDENTLIT+ )
- * MULTI := ( * EXPRIDENTLIT EXPRIDENTLIT+ )
- * DIV   := ( / EXPRIDENTLIT EXPRIDENTLIT+ )
- * MOD   := ( mod EXPRIDENTLIT EXPRIDENTLIT+ )
- *
- * BAND := ( band EXPRIDENTLIT EXPRIDENTLIT+ )
- * BOR  := ( bor EXPRIDENTLIT EXPRIDENTLIT+ )
- * BXOR := ( bxor EXPRIDENTLIT EXPRIDENTLIT+ )
- * BNOT := ( bnot EXPRIDENTLIT )
- * BSL  := ( bsl EXPRIDENT EXPRIDENT )  // logical left shift
- * BSR  := ( bsr EXPRIDENT EXPRIDENT )  // logical right shift
- * BASL := ( basl EXPRIDENT EXPRIDENT ) // arithmetic left shift
- * BASR := ( basr EXPRIDENT EXPRIDENT ) // arithmetic right shift
- * BPOPCNT := ( bpopcnt EXPRIDENT )
- * BLZCNT  := ( blzcnt EXPRIDENT )
- *
- * AND := ( and EXPRIDENTLIT EXPRIDENTLIT+ )
- * OR  := ( or EXPRIDENTLIT EXPRIDENTLIT+ )
- * EQ  := ( = EXPRIDENTLIT EXPRIDENTLIT+ )
- * NOT := ( not EXPRIDENTLIT )
- *
- * OPEN   := ( open EXPRIDENTLIT (OFLAGS*) )
- * SOCKET := ( socket SOCKDOMAIN SOCKTYPE )
- *
- * PRINT := ( print EXPRIDENTLIT+ )
- *
- * TOSTR := ( tostr EXPRIDENTLIT )
  *
  * -----------------------------------------------------------------------------
  *
@@ -299,6 +209,12 @@ private:
     uint64_t m_line, m_col;
 };
 
+class lunar_ir_literal : public lunar_ir_base {
+public:
+    lunar_ir_literal() { }
+    virtual ~lunar_ir_literal() { }
+};
+
 class lunar_ir_identifier : public lunar_ir_base
 {
 public:
@@ -352,10 +268,58 @@ private:
     IR_TOP m_type;
 };
 
+class lunar_ir_expr;
+
+class lunar_ir_exprid : public lunar_ir_base {
+public:
+    enum EXPRID_TYPE {
+        EXPRID_EXPR,
+        EXPRID_ID,
+    };
+
+    lunar_ir_exprid(EXPRID_TYPE type, std::unique_ptr<lunar_ir_identifier> id) : m_type(type), m_id(std::move(id)) { }
+    lunar_ir_exprid(EXPRID_TYPE type, std::unique_ptr<lunar_ir_expr> expr) : m_type(type), m_expr(std::move(expr)) { }
+    virtual ~lunar_ir_exprid() { }
+
+private:
+    EXPRID_TYPE m_type;
+    std::unique_ptr<lunar_ir_identifier> m_id;
+    std::unique_ptr<lunar_ir_expr>       m_expr;
+};
+
+class lunar_ir_expridlit : public lunar_ir_base {
+public:
+    enum EXPRIDLIT_TYPE {
+        EXPRIDLIT_EXPR,
+        EXPRIDLIT_ID,
+        EXPRIDLIT_LITERAL,
+    };
+
+    lunar_ir_expridlit(EXPRIDLIT_TYPE type, std::unique_ptr<lunar_ir_identifier> id) : m_type(type), m_id(std::move(id)) { }
+    lunar_ir_expridlit(EXPRIDLIT_TYPE type, std::unique_ptr<lunar_ir_literal> literal) : m_type(type), m_literal(std::move(literal)) { }
+    lunar_ir_expridlit(EXPRIDLIT_TYPE type, std::unique_ptr<lunar_ir_expr> expr) : m_type(type), m_expr(std::move(expr)) { }
+    virtual ~lunar_ir_expridlit() { }
+
+private:
+    EXPRIDLIT_TYPE m_type;
+    std::unique_ptr<lunar_ir_identifier> m_id;
+    std::unique_ptr<lunar_ir_literal>    m_literal;
+    std::unique_ptr<lunar_ir_expr>       m_expr;
+};
+
 class lunar_ir_expr : public lunar_ir_top {
 public:
-    lunar_ir_expr() : lunar_ir_top(IR_EXPR) { }
+    lunar_ir_expr(std::unique_ptr<lunar_ir_exprid> func) : lunar_ir_top(IR_EXPR), m_func(std::move(func)) { }
     virtual ~lunar_ir_expr() { }
+
+    void add_arg(std::unique_ptr<lunar_ir_expridlit> arg)
+    {
+        m_args.push_back(std::move(arg));
+    }
+
+private:
+    std::unique_ptr<lunar_ir_exprid> m_func;
+    std::vector<std::unique_ptr<lunar_ir_expridlit>> m_args;
 };
 
 class lunar_ir_statement : public lunar_ir_top {
@@ -503,7 +467,7 @@ private:
     std::unique_ptr<lunar_ir_identifier> m_id;
 };
 
-class lunar_ir_lit_atom : public lunar_ir_expr {
+class lunar_ir_lit_atom : public lunar_ir_literal {
 public:
     lunar_ir_lit_atom(std::u32string str) : m_str(str) { }
     virtual ~lunar_ir_lit_atom() { }
@@ -512,7 +476,7 @@ private:
     std::u32string m_str;
 };
 
-class lunar_ir_lit_str32 : public lunar_ir_expr {
+class lunar_ir_lit_str32 : public lunar_ir_literal {
 public:
     lunar_ir_lit_str32(std::u32string str) : m_str(str) { }
     virtual ~lunar_ir_lit_str32() { }
@@ -521,7 +485,7 @@ private:
     std::u32string m_str;
 };
 
-class lunar_ir_lit_str8 : public lunar_ir_expr {
+class lunar_ir_lit_str8 : public lunar_ir_literal {
 public:
     lunar_ir_lit_str8(std::u32string str) : m_str(str) { }
     virtual ~lunar_ir_lit_str8() { }
@@ -530,7 +494,7 @@ private:
     std::u32string m_str;
 };
 
-class lunar_ir_lit_char32 : public lunar_ir_expr {
+class lunar_ir_lit_char32 : public lunar_ir_literal {
 public:
     lunar_ir_lit_char32(char32_t c) : m_char(c) { }
     virtual ~lunar_ir_lit_char32() { }
@@ -539,7 +503,7 @@ private:
     char32_t m_char;
 };
 
-class lunar_ir_lit_char8 : public lunar_ir_expr {
+class lunar_ir_lit_char8 : public lunar_ir_literal {
 public:
     lunar_ir_lit_char8(char c) : m_char(c) { }
     virtual ~lunar_ir_lit_char8() { }
@@ -548,7 +512,7 @@ private:
     char m_char;
 };
 
-class lunar_ir_lit_int : public lunar_ir_expr {
+class lunar_ir_lit_int : public lunar_ir_literal {
 public:
     lunar_ir_lit_int(int64_t num, const std::u32string &str) : m_num(num), m_str(str) { }
     virtual ~lunar_ir_lit_int() { }
@@ -558,7 +522,7 @@ private:
     std::u32string m_str;
 };
 
-class lunar_ir_lit_uint : public lunar_ir_expr {
+class lunar_ir_lit_uint : public lunar_ir_literal {
 public:
     lunar_ir_lit_uint(uint64_t num, const std::u32string &str) : m_num(num), m_str(str) { }
     virtual ~lunar_ir_lit_uint() { }
@@ -575,7 +539,7 @@ private:
     std::u32string m_str;
 };
 
-class lunar_ir_lit_float : public lunar_ir_expr {
+class lunar_ir_lit_float : public lunar_ir_literal {
 public:
     lunar_ir_lit_float(double num) : m_num(num) { }
     virtual ~lunar_ir_lit_float() { }
@@ -1256,600 +1220,6 @@ class lunar_ir_schedule : public lunar_ir_statement {
 public:
     lunar_ir_schedule() { }
     virtual ~lunar_ir_schedule() { }
-};
-
-class lunar_ir_spawn : public lunar_ir_expr {
-public:
-    lunar_ir_spawn(std::unique_ptr<lunar_ir_expr> ssize,
-                   std::unique_ptr<lunar_ir_expr> func,
-                   std::unique_ptr<lunar_ir_expr> arg)
-        : m_ssize(std::move(ssize)),
-          m_func(std::move(func)),
-          m_arg(std::move(arg)) { }
-    virtual ~lunar_ir_spawn() { }
-
-private:
-    std::unique_ptr<lunar_ir_expr> m_ssize;  // stack size
-    std::unique_ptr<lunar_ir_expr> m_func;
-    std::unique_ptr<lunar_ir_expr> m_arg;
-};
-
-class lunar_ir_thread : public lunar_ir_expr {
-public:
-    lunar_ir_thread(std::unique_ptr<lunar_ir_expr> name,
-                    std::unique_ptr<lunar_ir_type> type,
-                    std::unique_ptr<lunar_ir_expr> qsize,
-                    std::unique_ptr<lunar_ir_expr> func,
-                    std::unique_ptr<lunar_ir_expr> arg)
-        : m_name(std::move(name)),
-          m_type(std::move(type)),
-          m_qsize(std::move(qsize)),
-          m_func(std::move(func)),
-          m_arg(std::move(arg)) { }
-    virtual ~lunar_ir_thread() { }
-
-private:
-    std::unique_ptr<lunar_ir_expr> m_name;  // name (atom)
-    std::unique_ptr<lunar_ir_type> m_type;
-    std::unique_ptr<lunar_ir_expr> m_qsize; // size of thread queue
-    std::unique_ptr<lunar_ir_expr> m_func;
-    std::unique_ptr<lunar_ir_expr> m_arg;
-};
-
-class lunar_ir_copy : public lunar_ir_expr {
-public:
-    lunar_ir_copy(std::unique_ptr<lunar_ir_expr> dst, std::unique_ptr<lunar_ir_expr> src)
-        : m_dst(std::move(dst)),
-          m_src(std::move(src)) { }
-    virtual ~lunar_ir_copy() { }
-
-private:
-    std::unique_ptr<lunar_ir_expr> m_dst;
-    std::unique_ptr<lunar_ir_expr> m_src;
-};
-
-class lunar_ir_assoc : public lunar_ir_expr {
-public:
-    lunar_ir_assoc(std::unique_ptr<lunar_ir_expr> dst, std::unique_ptr<lunar_ir_expr> src)
-        : m_dst(std::move(dst)),
-          m_src(std::move(src)) { }
-    virtual ~lunar_ir_assoc() { }
-
-private:
-    std::unique_ptr<lunar_ir_expr> m_dst;
-    std::unique_ptr<lunar_ir_expr> m_src;
-};
-
-class lunar_ir_inccnt : public lunar_ir_expr {
-public:
-    lunar_ir_inccnt(std::unique_ptr<lunar_ir_expr> expr) : m_expr(std::move(expr)) { }
-    virtual ~lunar_ir_inccnt() { }
-
-private:
-    std::unique_ptr<lunar_ir_expr> m_expr;
-};
-
-class lunar_ir_deccnt : public lunar_ir_expr {
-public:
-    lunar_ir_deccnt(std::unique_ptr<lunar_ir_expr> expr) : m_expr(std::move(expr)) { }
-    virtual ~lunar_ir_deccnt() { }
-
-private:
-    std::unique_ptr<lunar_ir_expr> m_expr;
-};
-
-class lunar_ir_if : public lunar_ir_expr {
-public:
-    lunar_ir_if(std::unique_ptr<lunar_ir_expr> cond,
-                std::unique_ptr<lunar_ir_expr> expr1,
-                std::unique_ptr<lunar_ir_expr> expr2)
-        : m_cond(std::move(cond)),
-          m_expr1(std::move(expr1)),
-          m_expr2(std::move(expr2)) { }
-    virtual ~lunar_ir_if() { }
-
-private:
-    std::unique_ptr<lunar_ir_expr> m_cond;
-    std::unique_ptr<lunar_ir_expr> m_expr1;
-    std::unique_ptr<lunar_ir_expr> m_expr2;
-};
-
-class lunar_ir_lambda : public lunar_ir_expr {
-public:
-    lunar_ir_lambda() { }
-    virtual ~lunar_ir_lambda() { }
-
-    void add_ret(std::unique_ptr<lunar_ir_type> ret)
-    {
-        m_ret.push_back(std::move(ret));
-    }
-
-    void add_arg(std::unique_ptr<lunar_ir_var> var)
-    {
-        m_argmap[var->get_name()] = var.get();
-        m_args.push_back(std::move(var));
-    }
-
-    void add_stexpr(std::unique_ptr<lunar_ir_stexpr> stexpr)
-    {
-        m_stexprs.push_back(std::move(stexpr));
-    }
-
-private:
-    std::vector<std::unique_ptr<lunar_ir_type>> m_ret;
-    std::vector<std::unique_ptr<lunar_ir_var>>  m_args;
-    std::unordered_map<std::u32string, lunar_ir_var*> m_argmap;
-    std::vector<std::unique_ptr<lunar_ir_stexpr>> m_stexprs;
-};
-
-class lunar_ir_new : public lunar_ir_expr {
-public:
-    lunar_ir_new(std::unique_ptr<lunar_ir_type> type) : m_type(std::move(type)) { }
-    virtual ~lunar_ir_new() { }
-
-    void add_arg(std::unique_ptr<lunar_ir_expr> arg)
-    {
-        m_args.push_back(std::move(arg));
-    }
-
-private:
-    std::unique_ptr<lunar_ir_type> m_type;
-    std::vector<std::unique_ptr<lunar_ir_expr>> m_args;
-};
-
-class lunar_ir_callfunc : public lunar_ir_expr {
-public:
-    lunar_ir_callfunc(std::unique_ptr<lunar_ir_expr> func) : m_func(std::move(func)) { }
-    virtual ~lunar_ir_callfunc() { }
-
-    void add_arg(std::unique_ptr<lunar_ir_expr> arg)
-    {
-        m_args.push_back(std::move(arg));
-    }
-
-private:
-    std::unique_ptr<lunar_ir_expr> m_func;
-    std::vector<std::unique_ptr<lunar_ir_expr>> m_args;
-};
-
-class lunar_ir_typeof : public lunar_ir_expr {
-public:
-    lunar_ir_typeof(LANG_BASIC_TYPE type, std::unique_ptr<lunar_ir_expr> size)
-        : m_type(type), m_size(std::move(size)) { }
-    virtual ~lunar_ir_typeof() { }
-
-private:
-    LANG_BASIC_TYPE m_type;
-    std::unique_ptr<lunar_ir_expr> m_size;
-};
-
-class lunar_ir_mkstream : public lunar_ir_expr {
-public:
-    lunar_ir_mkstream(std::unique_ptr<lunar_ir_type> type, std::unique_ptr<lunar_ir_expr> size)
-        : m_type(std::move(type)), m_size(std::move(size)) { }
-    virtual ~lunar_ir_mkstream() { }
-
-private:
-    std::unique_ptr<lunar_ir_type> m_type;
-    std::unique_ptr<lunar_ir_expr> m_size;
-};
-
-class lunar_ir_mkfilestream : public lunar_ir_expr {
-public:
-    lunar_ir_mkfilestream(std::unique_ptr<lunar_ir_expr> expr)
-        : m_expr(std::move(expr)) { }
-    virtual ~lunar_ir_mkfilestream() { }
-
-private:
-    std::unique_ptr<lunar_ir_expr> m_expr;
-};
-
-class lunar_ir_mksockstream : public lunar_ir_expr {
-public:
-    lunar_ir_mksockstream(std::unique_ptr<lunar_ir_expr> expr)
-        : m_expr(std::move(expr)) { }
-    virtual ~lunar_ir_mksockstream() { }
-
-private:
-    std::unique_ptr<lunar_ir_expr> m_expr;
-};
-
-class lunar_ir_mksignalstream : public lunar_ir_expr {
-public:
-    lunar_ir_mksignalstream(std::unique_ptr<lunar_ir_expr> expr)
-        : m_expr(std::move(expr)) { }
-    virtual ~lunar_ir_mksignalstream() { }
-
-private:
-    std::unique_ptr<lunar_ir_expr> m_expr;
-};
-
-class lunar_ir_push : public lunar_ir_expr
-{
-public:
-    lunar_ir_push(std::unique_ptr<lunar_ir_expr> stream, std::unique_ptr<lunar_ir_expr> data)
-        : m_stream(std::move(stream)),
-          m_data(std::move(data)) { }
-    virtual ~lunar_ir_push() { }
-
-private:
-    std::unique_ptr<lunar_ir_expr> m_stream;
-    std::unique_ptr<lunar_ir_expr> m_data;
-};
-
-class lunar_ir_pop : public lunar_ir_expr
-{
-public:
-    lunar_ir_pop(std::unique_ptr<lunar_ir_expr> expr) : m_expr(std::move(expr)) { }
-    virtual ~lunar_ir_pop() { }
-
-private:
-    std::unique_ptr<lunar_ir_expr> m_expr;
-};
-
-class lunar_ir_spin_lock_init : public lunar_ir_expr
-{
-public:
-    lunar_ir_spin_lock_init(std::unique_ptr<lunar_ir_expr> expr) : m_expr(std::move(expr)) { }
-    virtual ~lunar_ir_spin_lock_init() { }
-
-private:
-    std::unique_ptr<lunar_ir_expr> m_expr;
-};
-
-class lunar_ir_spin_lock : public lunar_ir_expr
-{
-public:
-    lunar_ir_spin_lock(std::unique_ptr<lunar_ir_expr> expr) : m_expr(std::move(expr)) { }
-    virtual ~lunar_ir_spin_lock() { }
-
-private:
-    std::unique_ptr<lunar_ir_expr> m_expr;
-};
-
-class lunar_ir_spin_try_lock : public lunar_ir_expr
-{
-public:
-    lunar_ir_spin_try_lock(std::unique_ptr<lunar_ir_expr> expr) : m_expr(std::move(expr)) { }
-    virtual ~lunar_ir_spin_try_lock() { }
-
-private:
-    std::unique_ptr<lunar_ir_expr> m_expr;
-};
-
-class lunar_ir_spin_unlock : public lunar_ir_expr
-{
-public:
-    lunar_ir_spin_unlock(std::unique_ptr<lunar_ir_expr> expr) : m_expr(std::move(expr)) { }
-    virtual ~lunar_ir_spin_unlock() { }
-
-private:
-    std::unique_ptr<lunar_ir_expr> m_expr;
-};
-
-class lunar_ir_parse : public lunar_ir_expr
-{
-public:
-    enum PARSECOPS {
-        PASECCHAR,
-        PARSECTRY,
-        PARSECTRYEND,
-        PARSECLA,
-        PARSECLAEND,
-        PARSECDIGIT,
-        PARSECHEX,
-        PARSECOCT,
-        PARSECSPACE,
-        PARSECSATIS,
-        PARSECSTR,
-        PARSECRESULT
-    };
-
-    lunar_ir_parse(std::unique_ptr<lunar_ir_expr> parsec, PARSECOPS op)
-        : m_parsec(std::move(parsec)), m_op(op) { }
-    virtual ~lunar_ir_parse() { }
-
-    void add_expr(std::unique_ptr<lunar_ir_expr> expr)
-    {
-        m_exprs.push_back(std::move(expr));
-    }
-
-private:
-    std::unique_ptr<lunar_ir_expr> m_parsec;
-    PARSECOPS m_op;
-    std::vector<std::unique_ptr<lunar_ir_expr>> m_exprs;
-};
-
-class lunar_ir_dlopen : public lunar_ir_expr
-{
-public:
-    lunar_ir_dlopen(std::unique_ptr<lunar_ir_expr> expr) : m_expr(std::move(expr)) { }
-    virtual ~lunar_ir_dlopen() { }
-
-private:
-    std::unique_ptr<lunar_ir_expr> m_expr;
-};
-
-class lunar_ir_dlclose : public lunar_ir_expr
-{
-public:
-    lunar_ir_dlclose(std::unique_ptr<lunar_ir_expr> expr) : m_expr(std::move(expr)) { }
-    virtual ~lunar_ir_dlclose() { }
-
-private:
-    std::unique_ptr<lunar_ir_expr> m_expr;
-};
-
-class lunar_ir_dlsym : public lunar_ir_expr {
-public:
-    lunar_ir_dlsym(std::unique_ptr<lunar_ir_expr> handle, std::unique_ptr<lunar_ir_expr> symbol)
-        : m_handle(std::move(handle)), m_symbol(std::move(symbol)) { }
-    virtual ~lunar_ir_dlsym() { }
-
-private:
-    std::unique_ptr<lunar_ir_expr> m_handle;
-    std::unique_ptr<lunar_ir_expr> m_symbol;
-};
-
-class lunar_ir_dlccall : public lunar_ir_expr {
-public:
-    lunar_ir_dlccall(std::unique_ptr<lunar_ir_expr> symbol) : m_symbol(std::move(symbol)) { }
-    virtual ~lunar_ir_dlccall() { }
-
-    void add_arg(std::unique_ptr<lunar_ir_expr> arg)
-    {
-        m_args.push_back(std::move(arg));
-    }
-
-private:
-    std::unique_ptr<lunar_ir_expr> m_symbol;
-    std::vector<std::unique_ptr<lunar_ir_expr>> m_args;
-};
-
-class lunar_ir_tostr : public lunar_ir_expr {
-public:
-    lunar_ir_tostr(std::unique_ptr<lunar_ir_expr> expr) : m_expr(std::move(expr)) { }
-    virtual ~lunar_ir_tostr() { }
-
-private:
-    std::unique_ptr<lunar_ir_expr> m_expr;
-};
-
-class lunar_ir_toptr : public lunar_ir_expr {
-public:
-    lunar_ir_toptr(std::unique_ptr<lunar_ir_expr> expr) : m_expr(std::move(expr)) { }
-    virtual ~lunar_ir_toptr() { }
-
-private:
-    std::unique_ptr<lunar_ir_expr> m_expr;
-};
-
-class lunar_ir_deref : public lunar_ir_expr {
-public:
-    lunar_ir_deref(std::unique_ptr<lunar_ir_expr> expr) : m_expr(std::move(expr)) { }
-    virtual ~lunar_ir_deref() { }
-
-private:
-    std::unique_ptr<lunar_ir_expr> m_expr;
-};
-
-class lunar_ir_binops : public lunar_ir_expr {
-public:
-    lunar_ir_binops() { }
-    virtual ~lunar_ir_binops() { }
-
-    void add_expr(std::unique_ptr<lunar_ir_expr> expr)
-    {
-        m_exprs.push_back(std::move(expr));
-    }
-
-protected:
-    std::vector<std::unique_ptr<lunar_ir_expr>> m_exprs;
-};
-
-class lunar_ir_add : public lunar_ir_binops {
-public:
-    lunar_ir_add() { }
-    virtual ~lunar_ir_add() { }
-};
-
-class lunar_ir_minus : public lunar_ir_binops {
-public:
-    lunar_ir_minus() { }
-    virtual ~lunar_ir_minus() { }
-};
-
-class lunar_ir_multi : public lunar_ir_binops {
-public:
-    lunar_ir_multi() { }
-    virtual ~lunar_ir_multi() { }
-};
-
-class lunar_ir_div : public lunar_ir_binops {
-public:
-    lunar_ir_div() { }
-    virtual ~lunar_ir_div() { }
-};
-
-class lunar_ir_mod : public lunar_ir_binops {
-public:
-    lunar_ir_mod() { }
-    virtual ~lunar_ir_mod() { }
-};
-
-class lunar_ir_band : public lunar_ir_binops {
-public:
-    lunar_ir_band() { }
-    virtual ~lunar_ir_band() { }
-};
-
-class lunar_ir_bor : public lunar_ir_binops {
-public:
-    lunar_ir_bor() { }
-    virtual ~lunar_ir_bor() { }
-};
-
-class lunar_ir_bxor : public lunar_ir_binops {
-public:
-    lunar_ir_bxor() { }
-    virtual ~lunar_ir_bxor() { }
-};
-
-class lunar_ir_bnot : public lunar_ir_expr {
-public:
-    lunar_ir_bnot(std::unique_ptr<lunar_ir_expr> expr) : m_expr(std::move(expr)) { }
-    virtual ~lunar_ir_bnot() { }
-
-private:
-    std::unique_ptr<lunar_ir_expr> m_expr;
-};
-
-class lunar_ir_bpopcnt : public lunar_ir_expr {
-public:
-    lunar_ir_bpopcnt(std::unique_ptr<lunar_ir_expr> expr) : m_expr(std::move(expr)) { }
-    virtual ~lunar_ir_bpopcnt() { }
-
-private:
-    std::unique_ptr<lunar_ir_expr> m_expr;
-};
-
-class lunar_ir_blzcnt : public lunar_ir_expr {
-public:
-    lunar_ir_blzcnt(std::unique_ptr<lunar_ir_expr> expr) : m_expr(std::move(expr)) { }
-    virtual ~lunar_ir_blzcnt() { }
-
-private:
-    std::unique_ptr<lunar_ir_expr> m_expr;
-};
-
-class lunar_ir_bsl : public lunar_ir_expr {
-public:
-    lunar_ir_bsl(std::unique_ptr<lunar_ir_expr> lexpr, std::unique_ptr<lunar_ir_expr> rexpr)
-        : m_lexpr(std::move(lexpr)), m_rexpr(std::move(rexpr)) { }
-    virtual ~lunar_ir_bsl() { }
-
-private:
-    std::unique_ptr<lunar_ir_expr> m_lexpr;
-    std::unique_ptr<lunar_ir_expr> m_rexpr;
-};
-
-class lunar_ir_bsr : public lunar_ir_expr {
-public:
-    lunar_ir_bsr(std::unique_ptr<lunar_ir_expr> lexpr, std::unique_ptr<lunar_ir_expr> rexpr)
-        : m_lexpr(std::move(lexpr)), m_rexpr(std::move(rexpr)) { }
-    virtual ~lunar_ir_bsr() { }
-
-private:
-    std::unique_ptr<lunar_ir_expr> m_lexpr;
-    std::unique_ptr<lunar_ir_expr> m_rexpr;
-};
-
-class lunar_ir_basl : public lunar_ir_expr {
-public:
-    lunar_ir_basl(std::unique_ptr<lunar_ir_expr> lexpr, std::unique_ptr<lunar_ir_expr> rexpr)
-        : m_lexpr(std::move(lexpr)), m_rexpr(std::move(rexpr)) { }
-    virtual ~lunar_ir_basl() { }
-
-private:
-    std::unique_ptr<lunar_ir_expr> m_lexpr;
-    std::unique_ptr<lunar_ir_expr> m_rexpr;
-};
-
-class lunar_ir_basr : public lunar_ir_expr {
-public:
-    lunar_ir_basr(std::unique_ptr<lunar_ir_expr> lexpr, std::unique_ptr<lunar_ir_expr> rexpr)
-        : m_lexpr(std::move(lexpr)), m_rexpr(std::move(rexpr)) { }
-    virtual ~lunar_ir_basr() { }
-
-private:
-    std::unique_ptr<lunar_ir_expr> m_lexpr;
-    std::unique_ptr<lunar_ir_expr> m_rexpr;
-};
-
-class lunar_ir_and : public lunar_ir_binops {
-public:
-    lunar_ir_and() { }
-    virtual ~lunar_ir_and() { }
-};
-
-class lunar_ir_or : public lunar_ir_binops {
-public:
-    lunar_ir_or() { }
-    virtual ~lunar_ir_or() { }
-};
-
-class lunar_ir_eq : public lunar_ir_binops {
-public:
-    lunar_ir_eq() { }
-    virtual ~lunar_ir_eq() { }
-};
-
-class lunar_ir_not : public lunar_ir_binops {
-public:
-    lunar_ir_not() { }
-    virtual ~lunar_ir_not() { }
-};
-
-class lunar_ir_print : public lunar_ir_expr {
-public:
-    lunar_ir_print() { }
-    virtual ~lunar_ir_print() { }
-
-    void add_expr(std::unique_ptr<lunar_ir_expr> expr)
-    {
-        m_exprs.push_back(std::move(expr));
-    }
-
-protected:
-    std::vector<std::unique_ptr<lunar_ir_expr>> m_exprs;
-};
-
-class lunar_ir_open : public lunar_ir_expr {
-public:
-    enum OFLAGS {
-        OFLAG_RDONLY,
-        OFLAG_WONLY,
-        OFLAG_RDWR,
-        OFLAG_APPEND,
-        OFLAG_CREAT,
-        OFLAG_TRUNC,
-        OFLAG_EXCL,
-        OFLAG_SHLOCK,
-        OFLAG_EXLOCK,
-        OFLAG_NOFOLLOW,
-        OFLAG_SYMLINK,
-        OFLAG_EVTONLY,
-        OFLAG_CLOEXEC,
-    };
-
-    lunar_ir_open(std::unique_ptr<lunar_ir_expr> file) : m_file(std::move(file)) { }
-    virtual ~lunar_ir_open() { }
-
-private:
-    std::unique_ptr<lunar_ir_expr> m_file;
-    std::vector<OFLAGS> m_flags;
-};
-
-class lunar_ir_socket : public lunar_ir_expr {
-public:
-    enum SOCKDOMAIN {
-        DOMAIN_PF_UNIX,
-        DOMAIN_PF_INET,
-        DOMIAN_PF_INET6,
-    };
-
-    enum SOCKTYPE {
-        TYPE_SOCK_STREAM,
-        TYPE_SOCK_DGRAM,
-        TYPE_SOCK_RAW,
-    };
-
-    lunar_ir_socket(SOCKDOMAIN domain, SOCKTYPE type) : m_domain(domain), m_type(type) { }
-    virtual ~lunar_ir_socket() { }
-
-private:
-    SOCKDOMAIN m_domain;
-    SOCKTYPE   m_type;
 };
 
 class lunar_ir_module {
