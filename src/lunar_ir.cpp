@@ -280,10 +280,59 @@ lunar_ir::parse_type0_str(lunar_ir_module *module, parsec<char32_t> &ps, const c
     return false;
 }
 
+std::unique_ptr<lunar_ir_literal>
+lunar_ir::parse_literal(lunar_ir_module *module, parsec<char32_t> &ps)
+{
+    // TODO:
+    ps.parse_many_char([&]() { return ps.parse_space(); });
+
+    return nullptr;
+}
+
+std::unique_ptr<lunar_ir_exprid>
+lunar_ir::parse_exprid(lunar_ir_module *module, parsec<char32_t> &ps)
+{
+    ps.parse_many_char([&]() { return ps.parse_space(); });
+
+    {
+        parsec<char32_t>::parser_try ptry(ps);
+        ps.character(U'(');
+    }
+
+    if (ps.is_success()) {
+        auto expr = parse_expr(module, ps);
+        if (ps.is_success()) {
+            ps.parse_many_char([&]() { return ps.parse_space(); });
+            ps.character(U')');
+            if (ps.is_success()) {
+                return llvm::make_unique<lunar_ir_exprid>(lunar_ir_exprid::EXPRID_EXPR, std::move(expr));
+            } else {
+                print_parse_err("expected \")\"", module, ps);
+                return nullptr;
+            }
+        } else {
+            return nullptr;
+        }
+    }
+
+    auto id = parse_identifier(module, ps);
+    if (ps.is_success())
+        return llvm::make_unique<lunar_ir_exprid>(lunar_ir_exprid::EXPRID_ID, std::move(id));
+
+    return nullptr;
+}
+
 std::unique_ptr<lunar_ir_expr>
 lunar_ir::parse_expr(lunar_ir_module *module, parsec<char32_t> &ps)
 {
-    // TODO:
+    ps.parse_many_char([&]() { return ps.parse_space(); });
+
+    auto exprid = parse_exprid(module, ps);
+    if (! ps.is_success())
+        return nullptr;
+
+    // TODO: parse arguments
+
     return nullptr;
 }
 
@@ -894,12 +943,7 @@ template <typename T>
 std::unique_ptr<T>
 lunar_ir::parse_def_member(lunar_ir_module *module, parsec<char32_t> &ps)
 {
-    ps.parse_many1_char([&]() { return ps.parse_space(); });
-    if (! ps.is_success()) {
-        print_parse_err("need white space", module, ps);
-        return nullptr;
-    }
-
+    ps.parse_many_char([&]() { return ps.parse_space(); });
     auto name = parse_identifier(module, ps);
     if (! ps.is_success())
         return nullptr;
@@ -1169,6 +1213,56 @@ lunar_ir::parse_size(lunar_ir_module *module, parsec<char32_t> &ps)
     return parse_lit_uint(module, ps);
 }
 
+std::unique_ptr<lunar_ir_top>
+lunar_ir::parse_topstatement_expr(lunar_ir_module *module, parsec<char32_t> &ps)
+{
+    ps.parse_many_char([&]() { return ps.parse_space(); });
+
+    // parse struct
+    {
+        parsec<char32_t>::parser_try ptry(ps);
+        ps.parse_string(U"struct ");
+    }
+
+    if (ps.is_success()) {
+        std::unique_ptr<lunar_ir_top> def = parse_def_member<lunar_ir_def_struct>(module, ps);
+        if (ps.is_success())
+            return def;
+        else
+            return nullptr;
+    }
+
+    // parse union
+    {
+        parsec<char32_t>::parser_try ptry(ps);
+        ps.parse_string(U"union ");
+    }
+
+    if (ps.is_success()) {
+        std::unique_ptr<lunar_ir_top> def = parse_def_member<lunar_ir_def_union>(module, ps);
+        if (ps.is_success())
+            return def;
+        else
+            return nullptr;
+    }
+
+    // parse cunion
+    {
+        parsec<char32_t>::parser_try ptry(ps);
+        ps.parse_string(U"cunion ");
+    }
+
+    if (ps.is_success()) {
+        std::unique_ptr<lunar_ir_top> def = parse_def_member<lunar_ir_def_cunion>(module, ps);
+        if (ps.is_success())
+            return def;
+        else
+            return nullptr;
+    }
+
+    return parse_expr(module, ps);
+}
+
 bool
 lunar_ir::parse_top(lunar_ir_module *module, parsec<char32_t> &ps)
 {
@@ -1191,63 +1285,16 @@ lunar_ir::parse_top(lunar_ir_module *module, parsec<char32_t> &ps)
             }
         }
 
-        ps.parse_many_char([&]() { return ps.parse_space(); });
-
-        // parse struct
-        {
-            parsec<char32_t>::parser_try ptry(ps);
-            ps.parse_string(U"struct");
+        auto def = parse_topstatement_expr(module, ps);
+        if (! ps.is_success()) {
+            return false;
         }
 
-        if (ps.is_success()) {
-            auto def = parse_def_member<lunar_ir_def_struct>(module, ps);
-            if (ps.is_success()) {
-                def->set_col(col);
-                def->set_line(line);
-                module->add_top_elm(std::move(def));
-                goto success;
-            } else {
-                return false;
-            }
-        }
+        def->set_line(line);
+        def->set_col(col);
 
-        // parse union
-        {
-            parsec<char32_t>::parser_try ptry(ps);
-            ps.parse_string(U"union");
-        }
+        module->add_top_elm(std::move(def));
 
-        if (ps.is_success()) {
-            auto def = parse_def_member<lunar_ir_def_union>(module, ps);
-            if (ps.is_success()) {
-                def->set_col(col);
-                def->set_line(line);
-                module->add_top_elm(std::move(def));
-                goto success;
-            } else {
-                return false;
-            }
-        }
-
-        // parse cunion
-        {
-            parsec<char32_t>::parser_try ptry(ps);
-            ps.parse_string(U"cunion");
-        }
-
-        if (ps.is_success()) {
-            auto def = parse_def_member<lunar_ir_def_cunion>(module, ps);
-            if (ps.is_success()) {
-                def->set_col(col);
-                def->set_line(line);
-                module->add_top_elm(std::move(def));
-                goto success;
-            } else {
-                return false;
-            }
-        }
-
-success:
         ps.parse_many_char([&]() { return ps.parse_space(); });
         ps.character(U')');
         if (! ps.is_success()) {

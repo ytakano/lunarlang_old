@@ -130,8 +130,8 @@
  * BIN    := 0b BINNUM\* | 0B BINNUM\*
  * BINNUM := 0 | 1
  *
- * TRUE  := true
- * FALSE := false
+ * TRUE  := `true
+ * FALSE := `false
  */
 
 namespace lunar {
@@ -469,7 +469,7 @@ private:
 
 class lunar_ir_lit_atom : public lunar_ir_literal {
 public:
-    lunar_ir_lit_atom(std::u32string str) : m_str(str) { }
+    lunar_ir_lit_atom(const std::u32string &str) : m_str(str) { }
     virtual ~lunar_ir_lit_atom() { }
 
 private:
@@ -478,7 +478,7 @@ private:
 
 class lunar_ir_lit_str32 : public lunar_ir_literal {
 public:
-    lunar_ir_lit_str32(std::u32string str) : m_str(str) { }
+    lunar_ir_lit_str32(const std::u32string &str) : m_str(str) { }
     virtual ~lunar_ir_lit_str32() { }
 
 private:
@@ -487,7 +487,7 @@ private:
 
 class lunar_ir_lit_str8 : public lunar_ir_literal {
 public:
-    lunar_ir_lit_str8(std::u32string str) : m_str(str) { }
+    lunar_ir_lit_str8(const std::u32string &str) : m_str(str) { }
     virtual ~lunar_ir_lit_str8() { }
 
 private:
@@ -1299,6 +1299,9 @@ private:
     std::unique_ptr<lunar_ir_lit_uint>       parse_lit_oct(lunar_ir_module *module, parsec<char32_t> &ps);
     std::unique_ptr<lunar_ir_lit_uint>       parse_lit_bin(lunar_ir_module *module, parsec<char32_t> &ps);
     std::unique_ptr<lunar_ir_lit_uint>       parse_size(lunar_ir_module *module, parsec<char32_t> &ps);
+    std::unique_ptr<lunar_ir_top>            parse_topstatement_expr(lunar_ir_module *module, parsec<char32_t> &ps);
+    std::unique_ptr<lunar_ir_exprid>         parse_exprid(lunar_ir_module *module, parsec<char32_t> &ps);
+    std::unique_ptr<lunar_ir_literal>        parse_literal(lunar_ir_module *module, parsec<char32_t> &ps);
     LANG_OWNERSHIP                           parse_ownership(lunar_ir_module *module, parsec<char32_t> &ps);
     template <typename T> std::unique_ptr<T> parse_def_member(lunar_ir_module *module, parsec<char32_t> &ps);
     template <typename T> std::unique_ptr<T> parse_def_member_own(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERSHIP own);
