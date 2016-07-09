@@ -7,7 +7,7 @@ Lunar言語の中間表現であり、ここからLLVM IRへ変換。
 - IR           := TOP*
 - TOP          := FUNC | GLOBAL | THREADLOCAL | IMPORT | EXPR | TOPSTATEMENT
 - TOPSTATEMENT := LET | COND | WHILE | SELECT | SCHEDULE | STRUCT | CUNION | UNION
-- STATEMENT    := LET | COND | WHILE | BREAK | SELECT | RETURN | SCHEDULE | STRUCT | CUNION | UNION
+- STATEMENT    := LET | COND | WHILE | BREAK | SELECT | RETURN | SCHEDULE | STRUCT | CUNION | UNION | BLOCK | LEAP
 - STEXPR       := STATMENT | EXPR
 - LITERAL      := STR32 | STR8 | CHAR32 | CHAR8 | INT | FLOAT | HEX | OCT | BIN | ATOM
 - EXPRIDENT    := EXPR | IDENTIFIER
@@ -347,6 +347,21 @@ cond は制御構文であり、値は返さない。
 - BREAK := ( break )
 
 while ループの制御から脱出するときに使う。
+
+## block 構文
+
+構文：
+- BLOCK := ( block STEXPR* )
+
+セマンティクス：
+- ( block 式\* )
+
+## leap 文
+
+構文：
+- LEAP := ( leap )
+
+block 脱出するときに使う。
 
 ## return 文
 

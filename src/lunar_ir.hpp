@@ -15,7 +15,7 @@
  * IR           := TOP*
  * TOP          := FUNC | GLOBAL | THREADLOCAL | IMPORT | EXPR | STATEMENT
  * TOPSTATEMENT := LET | COND | WHILE | SELECT | SCHEDULE | STRUCT | CUNION | UNION
- * STATEMENT    := LET | COND | WHILE | BREAK | SELECT | RETURN | SCHEDULE | STRUCT | CUNION | UNION
+ * STATEMENT    := LET | COND | WHILE | BREAK | SELECT | RETURN | SCHEDULE | STRUCT | CUNION | UNION | BLOCK | LEAP
  * GLOBAL       := ( global ( ( TYPE (IDENTIFIER+) EXPRIDENTLIT )+ ) )
  * THREADLOCAL  := ( threadlocal ( ( TYPE ( IDENTIFIER+ ) EXPRIDENTLIT )+ ) )
  * IMPORT       := ( import STR32+ )
@@ -80,10 +80,12 @@
  * COND := ( cond ( EXPRIDENTLIT STEXPR* )+ ( else STEXPR* )? )
  *
  * WHILE := ( while EXPRIDENTLIT STEXPR* )
+ * BREAK := ( break )
+ *
+ * BLOCK := ( block STEXPR* )
+ * LEAP  := ( leap )
  *
  * SELECT := ( select ( EXPRIDENT STEXPR*)* ( timeout EXPRIDENTLIT STEXPR* )? )
- *
- * BREAK := ( break )
  *
  * RETURN := ( return EXPRIDENTLIT* )
  *
