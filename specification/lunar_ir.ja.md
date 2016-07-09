@@ -654,11 +654,9 @@ PTR型の参照外し
 
 ## 文字列
 
-### UTF-32
-
 - STR32  := " CHARS* "
 - STR8   := b " CHARS* "
-- ESCAPE := \a | \b | \f | \r | \n | \t | \v | \\ | \? | \' | \" | \0 | \UXXXXXXXX | \uXXXX
+- ESCAPE := \a | \b | \f | \r | \n | \t | \v | \\\\ | \? | \' | \" | \0 | \UXXXXXXXX | \uXXXX
 - CHARS  := ESCAPE | ESCAPE以外の文字
 
 ## 文字
@@ -675,7 +673,7 @@ PTR型の参照外し
 
 ## 浮動小数
 
-- FLOAT := NUM . EXP? f?
+- FLOAT := INT . NUM0to9+ EXP? f?
 - EXP   := EE SIGN NUM+
 - EE    := e | E
 - SIGN  := - | +

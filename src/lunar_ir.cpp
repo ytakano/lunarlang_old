@@ -283,10 +283,107 @@ lunar_ir::parse_type0_str(lunar_ir_module *module, parsec<char32_t> &ps, const c
 std::unique_ptr<lunar_ir_literal>
 lunar_ir::parse_literal(lunar_ir_module *module, parsec<char32_t> &ps)
 {
-    // TODO:
     ps.parse_many_char([&]() { return ps.parse_space(); });
 
-    return nullptr;
+    // TODO: parse str32, str8, char32, char8
+
+    // parse atom
+    {
+        parsec<char32_t>::parser_try ptry(ps);
+        ps.character(U'`');
+    }
+
+    if (ps.is_success()) {
+        auto id = parse_identifier(module, ps);
+        if (ps.is_success())
+            return llvm::make_unique<lunar_ir_lit_atom>(id->get_id());
+        else
+            return nullptr;
+    }
+
+    // parse hex
+    {
+        parsec<char32_t>::parser_look_ahead plahead(ps);
+        ps.parse_string(U"0x");
+    }
+
+    if (ps.is_success())
+        return parse_lit_hex(module, ps);
+
+    {
+        parsec<char32_t>::parser_look_ahead plahead(ps);
+        ps.parse_string(U"0x");
+    }
+
+    if (ps.is_success())
+        return parse_lit_hex(module, ps);
+
+
+    // parse bin
+    {
+        parsec<char32_t>::parser_look_ahead plahead(ps);
+        ps.parse_string(U"0b");
+    }
+
+    if (ps.is_success())
+        return parse_lit_bin(module, ps);
+
+    {
+        parsec<char32_t>::parser_look_ahead plahead(ps);
+        ps.parse_string(U"0B");
+    }
+
+    if (ps.is_success())
+        return parse_lit_bin(module, ps);
+
+    // parse oct
+    {
+        parsec<char32_t>::parser_look_ahead plahead(ps);
+        ps.character(U'0');
+    }
+
+    if (ps.is_success())
+        return parse_lit_oct(module, ps);
+
+    // parse float or int
+    bool is_num;
+    bool is_minus;
+
+    {
+        parsec<char32_t>::parser_look_ahead plahead(ps);
+        ps.character(U'-');
+    }
+
+    if (ps.is_success()) {
+        is_num   = true;
+        is_minus = true;
+    } else {
+        is_minus = false;
+
+        {
+            parsec<char32_t>::parser_look_ahead plahead(ps);
+            ps.satisfy([&](char32_t c) { return U'1' <= c && c <= U'9'; });
+        }
+
+        if (ps.is_success())
+            is_num = true;
+        else {
+            return nullptr;
+        }
+    }
+
+    // parse float
+    {
+        parsec<char32_t>::parser_try ptry(ps);
+        // TODO: parse float
+    }
+
+    // parse int
+    if (is_minus)
+        return parse_lit_int(module, ps);
+
+    // parse uint
+    return parse_lit_uint(module, ps);
 }
 
 std::unique_ptr<lunar_ir_exprid>
@@ -976,6 +1073,14 @@ lunar_ir::parse_def_member(lunar_ir_module *module, parsec<char32_t> &ps)
     def->set_col_mem(col);
 
     return def;
+}
+
+std::unique_ptr<lunar_ir_lit_float>
+lunar_ir::parse_lit_float(lunar_ir_module *module, parsec<char32_t> &ps)
+{
+    // TODO:
+
+    return nullptr;
 }
 
 std::unique_ptr<lunar_ir_lit_uint>

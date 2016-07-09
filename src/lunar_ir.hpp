@@ -1302,6 +1302,7 @@ private:
     std::unique_ptr<lunar_ir_top>            parse_topstatement_expr(lunar_ir_module *module, parsec<char32_t> &ps);
     std::unique_ptr<lunar_ir_exprid>         parse_exprid(lunar_ir_module *module, parsec<char32_t> &ps);
     std::unique_ptr<lunar_ir_literal>        parse_literal(lunar_ir_module *module, parsec<char32_t> &ps);
+    std::unique_ptr<lunar_ir_lit_float>      parse_lit_float(lunar_ir_module *module, parsec<char32_t> &ps);
     LANG_OWNERSHIP                           parse_ownership(lunar_ir_module *module, parsec<char32_t> &ps);
     template <typename T> std::unique_ptr<T> parse_def_member(lunar_ir_module *module, parsec<char32_t> &ps);
     template <typename T> std::unique_ptr<T> parse_def_member_own(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERSHIP own);
