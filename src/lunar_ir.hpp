@@ -541,11 +541,12 @@ private:
 
 class lunar_ir_lit_float : public lunar_ir_literal {
 public:
-    lunar_ir_lit_float(double num) : m_num(num) { }
+    lunar_ir_lit_float(double num, bool is_float) : m_num(num), m_is_float(is_float) { }
     virtual ~lunar_ir_lit_float() { }
 
 private:
     double m_num;
+    bool   m_is_float;
 };
 
 class lunar_ir_scalar : public lunar_ir_type {

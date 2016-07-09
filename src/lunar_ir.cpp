@@ -337,12 +337,20 @@ lunar_ir::parse_literal(lunar_ir_module *module, parsec<char32_t> &ps)
         return parse_lit_bin(module, ps);
 
     // parse oct
+    bool is_oct;
     {
         parsec<char32_t>::parser_look_ahead plahead(ps);
         ps.character(U'0');
+        if (ps.is_success()) {
+            ps.parse_oct_digit();
+            if (ps.is_success())
+                is_oct = true;
+            else
+                is_oct = false;
+        }
     }
 
-    if (ps.is_success())
+    if (is_oct)
         return parse_lit_oct(module, ps);
 
     // parse float or int
@@ -362,7 +370,7 @@ lunar_ir::parse_literal(lunar_ir_module *module, parsec<char32_t> &ps)
 
         {
             parsec<char32_t>::parser_look_ahead plahead(ps);
-            ps.satisfy([&](char32_t c) { return U'1' <= c && c <= U'9'; });
+            ps.parse_digit();
         }
 
         if (ps.is_success())
@@ -375,7 +383,9 @@ lunar_ir::parse_literal(lunar_ir_module *module, parsec<char32_t> &ps)
     // parse float
     {
         parsec<char32_t>::parser_try ptry(ps);
-        // TODO: parse float
+        auto ret = parse_lit_float(module, ps);
+        if (ps.is_success())
+            return std::move(ret);
     }
 
     // parse int
@@ -1078,9 +1088,114 @@ lunar_ir::parse_def_member(lunar_ir_module *module, parsec<char32_t> &ps)
 std::unique_ptr<lunar_ir_lit_float>
 lunar_ir::parse_lit_float(lunar_ir_module *module, parsec<char32_t> &ps)
 {
-    // TODO:
+    int line, col;
+    line = ps.get_line();
+    col  = ps.get_col();
 
-    return nullptr;
+    {
+        parsec<char32_t>::parser_try ptry(ps);
+        ps.character(U'-');
+    }
+
+    std::u32string str;
+
+    if (ps.is_success())
+        str += U'-';
+
+    {
+        parsec<char32_t>::parser_try ptry(ps);
+        ps.character(U'0');
+    }
+
+    if (ps.is_success()) {
+        str += U'0';
+    } else {
+        auto c = ps.satisfy([&](char32_t c) { return U'1' <= c && c <= U'9'; });
+        if (! ps.is_success()) {
+            return nullptr;
+        }
+
+        str += c;
+        str += ps.parse_many_char([&]() { return ps.parse_digit(); });
+    }
+
+    {
+        parsec<char32_t>::parser_try ptry(ps);
+        ps.character(U'.');
+    }
+
+    if (! ps.is_success())
+        return nullptr;
+
+    str += ps.parse_many_char([&]() { return ps.parse_digit(); });
+
+    {
+        parsec<char32_t>::parser_try ptry(ps);
+        ps.satisfy([&](char32_t c) { return c == U'e' || c == U'E'; });
+    }
+
+    if (ps.is_success()) {
+        str += U'e';
+
+        {
+            parsec<char32_t>::parser_try ptry(ps);
+            ps.character(U'-');
+        }
+
+        if (ps.is_success()) {
+            str += U'-';
+        } else {
+            {
+                parsec<char32_t>::parser_try ptry(ps);
+                ps.character(U'+');
+            }
+        }
+
+        {
+            parsec<char32_t>::parser_try ptry(ps);
+            ps.character(U'0');
+        }
+
+        if (ps.is_success()) {
+            str += U'0';
+        } else {
+            auto c = ps.satisfy([&](char32_t c) { return U'1' <= c && c <= U'9'; });
+            if (! ps.is_success()) {
+                return nullptr;
+            }
+
+            str += c;
+            str += ps.parse_many_char([&]() { return ps.parse_digit(); });
+        }
+    }
+
+    {
+        parsec<char32_t>::parser_try ptry(ps);
+        ps.character(U'f');
+    }
+
+    bool is_float;
+    if (ps.is_success()) {
+        is_float = true;
+    } else {
+        is_float = false;
+        ps.set_is_success(true);
+    }
+
+    double num;
+    if (is_float)
+        num = strtof(to_string(str).c_str(), nullptr);
+    else
+        num = strtod(to_string(str).c_str(), nullptr);
+
+    if (errno == ERANGE)
+        print_parse_warn_linecol("floating point overflow or underflow", module, ps, line, col);
+
+    auto ret = llvm::make_unique<lunar_ir_lit_float>(num, is_float);
+    ret->set_line(line);
+    ret->set_col(col);
+
+    return ret;
 }
 
 std::unique_ptr<lunar_ir_lit_uint>
@@ -1089,6 +1204,18 @@ lunar_ir::parse_lit_uint(lunar_ir_module *module, parsec<char32_t> &ps)
     int line, col;
     line = ps.get_line();
     col  = ps.get_col();
+
+    {
+        parsec<char32_t>::parser_try ptry(ps);
+        ps.character(U'0');
+    }
+
+    if (ps.is_success()) {
+        auto literal = llvm::make_unique<lunar_ir_lit_uint>(0, U"0");
+        literal->set_line(line);
+        literal->set_col(col);
+        return literal;
+    }
 
     auto c = ps.satisfy([](char32_t c) { return U'1' <= c && c <= U'9'; });
     if (!ps.is_success()) {
@@ -1307,12 +1434,20 @@ lunar_ir::parse_size(lunar_ir_module *module, parsec<char32_t> &ps)
     if (ps.is_success())
         return parse_lit_bin(module, ps);
 
+    bool is_oct;
     {
         parsec<char32_t>::parser_look_ahead plahead(ps);
         ps.character(U'0');
+        if (ps.is_success()) {
+            ps.parse_oct_digit();
+            if (ps.is_success())
+                is_oct = true;
+            else
+                is_oct = false;
+        }
     }
 
-    if (ps.is_success())
+    if (is_oct)
         return parse_lit_oct(module, ps);
 
     return parse_lit_uint(module, ps);
