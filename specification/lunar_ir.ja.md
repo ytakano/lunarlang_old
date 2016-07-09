@@ -5,7 +5,7 @@ Lunar言語の中間表現であり、ここからLLVM IRへ変換。
 # 構文
 
 - IR           := TOP*
-- TOP          := FUNC | GLOBAL | IMPORT | EXPR | TOPSTATEMENT
+- TOP          := FUNC | GLOBAL | THREADLOCAL | IMPORT | EXPR | TOPSTATEMENT
 - TOPSTATEMENT := LET | COND | WHILE | SELECT | SCHEDULE | STRUCT | CUNION | UNION
 - STATEMENT    := LET | COND | WHILE | BREAK | SELECT | RETURN | SCHEDULE | STRUCT | CUNION | UNION
 - STEXPR       := STATMENT | EXPR
@@ -17,6 +17,10 @@ Lunar言語の中間表現であり、ここからLLVM IRへ変換。
 # グローバル変数定義
 
 - GLOBAL := ( global ( ( TYPE ( IDENTIFIER+ ) EXPRIDENTLIT )+ ) )
+
+# スレッドローカル変数定義
+
+- THREADLOCAL := ( threadlocal ( ( TYPE ( IDENTIFIER+ ) EXPRIDENTLIT )+ ) )
 
 # インポート
 

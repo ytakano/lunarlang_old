@@ -13,10 +13,11 @@
  * -----------------------------------------------------------------------------
  *
  * IR           := TOP*
- * TOP          := FUNC | GLOBAL | IMPORT | EXPR | STATEMENT
+ * TOP          := FUNC | GLOBAL | THREADLOCAL | IMPORT | EXPR | STATEMENT
  * TOPSTATEMENT := LET | COND | WHILE | SELECT | SCHEDULE | STRUCT | CUNION | UNION
  * STATEMENT    := LET | COND | WHILE | BREAK | SELECT | RETURN | SCHEDULE | STRUCT | CUNION | UNION
  * GLOBAL       := ( global ( ( TYPE (IDENTIFIER+) EXPRIDENTLIT )+ ) )
+ * THREADLOCAL  := ( threadlocal ( ( TYPE ( IDENTIFIER+ ) EXPRIDENTLIT )+ ) )
  * IMPORT       := ( import STR32+ )
  *
  * -----------------------------------------------------------------------------
