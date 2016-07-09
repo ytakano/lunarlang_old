@@ -26,7 +26,7 @@ func1(void *arg)
     lunar::make_ptr_stream(rs, ws, 1);
 
     lunar::spawn_green_thread(func3, ws);
-    
+
 #ifdef KQUEUE
     struct kevent kev;
     EV_SET(&kev, STDIN_FILENO, EVFILT_READ, EV_ADD | EV_ENABLE, 0, 0, 0);
@@ -50,16 +50,16 @@ func1(void *arg)
             printf("timeout!\n> ");
             fflush(stdout);
         }
-        
+
         if (lunar::is_ready_threadq_green_thread()) {
-            void *data;
+            lunar::alltype data;
             auto ret = lunar::pop_threadq_green_thread(&data);
             assert(ret == lunar::STRM_SUCCESS);
-            
+
             printf("recv thread queue!\n> ");
             fflush(stdout);
         }
-        
+
         void **streams;
         ssize_t len;
         lunar::get_streams_ready_green_thread(&streams, &len);
@@ -70,7 +70,7 @@ func1(void *arg)
             printf("recv stream!\n> ");
             fflush(stdout);
         }
-        
+
         lunar::fdevent_green_thread *fdev;
         lunar::get_fds_ready_green_thread(&fdev, &len);
         for (int i = 0; i < len; i++) {
@@ -89,11 +89,12 @@ func2(void *arg)
 {
     __sync_fetch_and_add(&n, 1);
     while(n != 2); // barrier
-    
+
     auto fb = lunar::get_green_thread(1);
+    lunar::alltype t = { nullptr };
     for (;;) {
         lunar::select_green_thread(nullptr, 0, nullptr, 0, false, 13000);
-        lunar::push_threadq_fast_unsafe_green_thread(fb, nullptr);
+        lunar::push_threadq_fast_unsafe_green_thread(fb, t);
     }
 }
 
@@ -118,7 +119,7 @@ main(int argc, char *argv[])
 {
     std::thread th1(thread1);
     std::thread th2(thread2);
-    
+
     th1.join();
     th2.join();
 

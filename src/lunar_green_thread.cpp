@@ -40,15 +40,20 @@ asm (
 
 void update_clock();
 
+class local_clock {
+public:
+    local_clock() : m_th(update_clock) { m_th.detach(); }
+    std::thread m_th;
+};
+
 static volatile uint64_t lunar_clock; // milliseconds
-static std::thread thread_clock(update_clock);
+static local_clock thread_clock;
 
 void
 update_clock()
 {
     timespec t0;
     GETTIME(&t0);
-    thread_clock.detach();
 
     for (;;) {
         timespec t1;
