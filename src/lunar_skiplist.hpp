@@ -84,7 +84,7 @@ inline uint8_t skiplist<K, V, MAX_LEVEL>::random_level()
     max_level = 64 - max_level + 1;
     max_level = max_level > MAX_LEVEL ? MAX_LEVEL : max_level;
 
-    while (lvl < max_level && m_xs.xor32() < (UINT32_MAX / 2))
+    while (lvl < max_level && m_xs.xor32() < (UINT32_MAX >> 1))
         lvl++;
 
     return lvl;
@@ -103,7 +103,9 @@ inline void skiplist<K, V, MAX_LEVEL>::insert(const K &key, const V &val)
         update[i] = x;
     }
 
-    if (x->m_key == key) {
+    x = x->m_forward[0];
+
+    if (x != nullptr && x->m_key == key) {
         x->m_val = val;
     } else {
         auto new_node = new skiplist_node<K, V, MAX_LEVEL>();
