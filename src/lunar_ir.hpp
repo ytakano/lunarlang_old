@@ -284,6 +284,8 @@ public:
     lunar_ir_exprid(EXPRID_TYPE type, std::unique_ptr<lunar_ir_expr> expr) : m_type(type), m_expr(std::move(expr)) { }
     virtual ~lunar_ir_exprid() { }
 
+    virtual void print(const std::string &from);
+
 private:
     EXPRID_TYPE m_type;
     std::unique_ptr<lunar_ir_identifier> m_id;
@@ -303,6 +305,8 @@ public:
     lunar_ir_expridlit(EXPRIDLIT_TYPE type, std::unique_ptr<lunar_ir_expr> expr) : m_type(type), m_expr(std::move(expr)) { }
     virtual ~lunar_ir_expridlit() { }
 
+    virtual void print(const std::string &from);
+
 private:
     EXPRIDLIT_TYPE m_type;
     std::unique_ptr<lunar_ir_identifier> m_id;
@@ -318,6 +322,24 @@ public:
     void add_arg(std::unique_ptr<lunar_ir_expridlit> arg)
     {
         m_args.push_back(std::move(arg));
+    }
+
+    virtual void print(const std::string &from)
+    {
+        std::ostringstream os;
+        os << "\"" << get_line() << ":" << get_col() << ": function call\"";
+        printf("%s -> %s;\n", from.c_str(), os.str().c_str());
+
+        m_func->print(os.str());
+
+        int i = 0;
+        for (auto &arg: m_args) {
+            std::ostringstream os_arg;
+            os_arg << "\"" << arg->get_line() << ":" << arg->get_col() << ": arg[" << i << "]\"";
+            printf("%s -> %s;\n", os.str().c_str(), os_arg.str().c_str());
+            arg->print(os_arg.str());
+            i++;
+        }
     }
 
 private:
@@ -475,6 +497,13 @@ public:
     lunar_ir_lit_atom(const std::u32string &str) : m_str(str) { }
     virtual ~lunar_ir_lit_atom() { }
 
+    virtual void print(const std::string &from)
+    {
+        std::ostringstream os;
+        os << "\"" << get_line() << ":" << get_col() << ": atom literal: " << to_string(m_str);
+        printf("%s -> %s\";\n", from.c_str(), os.str().c_str());
+    }
+
 private:
     std::u32string m_str;
 };
@@ -520,6 +549,13 @@ public:
     lunar_ir_lit_int(int64_t num, const std::u32string &str) : m_num(num), m_str(str) { }
     virtual ~lunar_ir_lit_int() { }
 
+    virtual void print(const std::string &from)
+    {
+        std::ostringstream os;
+        os << "\"" << get_line() << ":" << get_col() << ": int literal: " << m_num;
+        printf("%s -> %s\";\n", from.c_str(), os.str().c_str());
+    }
+
 private:
     int64_t m_num;
     std::u32string m_str;
@@ -546,6 +582,17 @@ class lunar_ir_lit_float : public lunar_ir_literal {
 public:
     lunar_ir_lit_float(double num, bool is_float) : m_num(num), m_is_float(is_float) { }
     virtual ~lunar_ir_lit_float() { }
+
+    virtual void print(const std::string &from)
+    {
+        std::ostringstream os;
+
+        if (m_is_float)
+            os << "\"" << get_line() << ":" << get_col() << ": float literal: " << m_num;
+        else
+            os << "\"" << get_line() << ":" << get_col() << ": double literal: " << m_num;
+        printf("%s -> %s\";\n", from.c_str(), os.str().c_str());
+    }
 
 private:
     double m_num;
@@ -1307,6 +1354,7 @@ private:
     std::unique_ptr<lunar_ir_exprid>         parse_exprid(lunar_ir_module *module, parsec<char32_t> &ps);
     std::unique_ptr<lunar_ir_literal>        parse_literal(lunar_ir_module *module, parsec<char32_t> &ps);
     std::unique_ptr<lunar_ir_lit_float>      parse_lit_float(lunar_ir_module *module, parsec<char32_t> &ps);
+    std::unique_ptr<lunar_ir_expridlit>      parse_expridlit(lunar_ir_module *module, parsec<char32_t> &ps);
     LANG_OWNERSHIP                           parse_ownership(lunar_ir_module *module, parsec<char32_t> &ps);
     template <typename T> std::unique_ptr<T> parse_def_member(lunar_ir_module *module, parsec<char32_t> &ps);
     template <typename T> std::unique_ptr<T> parse_def_member_own(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERSHIP own);
