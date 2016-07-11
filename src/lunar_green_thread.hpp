@@ -278,7 +278,7 @@ public:
             using std::hash;
             using std::string;
 
-            return hash<uintptr_t>()(k.m_fd) ^ hash<int16_t>()(k.m_event);
+            return hash<uintptr_t>()(k.m_fd) ^ ((std::size_t)hash<int16_t>()(k.m_event) << 16);
         }
     };
 

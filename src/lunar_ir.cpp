@@ -11,6 +11,8 @@ namespace lunar {
 std::unordered_set<char32_t> idh_set;
 std::unordered_set<char32_t> idt_set;
 std::unordered_map<std::u32string, LANG_SCALAR> scalar_set;
+std::unordered_map<char32_t, char32_t> esc_set;
+std::unordered_map<char32_t, char32_t> hex_set;
 
 void
 lunar_ir_exprid::print(const std::string &from)
@@ -158,6 +160,44 @@ lunar_ir::lunar_ir()
     scalar_set[U"double"] = SC_DOUBLE;
     scalar_set[U"float"]  = SC_FLOAT;
     scalar_set[U"char"]   = SC_CHAR;
+
+    esc_set[U'a']  = U'\a';
+    esc_set[U'b']  = U'\b';
+    esc_set[U'f']  = U'\f';
+    esc_set[U'r']  = U'\r';
+    esc_set[U'n']  = U'\n';
+    esc_set[U't']  = U'\t';
+    esc_set[U'v']  = U'\v';
+    esc_set[U'\\'] = U'\\';
+    esc_set[U'?']  = U'\?';
+    esc_set[U'\''] = U'\'';
+    esc_set[U'\"'] = U'"';
+    esc_set[U'\0'] = U'\0';
+    esc_set[U'U']  = U'U';
+    esc_set[U'u']  = U'u';
+
+    hex_set[U'0']  =  0;
+    hex_set[U'1']  =  1;
+    hex_set[U'2']  =  2;
+    hex_set[U'3']  =  3;
+    hex_set[U'4']  =  4;
+    hex_set[U'5']  =  5;
+    hex_set[U'6']  =  6;
+    hex_set[U'7']  =  7;
+    hex_set[U'8']  =  8;
+    hex_set[U'9']  =  9;
+    hex_set[U'a']  = 10;
+    hex_set[U'A']  = 10;
+    hex_set[U'b']  = 11;
+    hex_set[U'B']  = 11;
+    hex_set[U'c']  = 12;
+    hex_set[U'C']  = 12;
+    hex_set[U'd']  = 13;
+    hex_set[U'D']  = 13;
+    hex_set[U'e']  = 14;
+    hex_set[U'E']  = 14;
+    hex_set[U'f']  = 15;
+    hex_set[U'F']  = 15;
 }
 
 lunar_ir::~lunar_ir()
@@ -186,14 +226,14 @@ lunar_ir::compile(const std::string &mainfile)
 
 #define print_parse_err(str, module, ps)                                \
 do {                                                                    \
-    auto msg = ps.get_errmsg();                                         \
+    auto msg = (ps).get_errmsg();                                       \
     std::string spaces;                                                 \
     for (int i = 1; i < msg.col; i++)                                   \
         spaces += ' ';                                                  \
     fprintf(stderr, "%s:%d\n%s:%d:%d: error: %s\n%s\n%s^\n",            \
             __FILE__, __LINE__, module->get_filename().c_str(),         \
             msg.line, msg.col,                                          \
-            str, get_line(module->get_filename(), msg.line).c_str(),    \
+            (str), get_line(module->get_filename(), msg.line).c_str(),  \
             spaces.c_str());                                            \
 } while (0)
 
@@ -204,7 +244,7 @@ do {                                                            \
         spaces += ' ';                                          \
     fprintf(stderr, "%s:%d\n%s:%d:%d: error: %s\n%s\n%s^\n",    \
             __FILE__, __LINE__, module->get_filename().c_str(), \
-            line, col, str,                                     \
+            (line), (col), (str),                               \
             get_line(module->get_filename(), line).c_str(),     \
             spaces.c_str());                                    \
 } while (0)
@@ -216,7 +256,7 @@ do {                                                            \
         spaces += ' ';                                          \
     fprintf(stderr, "%s:%d\n%s:%d:%d: warning: %s\n%s\n%s^\n",  \
             __FILE__, __LINE__, module->get_filename().c_str(), \
-            line, col, str,                                     \
+            (line), (col), (str),                               \
             get_line(module->get_filename(), line).c_str(),     \
             spaces.c_str());                                    \
 } while (0)
@@ -314,7 +354,41 @@ lunar_ir::parse_literal(lunar_ir_module *module, parsec<char32_t> &ps)
 {
     ps.parse_many_char([&]() { return ps.parse_space(); });
 
-    // TODO: parse str32, str8, char32, char8
+    // parse char32
+    {
+        parsec<char32_t>::parser_try ptry(ps);
+        ps.character(U'\'');
+    }
+
+    if (ps.is_success())
+        return parse_lit_char32(module, ps);
+
+    // parse char8
+    {
+        parsec<char32_t>::parser_try ptry(ps);
+        ps.parse_string(U"b'");
+    }
+
+    if (ps.is_success())
+        return parse_lit_char8(module, ps);
+
+    // parse str32
+    {
+        parsec<char32_t>::parser_try ptry(ps);
+        ps.character(U'"');
+    }
+
+    if (ps.is_success())
+        return parse_lit_str32(module, ps);
+
+    // parse str8
+    {
+        parsec<char32_t>::parser_try ptry(ps);
+        ps.parse_string(U"b\"");
+    }
+
+    if (ps.is_success())
+        return parse_lit_str8(module, ps);
 
     // parse atom
     {
@@ -463,26 +537,67 @@ lunar_ir::parse_expridlit(lunar_ir_module *module, parsec<char32_t> &ps)
     {
         parsec<char32_t>::parser_look_ahead plahead(ps);
         ps.parse_digit();
-        if (ps.is_success())
+        if (ps.is_success()) {
             is_lit = true;
+            goto LITERAL;
+        }
     }
 
     if (! is_lit) {
         parsec<char32_t>::parser_look_ahead plahead(ps);
         ps.character(U'-');
-        if (ps.is_success())
+        if (ps.is_success()) {
             is_lit = true;
+            goto LITERAL;
+        }
     }
 
     if (! is_lit) {
         parsec<char32_t>::parser_look_ahead plahead(ps);
         ps.character(U'`');
-        if (ps.is_success())
+        if (ps.is_success()) {
             is_lit = true;
+            goto LITERAL;
+        }
     }
 
-    // TODO: check '', b'', "", and b""
+    if (! is_lit) {
+        parsec<char32_t>::parser_look_ahead plahead(ps);
+        ps.character(U'\'');
+        if (ps.is_success()) {
+            is_lit = true;
+            goto LITERAL;
+        }
+    }
 
+    if (! is_lit) {
+        parsec<char32_t>::parser_look_ahead plahead(ps);
+        ps.parse_string(U"b'");
+        if (ps.is_success()) {
+            is_lit = true;
+            goto LITERAL;
+        }
+    }
+
+    if (! is_lit) {
+        parsec<char32_t>::parser_look_ahead plahead(ps);
+        ps.character(U'"');
+        if (ps.is_success()) {
+            is_lit = true;
+            goto LITERAL;
+        }
+    }
+
+    if (! is_lit) {
+        parsec<char32_t>::parser_look_ahead plahead(ps);
+        ps.parse_string(U"b\"");
+        if (ps.is_success()) {
+            is_lit = true;
+            goto LITERAL;
+        }
+    }
+
+LITERAL:
     if (is_lit) {
         auto lit = parse_literal(module, ps);
         if (ps.is_success()) {
@@ -1549,6 +1664,129 @@ lunar_ir::parse_lit_bin(lunar_ir_module *module, parsec<char32_t> &ps)
     literal->set_col(col);
 
     return literal;
+}
+
+std::unique_ptr<lunar_ir_lit_char8>
+lunar_ir::parse_lit_char8(lunar_ir_module *module, parsec<char32_t> &ps)
+{
+    int line, col;
+    line = ps.get_line();
+    col  = ps.get_col();
+
+    char32_t c = parse_lit_char(module, &ps, U'\'');
+    if (! ps.is_success()) {
+        if (c == U'\'')
+            print_parse_err("need a character", module, ps);
+        return nullptr;
+    }
+
+    if (c > 255)
+        print_parse_warn_linecol("character is greater than 255", module, ps, line, col);
+
+    ps.character(U'\'');
+    if (! ps.is_success()) {
+        print_parse_err("expected \"'\"", module, ps);
+        return nullptr;
+    }
+
+    return llvm::make_unique<lunar_ir_lit_char8>(c);
+}
+
+std::unique_ptr<lunar_ir_lit_char32>
+lunar_ir::parse_lit_char32(lunar_ir_module *module, parsec<char32_t> &ps)
+{
+    char32_t c = parse_lit_char(module, &ps, U'\'');
+    if (! ps.is_success()) {
+        if (c == U'\'')
+            print_parse_err("need a character", module, ps);
+        return nullptr;
+    }
+
+    ps.character(U'\'');
+    if (! ps.is_success()) {
+        print_parse_err("expected \"'\"", module, ps);
+        return nullptr;
+    }
+
+    return llvm::make_unique<lunar_ir_lit_char32>(c);
+}
+
+std::unique_ptr<lunar_ir_lit_str8>
+lunar_ir::parse_lit_str8(lunar_ir_module *module, parsec<char32_t> &ps)
+{
+    std::u32string str = ps.parse_many_char(std::bind(&lunar_ir::parse_lit_char, this, module, &ps, U'"'));
+
+    if (! ps.is_success())
+        return nullptr;
+
+    ps.character(U'"');
+    if (! ps.is_success()) {
+        print_parse_err("expected \"\"\"", module, ps);
+        return nullptr;
+    }
+
+    return llvm::make_unique<lunar_ir_lit_str8>(str);
+}
+
+std::unique_ptr<lunar_ir_lit_str32>
+lunar_ir::parse_lit_str32(lunar_ir_module *module, parsec<char32_t> &ps)
+{
+    std::u32string str = ps.parse_many_char(std::bind(&lunar_ir::parse_lit_char, this, module, &ps, U'"'));
+
+    if (! ps.is_success())
+        return nullptr;
+
+    ps.character(U'"');
+    if (! ps.is_success()) {
+        print_parse_err("expected \"\"\"", module, ps);
+        return nullptr;
+    }
+
+    return llvm::make_unique<lunar_ir_lit_str32>(str);
+}
+
+char32_t
+lunar_ir::parse_lit_char(lunar_ir_module *module, parsec<char32_t> *ps, char32_t endc)
+{
+    char32_t val = ps->satisfy([&](char32_t c) { return c != endc; });
+    if (! ps->is_success())
+        return endc;
+
+    if (val == U'\\') {
+        char32_t esc = ps->satisfy([&](char32_t c) { return esc_set.find(c) != esc_set.end(); });
+        if (! ps->is_success()) {
+            print_parse_err("not escaped character", module, *ps);
+            return 0;
+        }
+
+        if (esc == U'U') {
+            val = 0;
+            for (int i = 0; i < 8; i++) {
+                val <<= 4;
+                char32_t c = ps->parse_hex_digit();
+                if (! ps->is_success()) {
+                    print_parse_err("not hexadecimal", module, *ps);
+                    return 0;
+                }
+                val |= hex_set[c];
+            }
+        } else if (esc == U'u') {
+            val = 0;
+            for (int i = 0; i < 4; i++) {
+                val <<= 4;
+                char32_t c = ps->parse_hex_digit();
+                if (! ps->is_success()) {
+                    print_parse_err("not hexadecimal", module, *ps);
+                    return 0;
+                }
+                val |= hex_set[c];
+            }
+        } else {
+            return esc_set[esc];
+        }
+    }
+
+    return val;
 }
 
 std::unique_ptr<lunar_ir_lit_uint>
