@@ -317,8 +317,8 @@ private:
         static const int WAITING_TIMEOUT = 0x0040;
         static const int STOP            = 0x0080;
 
-        uint32_t m_state;
-        jmp_buf m_jmp_buf;
+        uint32_t   m_state;
+        sigjmp_buf m_jmp_buf;
 
         // waiting events
         std::vector<ev_key> m_fd;       // waiting file descriptors to read
@@ -471,12 +471,12 @@ private:
         volatile int  m_refcnt;
         volatile bool m_is_qnotified;
         volatile qwait_type m_qwait_type;
-        int    m_max_qlen;
+        int      m_max_qlen;
         alltype *m_q;
         alltype *m_qend;
         alltype *m_qhead;
         alltype *m_qtail;
-        int    m_qpipe[2];
+        int      m_qpipe[2];
         spin_lock  m_qlock;
         std::mutex m_qmutex;
         std::condition_variable m_qcond;

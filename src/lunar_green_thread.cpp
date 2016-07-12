@@ -6,11 +6,6 @@
 
 // currentry, this code can run on X86_64 System V ABI
 
-#ifdef __linux__
-#define _setjmp setjmp
-#define _longjmp longjmp
-#endif // __linux__
-
 namespace lunar {
 
 __thread green_thread *lunar_gt = nullptr;
@@ -912,7 +907,7 @@ green_thread::spawn(void (*func)(void*), void *arg, int stack_size)
 void
 green_thread::run()
 {
-    if (_setjmp(m_jmp_buf) == 0) {
+    if (sigsetjmp(m_jmp_buf, 0) == 0) {
         schedule();
     } else {
         if (! m_stop.empty())
@@ -980,7 +975,7 @@ green_thread::schedule()
 
             if (state & context::READY) {
                 if (ctx) {
-                    if (_setjmp(ctx->m_jmp_buf) == 0) {
+                    if (sigsetjmp(ctx->m_jmp_buf, 0) == 0) {
                         auto p = &m_running->m_stack[m_running->m_stack_size - 4];
                         asm (
                             "movq %0, %%rsp;" // set stack pointer
@@ -1154,8 +1149,8 @@ green_thread::schedule()
                 if (ctx == m_running)
                     return;
 
-                if (_setjmp(ctx->m_jmp_buf) == 0) {
-                    _longjmp(m_running->m_jmp_buf, 1);
+                if (sigsetjmp(ctx->m_jmp_buf, 0) == 0) {
+                    siglongjmp(m_running->m_jmp_buf, 1);
                 } else {
                     if (! m_stop.empty())
                         remove_stopped();
@@ -1246,7 +1241,7 @@ green_thread::schedule()
         }
     }
 
-    _longjmp(m_jmp_buf, 1);
+    siglongjmp(m_jmp_buf, 1);
 }
 
 #if (defined KQUEUE)

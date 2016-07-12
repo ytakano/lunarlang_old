@@ -1805,6 +1805,8 @@ lunar_ir::parse_size(lunar_ir_module *module, parsec<char32_t> &ps)
                 is_oct = true;
             else
                 is_oct = false;
+        } else {
+            is_oct = false;
         }
     }
 
