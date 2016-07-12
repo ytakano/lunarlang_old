@@ -14,35 +14,6 @@ std::unordered_map<std::u32string, LANG_SCALAR> scalar_set;
 std::unordered_map<char32_t, char32_t> esc_set;
 std::unordered_map<char32_t, char32_t> hex_set;
 
-void
-lunar_ir_exprid::print(const std::string &from)
-{
-    switch (m_type) {
-    case EXPRID_EXPR:
-        m_expr->print(from);
-        break;
-    case EXPRID_ID:
-        m_id->print(from);
-        break;
-    }
-}
-
-void
-lunar_ir_expridlit::print(const std::string &from)
-{
-    switch (m_type) {
-    case EXPRIDLIT_EXPR:
-        m_expr->print(from);
-        break;
-    case EXPRIDLIT_ID:
-        m_id->print(from);
-        break;
-    case EXPRIDLIT_LITERAL:
-        m_literal->print(from);
-        break;
-    }
-}
-
 lunar_ir::lunar_ir()
 {
     idh_set.insert(U'0');
