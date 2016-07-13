@@ -1,0 +1,10 @@
+(let (((((unique s32) var1)) var2) ) )
+(let (
+      (((u64 num)) v0)
+      ((( (unique s32) var3)
+        ( (unique s32) var4))
+       ( func1 ))
+      ((( string str1)
+        ( (ref foo) var5))
+       ( func2 arg1))
+      ))

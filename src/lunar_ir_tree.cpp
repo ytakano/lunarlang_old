@@ -493,4 +493,46 @@ lunar_ir_parsec::print(std::string &s, const std::string &from)
     print_ownership(s, os.str());
 }
 
+void
+lunar_ir_let::print(std::string &s, const std::string &from)
+{
+    std::ostringstream os;
+    os << "\"" << get_line() << ":" << get_col() << ": let\"";
+    s += from + " -> " + os.str() + ";\n";
+
+    int i = 0;
+    for (auto &def: m_defs) {
+        std::ostringstream os_def;
+        os_def << "\"" << def->get_line() << ":" << def->get_col() << ": def[" << i << "]\"";
+        s += os.str() + " -> " + os_def.str() + ";\n";
+        def->print(s, os_def.str());
+        i++;
+    }
+
+    for (auto &stexpr: m_stexprs)
+        stexpr->print(s, os.str());
+}
+
+void
+lunar_ir_let::def::print(std::string &s, const std::string &from)
+{
+    int i = 0;
+    for (auto &var: m_vars) {
+        std::ostringstream os_var;
+        os_var << "\"" << var->get_line() << ":" << var->get_col() << ": var[" << i << "]\"";
+        s += from + " -> " + os_var.str() + ";\n";
+        var->print(s, os_var.str());
+        i++;
+    }
+
+    m_expridlit->print(s, from);
+}
+
+void
+lunar_ir_var::print(std::string &s, const std::string &from)
+{
+    m_type->print_ownership(s, from);
+    m_id->print(s, from);
+}
+
 }

@@ -286,10 +286,10 @@ TYPE型の値を返す。
 ## 変数束縛構文
 
 構文：
-- LET := ( let ( ( ( TYPE IDENTIFIER )+ EXPRIDENTLIT )+ ) STEXPR\* )
+- LET := ( let ( ( ( ( TYPE IDENTIFIER )+ ) EXPRIDENTLIT )+ ) STEXPR\* )
 
 セマンティクス：
-- ( let ( ( ( 型 変数名 )+ 束縛する値 )+ ) 式\* )
+- ( let ( ( ( ( 型 変数名 )+ ) 束縛する値 )+ ) 式\* )
 
 関数は複数の値を返すこともあるため、複数の変数名を記述できるように。
 

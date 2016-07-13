@@ -74,7 +74,7 @@
  *
  * STEXPR := STATMENT | EXPR
  *
- * LET := ( let ( ( ( TYPE IDENTIFIER )+ EXPRIDENTLIT )+ ) STEXPR\* )
+ * LET := ( let ( ( ( ( TYPE IDENTIFIER )+ ) EXPRIDENTLIT )+ ) STEXPR\* )
  *
  * COND := ( cond ( EXPRIDENTLIT STEXPR* )+ ( else STEXPR* )? )
  *
@@ -763,14 +763,16 @@ private:
 
 class lunar_ir_var : public lunar_ir_base {
 public:
-    lunar_ir_var(std::unique_ptr<lunar_ir_type> type, const std::u32string &name)
-        : m_type(std::move(type)), m_name(name) { }
+    lunar_ir_var(std::unique_ptr<lunar_ir_type> type, std::unique_ptr<lunar_ir_identifier> id)
+        : m_type(std::move(type)), m_id(std::move(id)) { }
 
-    std::u32string& get_name() { return m_name; }
+    const std::u32string& get_id() { return m_id->get_id(); }
+
+    virtual void print(std::string &s, const std::string &from);
 
 private:
-    std::unique_ptr<lunar_ir_type> m_type;
-    std::u32string m_name;
+    std::unique_ptr<lunar_ir_type>       m_type;
+    std::unique_ptr<lunar_ir_identifier> m_id;
 };
 
 class lunar_ir_defun : public lunar_ir_top {
@@ -785,7 +787,7 @@ public:
 
     void add_arg(std::unique_ptr<lunar_ir_var> var)
     {
-        m_argmap[var->get_name()] = var.get();
+        m_argmap[var->get_id()] = var.get();
         m_args.push_back(std::move(var));
     }
 
@@ -804,29 +806,32 @@ private:
 
 class lunar_ir_let : public lunar_ir_statement {
 public:
-    class def {
+    class def : public lunar_ir_base {
     public:
         void add_var(std::unique_ptr<lunar_ir_var> var)
         {
-            m_argmap[var->get_name()] = var.get();
+            auto id = var->get_id();
+            m_argmap[var->get_id()] = var.get();
             m_vars.push_back(std::move(var));
         }
 
-        void set_expr(std::unique_ptr<lunar_ir_expr> expr)
+        void set_expridlit(std::unique_ptr<lunar_ir_expridlit> expridlit)
         {
-            m_expr = std::move(expr);
+            m_expridlit = std::move(expridlit);
         }
 
+        virtual void print(std::string &s, const std::string &from);
+
     private:
-        std::vector<std::unique_ptr<lunar_ir_var>>     m_vars;
+        std::vector<std::unique_ptr<lunar_ir_var>>        m_vars;
         std::unordered_map<std::u32string, lunar_ir_var*> m_argmap;
-        std::unique_ptr<lunar_ir_expr> m_expr;
+        std::unique_ptr<lunar_ir_expridlit> m_expridlit;
     };
 
     lunar_ir_let() { }
     virtual ~lunar_ir_let() { }
 
-    void add_defs(std::unique_ptr<def> def)
+    void add_def(std::unique_ptr<def> def)
     {
         m_defs.push_back(std::move(def));
     }
@@ -835,6 +840,8 @@ public:
     {
         m_stexprs.push_back(std::move(stexpr));
     }
+
+    virtual void print(std::string &s, const std::string &from);
 
 private:
     std::vector<std::unique_ptr<def>> m_defs;

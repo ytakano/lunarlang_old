@@ -13,15 +13,15 @@ main(int argc, char *argv[])
 {
     lunar::lunar_ir ir;
 
-    std::ifstream ifs("tests/ir/test02.lunar.ir");
+    std::ifstream ifs("tests/ir/test04.lunar.ir");
 
     std::istreambuf_iterator<char> it(ifs);
     std::istreambuf_iterator<char> last;
     std::string str(it, last);
 
-    ir.add_file(lunar::to_u32string(str), "tests/ir/test02.lunar.ir");
+    ir.add_file(lunar::to_u32string(str), "tests/ir/test04.lunar.ir");
 
-    ir.compile("tests/ir/test02.lunar.ir");
+    ir.compile("tests/ir/test04.lunar.ir");
 
     ir.print();
 
