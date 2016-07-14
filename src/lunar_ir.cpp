@@ -301,7 +301,7 @@ lunar_ir::parse_ownership(lunar_ir_module *module, parsec<char32_t> &ps)
 }
 
 bool
-lunar_ir::parse_type0_str(lunar_ir_module *module, parsec<char32_t> &ps, const char32_t *str)
+lunar_ir::parse_str_space(lunar_ir_module *module, parsec<char32_t> &ps, const char32_t *str)
 {
     {
         parsec<char32_t>::parser_try ptry(ps);
@@ -909,31 +909,31 @@ lunar_ir::parse_type0(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERS
         // array, dict, set, list, struct, union, func, rstrm, wstrm, rthreadstrm, wthreadstrm, ptr, cunion, parsec
         ps.parse_many_char([&]() { return ps.parse_space(); });
 
-        if (parse_type0_str(module, ps, U"array")) {
+        if (parse_str_space(module, ps, U"array")) {
             type = parse_array(module, ps, own);
             if (! ps.is_success()) return nullptr;
-        } else if (parse_type0_str(module, ps, U"set")) {
+        } else if (parse_str_space(module, ps, U"set")) {
             type = parse_set(module, ps, own);
             if (! ps.is_success()) return nullptr;
-        } else if (parse_type0_str(module, ps, U"list")) {
+        } else if (parse_str_space(module, ps, U"list")) {
             type = parse_list(module, ps, own);
             if (! ps.is_success()) return nullptr;
-        } else if (parse_type0_str(module, ps, U"ptr")) {
+        } else if (parse_str_space(module, ps, U"ptr")) {
             type = parse_ptr(module, ps, own);
             if (! ps.is_success()) return nullptr;
-        } else if (parse_type0_str(module, ps, U"dict")) {
+        } else if (parse_str_space(module, ps, U"dict")) {
             type = parse_dict(module, ps, own);
             if (! ps.is_success()) return nullptr;
-        } else if (parse_type0_str(module, ps, U"struct")) {
+        } else if (parse_str_space(module, ps, U"struct")) {
             type = parse_def_member_own<lunar_ir_struct>(module, ps, own);
             if (! ps.is_success()) return nullptr;
-        } else if (parse_type0_str(module, ps, U"union")) {
+        } else if (parse_str_space(module, ps, U"union")) {
             type = parse_def_member_own<lunar_ir_union>(module, ps, own);
             if (! ps.is_success()) return nullptr;
-        } else if (parse_type0_str(module, ps, U"cunion")) {
+        } else if (parse_str_space(module, ps, U"cunion")) {
             type = parse_def_member_own<lunar_ir_cunion>(module, ps, own);
             if (! ps.is_success()) return nullptr;
-        } else if (parse_type0_str(module, ps, U"rstrm")) {
+        } else if (parse_str_space(module, ps, U"rstrm")) {
             if (own != OWN_UNIQUE) {
                 print_parse_err_linecol("rstrm must be unique", module, ps, ownline, owncol);
                 ps.set_is_success(false);
@@ -941,7 +941,7 @@ lunar_ir::parse_type0(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERS
             }
             type = parse_rstrm(module, ps);
             if (! ps.is_success()) return nullptr;
-        } else if (parse_type0_str(module, ps, U"wstrm")) {
+        } else if (parse_str_space(module, ps, U"wstrm")) {
             if (own != OWN_SHARED) {
                 print_parse_err_linecol("wstrm must be shared", module, ps, ownline, owncol);
                 ps.set_is_success(false);
@@ -949,7 +949,7 @@ lunar_ir::parse_type0(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERS
             }
             type = parse_wstrm(module, ps);
             if (! ps.is_success()) return nullptr;
-        } else if (parse_type0_str(module, ps, U"rthreadstrm")) {
+        } else if (parse_str_space(module, ps, U"rthreadstrm")) {
             if (own != OWN_UNIQUE) {
                 print_parse_err_linecol("rthreadstrm must be unique", module, ps, ownline, owncol);
                 ps.set_is_success(false);
@@ -957,7 +957,7 @@ lunar_ir::parse_type0(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERS
             }
             type = parse_rthreadstrm(module, ps);
             if (! ps.is_success()) return nullptr;
-        } else if (parse_type0_str(module, ps, U"wthreadstrm")) {
+        } else if (parse_str_space(module, ps, U"wthreadstrm")) {
             if (own != OWN_SHARED) {
                 print_parse_err_linecol("wthreadstrm must be shared", module, ps, ownline, owncol);
                 ps.set_is_success(false);
@@ -965,7 +965,7 @@ lunar_ir::parse_type0(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERS
             }
             type = parse_wthreadstrm(module, ps);
             if (! ps.is_success()) return nullptr;
-        } else if (parse_type0_str(module, ps, U"parsec")) {
+        } else if (parse_str_space(module, ps, U"parsec")) {
             if (own != OWN_UNIQUE) {
                 print_parse_err_linecol("parsec must be unique", module, ps, ownline, owncol);
                 ps.set_is_success(false);
@@ -973,7 +973,7 @@ lunar_ir::parse_type0(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERS
             }
             type = parse_parsec(module, ps);
             if (! ps.is_success()) return nullptr;
-        } else if (parse_type0_str(module, ps, U"func")) {
+        } else if (parse_str_space(module, ps, U"func")) {
             type = parse_func(module, ps, own);
             if (! ps.is_success()) return nullptr;
         } else {
@@ -1983,6 +1983,29 @@ lunar_ir::parse_let(lunar_ir_module *module, parsec<char32_t> &ps)
     return let;
 }
 
+template<typename T>
+void
+lunar_ir::parse_stexprs(lunar_ir_module *module, parsec<char32_t> &ps, T *ptr)
+{
+    // STEXPR*
+    for (;;) {
+        {
+            parsec<char32_t>::parser_look_ahead plahead(ps);
+            ps.parse_many_char([&]() { return ps.parse_space(); });
+            ps.character(U')');
+        }
+
+        if (ps.is_success())
+            break;
+
+        auto stexpr = parse_stexpr(module, ps);
+        if (! ps.is_success())
+            return;
+
+        ptr->add_stexpr(std::move(stexpr));
+    }
+}
+
 std::unique_ptr<lunar_ir_cond>
 lunar_ir::parse_cond(lunar_ir_module *module, parsec<char32_t> &ps)
 {
@@ -2023,23 +2046,10 @@ lunar_ir::parse_cond(lunar_ir_module *module, parsec<char32_t> &ps)
         condexp->set_line(line);
         condexp->set_col(col);
 
-        for (;;) {
-            // STEXPR*
-            {
-                parsec<char32_t>::parser_look_ahead plahead(ps);
-                ps.parse_many_char([&]() { return ps.parse_space(); });
-                ps.character(U')');
-            }
-
-            if (ps.is_success())
-                break;
-
-            auto stexpr = parse_stexpr(module, ps);
-            if (! ps.is_success())
-                return nullptr;
-
-            condexp->add_stexpr(std::move(stexpr));
-        }
+        // STEXPR*
+        parse_stexprs<lunar_ir_cond::cond>(module, ps, condexp.get());
+        if (! ps.is_success())
+            return nullptr;
 
         ps.parse_many_char([&]() { return ps.parse_space(); });
         ps.character(U')');
@@ -2068,6 +2078,27 @@ lunar_ir::parse_cond(lunar_ir_module *module, parsec<char32_t> &ps)
     return cond;
 }
 
+std::unique_ptr<lunar_ir_while>
+lunar_ir::parse_while(lunar_ir_module *module, parsec<char32_t> &ps)
+{
+    // EXPRIDENTLIT STEXPR*
+
+    ps.parse_many_char([&]() { return ps.parse_space(); });
+    auto expridlit = parse_expridlit(module, ps);
+
+    if (! ps.is_success())
+        return nullptr;
+
+    // STEXPR*
+    auto wh = llvm::make_unique<lunar_ir_while>(std::move(expridlit));
+    parse_stexprs<lunar_ir_while>(module, ps, wh.get());
+
+    if (! ps.is_success())
+        return nullptr;
+
+    return wh;
+}
+
 std::unique_ptr<lunar_ir_stexpr>
 lunar_ir::parse_stexpr(lunar_ir_module *module, parsec<char32_t> &ps)
 {
@@ -2079,72 +2110,46 @@ lunar_ir::parse_topstatement_expr(lunar_ir_module *module, parsec<char32_t> &ps)
 {
     ps.parse_many_char([&]() { return ps.parse_space(); });
 
-    // parse struct
-    {
-        parsec<char32_t>::parser_try ptry(ps);
-        ps.parse_string(U"struct ");
-    }
-
-    if (ps.is_success()) {
+    if (parse_str_space(module, ps, U"struct")) {
+        // parse struct
         std::unique_ptr<lunar_ir_top> def = parse_def_member<lunar_ir_def_struct>(module, ps);
         if (ps.is_success())
             return def;
         else
             return nullptr;
-    }
-
-    // parse union
-    {
-        parsec<char32_t>::parser_try ptry(ps);
-        ps.parse_string(U"union ");
-    }
-
-    if (ps.is_success()) {
+    } else if (parse_str_space(module, ps, U"union")) {
+        // parse union
         std::unique_ptr<lunar_ir_top> def = parse_def_member<lunar_ir_def_union>(module, ps);
         if (ps.is_success())
             return def;
         else
             return nullptr;
-    }
-
-    // parse cunion
-    {
-        parsec<char32_t>::parser_try ptry(ps);
-        ps.parse_string(U"cunion ");
-    }
-
-    if (ps.is_success()) {
+    } else if (parse_str_space(module, ps, U"cunion")) {
+        // parse cunion
         std::unique_ptr<lunar_ir_top> def = parse_def_member<lunar_ir_def_cunion>(module, ps);
         if (ps.is_success())
             return def;
         else
             return nullptr;
-    }
-
-    // parse let
-    {
-        parsec<char32_t>::parser_try ptry(ps);
-        ps.parse_string(U"let ");
-    }
-
-    if (ps.is_success()) {
+    } else if (parse_str_space(module, ps, U"let")) {
+        // parse let
         std::unique_ptr<lunar_ir_top> let = parse_let(module, ps);
         if (ps.is_success())
             return let;
         else
             return nullptr;
-    }
-
-    // parse cond
-    {
-        parsec<char32_t>::parser_try ptry(ps);
-        ps.parse_string(U"cond ");
-    }
-
-    if (ps.is_success()) {
+    } else if (parse_str_space(module, ps, U"cond")) {
+        // parse cond
         std::unique_ptr<lunar_ir_top> cond = parse_cond(module, ps);
         if (ps.is_success())
             return cond;
+        else
+            return nullptr;
+    } else if (parse_str_space(module, ps, U"while")) {
+        // parse while
+        std::unique_ptr<lunar_ir_top> wh = parse_while(module, ps);
+        if (ps.is_success())
+            return wh;
         else
             return nullptr;
     }

@@ -893,21 +893,18 @@ private:
 
 class lunar_ir_while : public lunar_ir_statement {
 public:
-    lunar_ir_while() { }
+    lunar_ir_while(std::unique_ptr<lunar_ir_expridlit> cond) : m_cond(std::move(cond)) { }
     virtual ~lunar_ir_while() { }
-
-    void set_cond(std::unique_ptr<lunar_ir_expr> expr)
-    {
-        m_cond = std::move(expr);
-    }
 
     void add_stexpr(std::unique_ptr<lunar_ir_stexpr> stexpr)
     {
         m_stexprs.push_back(std::move(stexpr));
     }
 
+    virtual void print(std::string &s, const std::string &from);
+
 private:
-    std::unique_ptr<lunar_ir_expr> m_cond;
+    std::unique_ptr<lunar_ir_expridlit> m_cond;
     std::vector<std::unique_ptr<lunar_ir_stexpr>> m_stexprs;
 };
 
