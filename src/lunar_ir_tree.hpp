@@ -289,6 +289,9 @@ public:
 
     virtual void print(std::string &s, const std::string &from);
 
+    EXPRIDLIT_TYPE get_type() { return m_type; }
+    const std::u32string& get_id() { return m_id->get_id(); }
+
 private:
     EXPRIDLIT_TYPE m_type;
     std::unique_ptr<lunar_ir_identifier> m_id;
@@ -851,12 +854,12 @@ private:
 
 class lunar_ir_cond : public lunar_ir_statement {
 public:
-    class cond {
+    class cond : public lunar_ir_base {
     public:
-        void set_cond(std::unique_ptr<lunar_ir_expr> expr)
-        {
-            m_expr = std::move(expr);
-        }
+        cond(std::unique_ptr<lunar_ir_expridlit> expridlit) : m_expridlit(std::move(expridlit)) { }
+        virtual ~cond() { }
+
+        virtual void print(std::string &s, const std::string &from);
 
         void add_stexpr(std::unique_ptr<lunar_ir_stexpr> stexpr)
         {
@@ -864,26 +867,28 @@ public:
         }
 
     private:
-        std::unique_ptr<lunar_ir_expr> m_expr; // condition
+        std::unique_ptr<lunar_ir_expridlit> m_expridlit; // condition
         std::vector<std::unique_ptr<lunar_ir_stexpr>> m_stexprs;
     };
 
     lunar_ir_cond() { }
     virtual ~lunar_ir_cond() { }
 
+    virtual void print(std::string &s, const std::string &from);
+
     void add_cond(std::unique_ptr<cond> c)
     {
         m_conds.push_back(std::move(c));
     }
 
-    void add_else(std::unique_ptr<lunar_ir_stexpr> stexpr)
+    void set_else(std::unique_ptr<cond> c)
     {
-        m_elses.push_back(std::move(stexpr));
+        m_else = std::move(c);
     }
 
 private:
     std::vector<std::unique_ptr<cond>> m_conds;
-    std::vector<std::unique_ptr<lunar_ir_stexpr>> m_elses;
+    std::unique_ptr<cond> m_else;
 };
 
 class lunar_ir_while : public lunar_ir_statement {

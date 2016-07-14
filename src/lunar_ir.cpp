@@ -1325,6 +1325,8 @@ lunar_ir::parse_def_member(lunar_ir_module *module, parsec<char32_t> &ps)
 std::unique_ptr<lunar_ir_lit_float>
 lunar_ir::parse_lit_float(lunar_ir_module *module, parsec<char32_t> &ps)
 {
+    // INT . NUM0to9+ EXP? f?
+
     int line, col;
     line = ps.get_line();
     col  = ps.get_col();
@@ -1439,6 +1441,8 @@ lunar_ir::parse_lit_float(lunar_ir_module *module, parsec<char32_t> &ps)
 std::unique_ptr<lunar_ir_lit_uint>
 lunar_ir::parse_lit_uint(lunar_ir_module *module, parsec<char32_t> &ps)
 {
+    // NUM1to9 NUM0to9* | 0
+
     int line, col;
     line = ps.get_line();
     col  = ps.get_col();
@@ -1483,6 +1487,8 @@ lunar_ir::parse_lit_uint(lunar_ir_module *module, parsec<char32_t> &ps)
 std::unique_ptr<lunar_ir_lit_int>
 lunar_ir::parse_lit_int(lunar_ir_module *module, parsec<char32_t> &ps)
 {
+    // - DIGIT
+
     int line, col;
     line = ps.get_line();
     col  = ps.get_col();
@@ -1521,6 +1527,8 @@ lunar_ir::parse_lit_int(lunar_ir_module *module, parsec<char32_t> &ps)
 std::unique_ptr<lunar_ir_lit_uint>
 lunar_ir::parse_lit_hex(lunar_ir_module *module, parsec<char32_t> &ps)
 {
+    // 0x HEXNUM2* | 0X HEXNUM2*
+
     int line, col;
     line = ps.get_line();
     col  = ps.get_col();
@@ -1562,6 +1570,8 @@ lunar_ir::parse_lit_hex(lunar_ir_module *module, parsec<char32_t> &ps)
 std::unique_ptr<lunar_ir_lit_uint>
 lunar_ir::parse_lit_oct(lunar_ir_module *module, parsec<char32_t> &ps)
 {
+    // 0 OCTNUM*
+
     int line, col;
     line = ps.get_line();
     col  = ps.get_col();
@@ -1597,6 +1607,8 @@ lunar_ir::parse_lit_oct(lunar_ir_module *module, parsec<char32_t> &ps)
 std::unique_ptr<lunar_ir_lit_uint>
 lunar_ir::parse_lit_bin(lunar_ir_module *module, parsec<char32_t> &ps)
 {
+    // 0b BINNUM* | 0B BINNUM*
+
     int line, col;
     line = ps.get_line();
     col  = ps.get_col();
@@ -1640,6 +1652,8 @@ lunar_ir::parse_lit_bin(lunar_ir_module *module, parsec<char32_t> &ps)
 std::unique_ptr<lunar_ir_lit_char8>
 lunar_ir::parse_lit_char8(lunar_ir_module *module, parsec<char32_t> &ps)
 {
+    // b ' CHARS '
+
     int line, col;
     line = ps.get_line();
     col  = ps.get_col();
@@ -1666,6 +1680,8 @@ lunar_ir::parse_lit_char8(lunar_ir_module *module, parsec<char32_t> &ps)
 std::unique_ptr<lunar_ir_lit_char32>
 lunar_ir::parse_lit_char32(lunar_ir_module *module, parsec<char32_t> &ps)
 {
+    // ' CHARS '
+
     char32_t c = parse_lit_char(module, &ps, U'\'');
     if (! ps.is_success()) {
         if (c == U'\'')
@@ -1967,6 +1983,97 @@ lunar_ir::parse_let(lunar_ir_module *module, parsec<char32_t> &ps)
     return let;
 }
 
+std::unique_ptr<lunar_ir_cond>
+lunar_ir::parse_cond(lunar_ir_module *module, parsec<char32_t> &ps)
+{
+    // ( EXPRIDENTLIT STEXPR* )+ ( else STEXPR* )?
+
+    auto cond = llvm::make_unique<lunar_ir_cond>();
+
+    for (;;) {
+        ps.parse_many_char([&]() { return ps.parse_space(); });
+
+        int line, col;
+        line = ps.get_line();
+        col  = ps.get_col();
+
+        {
+            parsec<char32_t>::parser_try ptry(ps);
+            ps.character(U'(');
+        }
+
+        if (! ps.is_success()) {
+            print_parse_err("expected \"(\"", module, ps);
+            return nullptr;
+        }
+
+        // EXPRIDENTLIT
+        ps.parse_many_char([&]() { return ps.parse_space(); });
+        auto expridlit = parse_expridlit(module, ps);
+        if (! ps.is_success())
+            return nullptr;
+
+        bool is_else;
+        if (expridlit->get_type() == lunar_ir_expridlit::EXPRIDLIT_ID && expridlit->get_id() == U"else")
+            is_else = true;
+        else
+            is_else = false;
+
+        auto condexp = llvm::make_unique<lunar_ir_cond::cond>(std::move(expridlit));
+        condexp->set_line(line);
+        condexp->set_col(col);
+
+        for (;;) {
+            // STEXPR*
+            {
+                parsec<char32_t>::parser_look_ahead plahead(ps);
+                ps.parse_many_char([&]() { return ps.parse_space(); });
+                ps.character(U')');
+            }
+
+            if (ps.is_success())
+                break;
+
+            auto stexpr = parse_stexpr(module, ps);
+            if (! ps.is_success())
+                return nullptr;
+
+            condexp->add_stexpr(std::move(stexpr));
+        }
+
+        ps.parse_many_char([&]() { return ps.parse_space(); });
+        ps.character(U')');
+        if (! ps.is_success()) {
+            print_parse_err("expected \")\"", module, ps);
+            return nullptr;
+        }
+
+        if (is_else) {
+            cond->set_else(std::move(condexp));
+            break;
+        } else {
+            cond->add_cond(std::move(condexp));
+        }
+
+        {
+            parsec<char32_t>::parser_look_ahead plahead(ps);
+            ps.parse_many_char([&]() { return ps.parse_space(); });
+            ps.character(U')');
+        }
+
+        if (ps.is_success())
+            break;
+    }
+
+    return cond;
+}
+
+std::unique_ptr<lunar_ir_stexpr>
+lunar_ir::parse_stexpr(lunar_ir_module *module, parsec<char32_t> &ps)
+{
+    return nullptr;
+}
+
 std::unique_ptr<lunar_ir_top>
 lunar_ir::parse_topstatement_expr(lunar_ir_module *module, parsec<char32_t> &ps)
 {
@@ -2024,6 +2131,20 @@ lunar_ir::parse_topstatement_expr(lunar_ir_module *module, parsec<char32_t> &ps)
         std::unique_ptr<lunar_ir_top> let = parse_let(module, ps);
         if (ps.is_success())
             return let;
+        else
+            return nullptr;
+    }
+
+    // parse cond
+    {
+        parsec<char32_t>::parser_try ptry(ps);
+        ps.parse_string(U"cond ");
+    }
+
+    if (ps.is_success()) {
+        std::unique_ptr<lunar_ir_top> cond = parse_cond(module, ps);
+        if (ps.is_success())
+            return cond;
         else
             return nullptr;
     }

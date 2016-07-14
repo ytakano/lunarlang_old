@@ -535,4 +535,47 @@ lunar_ir_var::print(std::string &s, const std::string &from)
     m_id->print(s, from);
 }
 
+void
+lunar_ir_cond::print(std::string &s, const std::string &from)
+{
+    std::ostringstream os;
+    os << "\"" << get_line() << ":" << get_col() << ": cond\"";
+    s += from + " -> " + os.str() + ";\n";
+
+    int i = 0;
+    for (auto &cond: m_conds) {
+        std::ostringstream os_cond;
+        os_cond << "\"" << cond->get_line() << ":" << cond->get_col() << ": cond[" << i << "]\"";
+        s += os.str() + " -> " + os_cond.str() + ";\n";
+        cond->print(s, os_cond.str());
+        i++;
+    }
+
+    if (m_else) {
+        std::ostringstream os_else;
+        os_else << "\"" << m_else->get_line() << ":" << m_else->get_col() << ": else\"";
+        s += os.str() + " -> " + os_else.str() + ";\n";
+        m_else->print(s, os_else.str());
+    }
+}
+
+void
+lunar_ir_cond::cond::print(std::string &s, const std::string &from)
+{
+    std::ostringstream os_cond;
+    os_cond << "\"" << get_line() << ":" << get_col() << ": condition\"";
+    s += from + " -> " + os_cond.str() + ";\n";
+
+    m_expridlit->print(s, os_cond.str());
+
+    int i = 0;
+    for (auto &stexpr: m_stexprs) {
+        std::ostringstream os_stexpr;
+        os_stexpr << "\"" << stexpr->get_line() << ":" << stexpr->get_col() << ": stexpr[" << i << "]\"";
+        s += from + " -> " + os_stexpr.str() + ";\n";
+        stexpr->print(s, os_stexpr.str());
+        i++;
+    }
+}
+
 }
