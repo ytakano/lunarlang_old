@@ -7,7 +7,7 @@ void
 lunar_ir_identifier::print(std::string &s, const std::string &from)
 {
     std::ostringstream os;
-    os << from << " -> \"" << get_line() << ":" << get_line() << ": identifier: " << to_string(*m_id) << "\";\n";
+    os << from << " -> \"" << get_line() << ":" << get_col() << ": identifier: " << to_string(*m_id) << "\";\n";
     s += os.str();
 }
 
