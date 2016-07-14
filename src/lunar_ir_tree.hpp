@@ -14,8 +14,8 @@
  *
  * IR           := TOP*
  * TOP          := FUNC | GLOBAL | THREADLOCAL | IMPORT | EXPR | STATEMENT
- * TOPSTATEMENT := LET | COND | WHILE | SELECT | SCHEDULE | STRUCT | CUNION | UNION
- * STATEMENT    := LET | COND | WHILE | BREAK | SELECT | RETURN | SCHEDULE | STRUCT | CUNION | UNION | BLOCK | LEAP
+ * TOPSTATEMENT := LET | COND | WHILE | SELECT | STRUCT | CUNION | UNION
+ * STATEMENT    := LET | COND | WHILE | BREAK | SELECT | RETURN | STRUCT | CUNION | UNION | BLOCK | LEAP
  * GLOBAL       := ( global ( ( TYPE (IDENTIFIER+) EXPRIDENTLIT )+ ) )
  * THREADLOCAL  := ( threadlocal ( ( TYPE ( IDENTIFIER+ ) EXPRIDENTLIT )+ ) )
  * IMPORT       := ( import STR32+ )
@@ -88,8 +88,6 @@
  * SELECT := ( select ( EXPRIDENT STEXPR*)* ( timeout EXPRIDENTLIT STEXPR* )? )
  *
  * RETURN := ( return EXPRIDENTLIT* )
- *
- * SCHEDULE := ( schedule )
  *
  * -----------------------------------------------------------------------------
  *
@@ -964,12 +962,6 @@ public:
 
 private:
     std::vector<std::unique_ptr<lunar_ir_expr>> m_exprs;
-};
-
-class lunar_ir_schedule : public lunar_ir_statement {
-public:
-    lunar_ir_schedule() { }
-    virtual ~lunar_ir_schedule() { }
 };
 
 }

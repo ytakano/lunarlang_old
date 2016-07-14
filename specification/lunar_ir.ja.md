@@ -6,8 +6,8 @@ Lunar言語の中間表現であり、ここからLLVM IRへ変換。
 
 - IR           := TOP*
 - TOP          := FUNC | GLOBAL | THREADLOCAL | IMPORT | EXPR | TOPSTATEMENT
-- TOPSTATEMENT := LET | COND | WHILE | SELECT | SCHEDULE | STRUCT | CUNION | UNION
-- STATEMENT    := LET | COND | WHILE | BREAK | SELECT | RETURN | SCHEDULE | STRUCT | CUNION | UNION | BLOCK | LEAP
+- TOPSTATEMENT := LET | COND | WHILE | SELECT | STRUCT | CUNION | UNION
+- STATEMENT    := LET | COND | WHILE | BREAK | SELECT | RETURN | STRUCT | CUNION | UNION | BLOCK | LEAP
 - STEXPR       := STATMENT | EXPR
 - LITERAL      := STR32 | STR8 | CHAR32 | CHAR8 | INT | FLOAT | HEX | OCT | BIN | ATOM
 - EXPRIDENT    := EXPR | IDENTIFIER
@@ -271,17 +271,7 @@ SIZEを指定した場合は、固定長となる。
 
 関数型の値を返す。
 
-# 変数
-
-## 変数生成式
-
-構文：
-- NEW := ( new TYPE EXPRIDENTLIT* )
-
-セマンティクス：
-- ( new 型 初期化引数* )
-
-TYPE型の値を返す。
+# 構文
 
 ## 変数束縛構文
 
@@ -292,26 +282,6 @@ TYPE型の値を返す。
 - ( let ( ( ( ( 型 変数名 )+ ) 束縛する値 )+ ) 式\* )
 
 関数は複数の値を返すこともあるため、複数の変数名を記述できるように。
-
-## 変数の値書き換え式
-
-構文：
-- COPY := ( copy EXPRIDENT EXPRIDENTLIT )
-
-セマンティクス：
-- ( copy 書き換える変数 書き換える値 )
-
-## 変数の束縛先変更式
-
-構文：
-- ASSOC := ( assoc EXPRIDENT EXPRIDENT )
-
-セマンティクス：
-- ( assoc 変数 束縛先 )
-
-ただし、束縛先を変更できるのはuniqueかshared変数のみである。
-
-# 制御式、制御文
 
 ## if 式
 
@@ -333,7 +303,7 @@ if は式であり値を返す。C言語の?構文みたいなもの。
 
 cond は制御構文であり、値は返さない。
 
-## while ループ構文
+## while ループ文
 
 構文：
 - WHILE := ( while EXPRIDENTLIT STEXPR* )
@@ -348,7 +318,7 @@ cond は制御構文であり、値は返さない。
 
 while ループの制御から脱出するときに使う。
 
-## block 構文
+## block 文
 
 構文：
 - BLOCK := ( block STEXPR* )
@@ -371,9 +341,105 @@ block 脱出するときに使う。
 セマンティクス：
 - ( return 返り値* )
 
-# 多相型
+## select 文
 
-## type 式
+構文：
+- SELECT := ( select ( EXPRIDENT STEXPR\* )\* ( timeout EXPRIDENTLIT STEXPR* )? )
+
+セマンティクス：
+- ( select (ストリーム ストリームに入力があった時に実行する式) (timeout タイムアウトするまでの時間[ms] )? )
+
+ストリームの入力待ちを行う。
+入力待ちの際、他に実行可能なグリーンスレッドがある場合はそちらに処理が移行。
+
+# リテラル
+
+## atom
+
+- ATOM := `IDENTIFIER
+
+## 文字列
+
+- STR32  := " CHARS* "
+- STR8   := b " CHARS* "
+- ESCAPE := \a | \b | \f | \r | \n | \t | \v | \\\\ | \? | \' | \" | \0 | \UXXXXXXXX | \uXXXX
+- CHARS  := ESCAPE | ESCAPE以外の文字
+
+## 文字
+
+- CHAR32 := ' CHARS '
+- CHAR8  := b ' CHARS '
+
+## 整数
+
+- INT     := -? DIGIT
+- DIGIT   := NUM1to9 NUM0to9* | 0
+- NUM1to9 := 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
+- NUM0to9 := 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
+
+## 浮動小数
+
+- FLOAT := INT . NUM0to9+ EXP? f?
+- EXP   := EE SIGN NUM+
+- EE    := e | E
+- SIGN  := - | +
+
+最後にfがついた場合は単精度で、つかない場合は倍精度となる。
+
+## 16進数
+
+- HEX     := 0x HEXNUM2\* | 0X HEXNUM2\*
+- HEXNUM2 := HEXNUM HEXNUM
+- HEXNUM  := 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | a | A | b | B | c | C | d | D | f | F
+
+## 8進数
+
+- OCT    := 0 OCTNUM*
+- OCTNUM := 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7
+
+## 2進数
+
+- BIN    := 0b BINNUM\* | 0B BINNUM\*
+- BINNUM := 0 | 1
+
+## 真偽値
+
+- TRUE  := ture
+- FALSE := false
+
+# 標準関数
+
+## 変数
+
+### 変数生成式
+
+構文：
+- NEW := ( new TYPE EXPRIDENTLIT* )
+
+セマンティクス：
+- ( new 型 初期化引数* )
+
+TYPE型の値を返す。
+
+### 変数の値書き換え式
+
+構文：
+- COPY := ( copy EXPRIDENT EXPRIDENTLIT )
+
+セマンティクス：
+- ( copy 書き換える変数 書き換える値 )
+
+### 変数の束縛先変更式
+
+構文：
+- ASSOC := ( assoc EXPRIDENT EXPRIDENT )
+
+セマンティクス：
+- ( assoc 変数 束縛先 )
+
+ただし、束縛先を変更できるのはuniqueかshared変数のみである。
+
+## type 式、型検査
 
 構文：
 - TYPEOF := ( type TYPE0 EXPRIDENTLIT )
@@ -387,21 +453,6 @@ type 式は真偽値を返す式であり、多相型変数の型を動的に検
 ```lisp
 (type u32 var)
 ```
-
-# 入力選択
-
-## select 構文
-
-構文：
-- SELECT := ( select ( EXPRIDENT STEXPR\* )\* ( timeout EXPRIDENTLIT STEXPR* )? )
-
-セマンティクス：
-- ( select (ストリーム ストリームに入力があった時に実行する式) (timeout タイムアウトするまでの時間[ms] )? )
-
-ストリームの入力待ちを行う。
-入力待ちの際、他に実行可能なグリーンスレッドがある場合はそちらに処理が移行。
-
-# 標準関数
 
 ## ストリーム
 
@@ -474,7 +525,7 @@ STRM_NO_VACANCYのいずれかとなる。
 
 返り値はスレッド内で一意に識別されるs64型の整数値。
 
-### schedule文
+### schedule式
 
 構文：
 - SCHEDULE := ( schedule )
@@ -664,60 +715,5 @@ PTR型の参照外し
 - TOSTR := ( tostr EXPRIDENTLIT )
 
 引数を文字列へ変換。immovalなstring型を返す。
-
-# リテラル
-
-## atom
-
-- ATOM := `IDENTIFIER
-
-## 文字列
-
-- STR32  := " CHARS* "
-- STR8   := b " CHARS* "
-- ESCAPE := \a | \b | \f | \r | \n | \t | \v | \\\\ | \? | \' | \" | \0 | \UXXXXXXXX | \uXXXX
-- CHARS  := ESCAPE | ESCAPE以外の文字
-
-## 文字
-
-- CHAR32 := ' CHARS '
-- CHAR8  := b ' CHARS '
-
-## 整数
-
-- INT     := -? DIGIT
-- DIGIT   := NUM1to9 NUM0to9* | 0
-- NUM1to9 := 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
-- NUM0to9 := 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
-
-## 浮動小数
-
-- FLOAT := INT . NUM0to9+ EXP? f?
-- EXP   := EE SIGN NUM+
-- EE    := e | E
-- SIGN  := - | +
-
-最後にfがついた場合は単精度で、つかない場合は倍精度となる。
-
-## 16進数
-
-- HEX     := 0x HEXNUM2\* | 0X HEXNUM2\*
-- HEXNUM2 := HEXNUM HEXNUM
-- HEXNUM  := 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | a | A | b | B | c | C | d | D | f | F
-
-## 8進数
-
-- OCT    := 0 OCTNUM*
-- OCTNUM := 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7
-
-## 2進数
-
-- BIN    := 0b BINNUM\* | 0B BINNUM\*
-- BINNUM := 0 | 1
-
-## 真偽値
-
-- TRUE  := ture
-- FALSE := false
 
 # Application Binary Interface (ABI)
