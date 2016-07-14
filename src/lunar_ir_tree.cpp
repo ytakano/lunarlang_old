@@ -562,11 +562,7 @@ lunar_ir_cond::print(std::string &s, const std::string &from)
 void
 lunar_ir_cond::cond::print(std::string &s, const std::string &from)
 {
-    std::ostringstream os_cond;
-    os_cond << "\"" << get_line() << ":" << get_col() << ": condition\"";
-    s += from + " -> " + os_cond.str() + ";\n";
-
-    m_expridlit->print(s, os_cond.str());
+    m_expridlit->print(s, from);
 
     int i = 0;
     for (auto &stexpr: m_stexprs) {
@@ -586,6 +582,61 @@ lunar_ir_while::print(std::string &s, const std::string &from)
     s += from + " -> " + os_cond.str() + ";\n";
 
     m_cond->print(s, os_cond.str());
+
+    int i = 0;
+    for (auto &stexpr: m_stexprs) {
+        std::ostringstream os_stexpr;
+        os_stexpr << "\"" << stexpr->get_line() << ":" << stexpr->get_col() << ": stexpr[" << i << "]\"";
+        s += from + " -> " + os_stexpr.str() + ";\n";
+        stexpr->print(s, os_stexpr.str());
+        i++;
+    }
+}
+
+void
+lunar_ir_select::print(std::string &s, const std::string &from)
+{
+    std::ostringstream os;
+    os << "\"" << get_line() << ":" << get_col() << ": select\"";
+    s += from + " -> " + os.str() + ";\n";
+
+    int i = 0;
+    for (auto &cond: m_conds) {
+        std::ostringstream os_cond;
+        os_cond << "\"" << cond->get_line() << ":" << cond->get_col() << ": select[" << i << "]\"";
+        s += os.str() + " -> " + os_cond.str() + ";\n";
+        cond->print(s, os_cond.str());
+        i++;
+    }
+
+    if (m_timeout) {
+        m_timeout->print(s, os.str());
+    }
+}
+
+void
+lunar_ir_select::cond::print(std::string &s, const std::string &from)
+{
+    m_exprid->print(s, from);
+
+    int i = 0;
+    for (auto &stexpr: m_stexprs) {
+        std::ostringstream os_stexpr;
+        os_stexpr << "\"" << stexpr->get_line() << ":" << stexpr->get_col() << ": stexpr[" << i << "]\"";
+        s += from + " -> " + os_stexpr.str() + ";\n";
+        stexpr->print(s, os_stexpr.str());
+        i++;
+    }
+}
+
+void
+lunar_ir_select::timeout::print(std::string &s, const std::string &from)
+{
+    std::ostringstream os_cond;
+    os_cond << "\"" << get_line() << ":" << get_col() << ": timeout\"";
+    s += from + " -> " + os_cond.str() + ";\n";
+
+    m_expridlit->print(s, os_cond.str());
 
     int i = 0;
     for (auto &stexpr: m_stexprs) {

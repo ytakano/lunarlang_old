@@ -14,7 +14,7 @@
  *
  * IR           := TOP*
  * TOP          := FUNC | GLOBAL | THREADLOCAL | IMPORT | EXPR | STATEMENT
- * TOPSTATEMENT := LET | COND | WHILE | SELECT | STRUCT | CUNION | UNION
+ * TOPSTATEMENT := LET | COND | WHILE | SELECT | BLOCK | STRUCT | CUNION | UNION
  * STATEMENT    := LET | COND | WHILE | BREAK | SELECT | RETURN | STRUCT | CUNION | UNION | BLOCK | LEAP
  * GLOBAL       := ( global ( ( TYPE (IDENTIFIER+) EXPRIDENTLIT )+ ) )
  * THREADLOCAL  := ( threadlocal ( ( TYPE ( IDENTIFIER+ ) EXPRIDENTLIT )+ ) )
@@ -265,6 +265,9 @@ public:
     virtual ~lunar_ir_exprid() { }
 
     virtual void print(std::string &s, const std::string &from);
+
+    EXPRID_TYPE get_type() { return m_type; }
+    const std::u32string& get_id() { return m_id->get_id(); }
 
 private:
     EXPRID_TYPE m_type;
@@ -908,12 +911,12 @@ private:
 
 class lunar_ir_select : public lunar_ir_statement {
 public:
-    class cond {
+    class cond : public lunar_ir_base {
     public:
-        void set_cond(std::unique_ptr<lunar_ir_expr> expr)
-        {
-            m_expr = std::move(expr);
-        }
+        cond(std::unique_ptr<lunar_ir_exprid> exprid) : m_exprid(std::move(exprid)) { }
+        virtual ~cond() { }
+
+        virtual void print(std::string &s, const std::string &from);
 
         void add_stexpr(std::unique_ptr<lunar_ir_stexpr> stexpr)
         {
@@ -921,27 +924,45 @@ public:
         }
 
     private:
-        std::unique_ptr<lunar_ir_expr> m_expr; // condition
+        std::unique_ptr<lunar_ir_exprid> m_exprid; // condition
+        std::vector<std::unique_ptr<lunar_ir_stexpr>> m_stexprs;
+    };
+
+    class timeout : public lunar_ir_base {
+    public:
+        timeout(std::unique_ptr<lunar_ir_expridlit> expridlit) : m_expridlit(std::move(expridlit)) { }
+        virtual ~timeout() { }
+
+        virtual void print(std::string &s, const std::string &from);
+
+        void add_stexpr(std::unique_ptr<lunar_ir_stexpr> stexpr)
+        {
+            m_stexprs.push_back(std::move(stexpr));
+        }
+
+    private:
+        std::unique_ptr<lunar_ir_expridlit> m_expridlit; // condition
         std::vector<std::unique_ptr<lunar_ir_stexpr>> m_stexprs;
     };
 
     lunar_ir_select() { }
     virtual ~lunar_ir_select() { }
 
-    void set_timeout(std::unique_ptr<lunar_ir_expr> expr)
+    virtual void print(std::string &s, const std::string &from);
+
+    void add_cond(std::unique_ptr<cond> c)
     {
-        m_timeout = std::move(expr);
+        m_conds.push_back(std::move(c));
     }
 
-    void add_timeout(std::unique_ptr<lunar_ir_stexpr> stexpr)
+    void set_timeout(std::unique_ptr<timeout> t)
     {
-        m_elses.push_back(std::move(stexpr));
+        m_timeout = std::move(t);
     }
 
 private:
     std::vector<std::unique_ptr<cond>> m_conds;
-    std::vector<std::unique_ptr<lunar_ir_stexpr>> m_elses;
-    std::unique_ptr<lunar_ir_expr> m_timeout; // no timeout when -1
+    std::unique_ptr<timeout> m_timeout;
 };
 
 class lunar_ir_break : public lunar_ir_statement {

@@ -2099,6 +2099,75 @@ lunar_ir::parse_while(lunar_ir_module *module, parsec<char32_t> &ps)
     return wh;
 }
 
+std::unique_ptr<lunar_ir_select>
+lunar_ir::parse_select(lunar_ir_module *module, parsec<char32_t> &ps)
+{
+    // ( EXPRIDENT STEXPR* )* ( timeout EXPRIDENTLIT STEXPR* )?
+
+    auto sel = llvm::make_unique<lunar_ir_select>();
+
+    for (;;) {
+        ps.parse_many_char([&]() { return ps.parse_space(); });
+
+        int line, col;
+        line = ps.get_line();
+        col  = ps.get_col();
+
+        {
+            parsec<char32_t>::parser_try ptry(ps);
+            ps.character(U'(');
+        }
+
+        if (! ps.is_success())
+            break;
+
+        ps.parse_many_char([&]() { return ps.parse_space(); });
+        auto exprid = parse_exprid(module, ps);
+        if (! ps.is_success())
+            return nullptr;
+
+        bool is_timeout;
+        if (exprid->get_type() == lunar_ir_exprid::EXPRID_ID && exprid->get_id() == U"timeout") {
+            ps.parse_many_char([&]() { return ps.parse_space(); });
+            auto expridlit = parse_expridlit(module, ps);
+            if (! ps.is_success())
+                return nullptr;
+
+            auto tout = llvm::make_unique<lunar_ir_select::timeout>(std::move(expridlit));
+            tout->set_line(line);
+            tout->set_col(col);
+
+            parse_stexprs<lunar_ir_select::timeout>(module, ps, tout.get());
+            if (! ps.is_success())
+                return nullptr;
+
+            sel->set_timeout(std::move(tout));
+            is_timeout = true;
+        } else {
+            auto cond = llvm::make_unique<lunar_ir_select::cond>(std::move(exprid));
+            cond->set_line(line);
+            cond->set_col(col);
+
+            parse_stexprs<lunar_ir_select::cond>(module, ps, cond.get());
+            if (! ps.is_success())
+                return nullptr;
+
+            sel->add_cond(std::move(cond));
+            is_timeout = false;
+        }
+
+        ps.parse_many_char([&]() { return ps.parse_space(); });
+        ps.character(U')');
+        if (! ps.is_success())
+            return nullptr;
+
+        if (is_timeout)
+            break;
+    }
+
+    return sel;
+}
+
 std::unique_ptr<lunar_ir_stexpr>
 lunar_ir::parse_stexpr(lunar_ir_module *module, parsec<char32_t> &ps)
 {
@@ -2148,6 +2217,13 @@ lunar_ir::parse_topstatement_expr(lunar_ir_module *module, parsec<char32_t> &ps)
     } else if (parse_str_space(module, ps, U"while")) {
         // parse while
         std::unique_ptr<lunar_ir_top> wh = parse_while(module, ps);
+        if (ps.is_success())
+            return wh;
+        else
+            return nullptr;
+    } else if (parse_str_space(module, ps, U"select")) {
+        // parse while
+        std::unique_ptr<lunar_ir_top> wh = parse_select(module, ps);
         if (ps.is_success())
             return wh;
         else
