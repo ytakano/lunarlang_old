@@ -2,3 +2,6 @@
 ( while ( func2 var4 ) )
 ( select ( var5 ) ( ( func3 ) ) ( timeout 1000 ) )
 ( block )
+( let (((((unique s32) var6))) ) )
+( global (((((unique s32) var6)) var7) ) )
+( threadlocal (((((unique s32) var8)) (func4 var9) ) ) )

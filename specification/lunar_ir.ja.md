@@ -16,11 +16,11 @@ Lunar言語の中間表現であり、ここからLLVM IRへ変換。
 
 # グローバル変数定義
 
-- GLOBAL := ( global ( ( ( ( TYPE IDENTIFIER )+ ) EXPRIDENTLIT )+ ) )
+- GLOBAL := ( global ( ( ( ( TYPE IDENTIFIER )+ ) EXPRIDENTLIT? )+ ) )
 
 # スレッドローカル変数定義
 
-- THREADLOCAL := ( threadlocal ( ( ( ( TYPE IDENTIFIER )+ ) EXPRIDENTLIT )+ ) )
+- THREADLOCAL := ( threadlocal ( ( ( ( TYPE IDENTIFIER )+ ) EXPRIDENTLIT? )+ ) )
 
 # インポート
 
@@ -273,10 +273,10 @@ SIZEを指定した場合は、固定長となる。
 
 # 構文
 
-## 変数束縛構文
+## 変数定義・束縛構文
 
 構文：
-- LET := ( let ( ( ( ( TYPE IDENTIFIER )+ ) EXPRIDENTLIT )+ ) STEXPR\* )
+- LET := ( let ( ( ( ( TYPE IDENTIFIER )+ ) EXPRIDENTLIT? )+ ) STEXPR\* )
 
 セマンティクス：
 - ( let ( ( ( ( 型 変数名 )+ ) 束縛する値 )+ ) 式\* )

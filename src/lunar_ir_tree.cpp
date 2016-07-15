@@ -514,7 +514,41 @@ lunar_ir_let::print(std::string &s, const std::string &from)
 }
 
 void
-lunar_ir_let::def::print(std::string &s, const std::string &from)
+lunar_ir_global::print(std::string &s, const std::string &from)
+{
+    std::ostringstream os;
+    os << "\"" << get_line() << ":" << get_col() << ": global\"";
+    s += from + " -> " + os.str() + ";\n";
+
+    int i = 0;
+    for (auto &def: m_defs) {
+        std::ostringstream os_def;
+        os_def << "\"" << def->get_line() << ":" << def->get_col() << ": def[" << i << "]\"";
+        s += os.str() + " -> " + os_def.str() + ";\n";
+        def->print(s, os_def.str());
+        i++;
+    }
+}
+
+void
+lunar_ir_threadlocal::print(std::string &s, const std::string &from)
+{
+    std::ostringstream os;
+    os << "\"" << get_line() << ":" << get_col() << ": thread local\"";
+    s += from + " -> " + os.str() + ";\n";
+
+    int i = 0;
+    for (auto &def: m_defs) {
+        std::ostringstream os_def;
+        os_def << "\"" << def->get_line() << ":" << def->get_col() << ": def[" << i << "]\"";
+        s += os.str() + " -> " + os_def.str() + ";\n";
+        def->print(s, os_def.str());
+        i++;
+    }
+}
+
+void
+lunar_ir_def::print(std::string &s, const std::string &from)
 {
     int i = 0;
     for (auto &var: m_vars) {
@@ -525,7 +559,8 @@ lunar_ir_let::def::print(std::string &s, const std::string &from)
         i++;
     }
 
-    m_expridlit->print(s, from);
+    if (m_expridlit)
+        m_expridlit->print(s, from);
 }
 
 void

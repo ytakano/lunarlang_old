@@ -16,8 +16,8 @@
  * TOP          := DEFUN | GLOBAL | THREADLOCAL | IMPORT | EXPR | STATEMENT
  * TOPSTATEMENT := LET | COND | WHILE | SELECT | BLOCK | STRUCT | CUNION | UNION
  * STATEMENT    := LET | COND | WHILE | BREAK | SELECT | RETURN | STRUCT | CUNION | UNION | BLOCK | LEAP
- * GLOBAL       := ( global ( ( TYPE (IDENTIFIER+) EXPRIDENTLIT )+ ) )
- * THREADLOCAL  := ( threadlocal ( ( TYPE ( IDENTIFIER+ ) EXPRIDENTLIT )+ ) )
+ * GLOBAL       := ( global ( ( ( ( TYPE IDENTIFIER? )+ ) EXPRIDENTLIT )+ ) )
+ * THREADLOCAL  := ( threadlocal ( ( ( ( TYPE IDENTIFIER? )+ ) EXPRIDENTLIT )+ ) )
  * IMPORT       := ( import STR32+ )
  *
  * -----------------------------------------------------------------------------
@@ -75,7 +75,7 @@
  *
  * STEXPR := STATMENT | EXPR
  *
- * LET := ( let ( ( ( ( TYPE IDENTIFIER )+ ) EXPRIDENTLIT )+ ) STEXPR\* )
+ * LET := ( let ( ( ( ( TYPE IDENTIFIER )+ ) EXPRIDENTLIT? )+ ) STEXPR\* )
  *
  * COND := ( cond ( EXPRIDENTLIT STEXPR* )+ ( else STEXPR* )? )
  *
@@ -189,6 +189,7 @@ enum LANG_BASIC_TYPE {
 enum IR_TOP {
     IR_FUNC,
     IR_GLOBAL,
+    IR_THREADLOCAL,
     IR_IMPORT,
     IR_EXPR,
     IR_STATEMENT,
@@ -809,34 +810,35 @@ private:
     std::vector<std::unique_ptr<lunar_ir_stexpr>> m_stexprs;
 };
 
+class lunar_ir_def : public lunar_ir_base {
+public:
+    void add_var(std::unique_ptr<lunar_ir_var> var)
+    {
+        auto id = var->get_id();
+        m_argmap[var->get_id()] = var.get();
+        m_vars.push_back(std::move(var));
+    }
+
+    void set_expridlit(std::unique_ptr<lunar_ir_expridlit> expridlit)
+    {
+        m_expridlit = std::move(expridlit);
+    }
+
+    virtual void print(std::string &s, const std::string &from);
+
+private:
+    std::vector<std::unique_ptr<lunar_ir_var>>        m_vars;
+    std::unordered_map<std::u32string, lunar_ir_var*> m_argmap;
+    std::unique_ptr<lunar_ir_expridlit> m_expridlit;
+};
+
 class lunar_ir_let : public lunar_ir_statement {
 public:
-    class def : public lunar_ir_base {
-    public:
-        void add_var(std::unique_ptr<lunar_ir_var> var)
-        {
-            auto id = var->get_id();
-            m_argmap[var->get_id()] = var.get();
-            m_vars.push_back(std::move(var));
-        }
-
-        void set_expridlit(std::unique_ptr<lunar_ir_expridlit> expridlit)
-        {
-            m_expridlit = std::move(expridlit);
-        }
-
-        virtual void print(std::string &s, const std::string &from);
-
-    private:
-        std::vector<std::unique_ptr<lunar_ir_var>>        m_vars;
-        std::unordered_map<std::u32string, lunar_ir_var*> m_argmap;
-        std::unique_ptr<lunar_ir_expridlit> m_expridlit;
-    };
 
     lunar_ir_let() { }
     virtual ~lunar_ir_let() { }
 
-    void add_def(std::unique_ptr<def> def)
+    void add_def(std::unique_ptr<lunar_ir_def> def)
     {
         m_defs.push_back(std::move(def));
     }
@@ -849,8 +851,42 @@ public:
     virtual void print(std::string &s, const std::string &from);
 
 private:
-    std::vector<std::unique_ptr<def>> m_defs;
+    std::vector<std::unique_ptr<lunar_ir_def>> m_defs;
     std::vector<std::unique_ptr<lunar_ir_stexpr>> m_stexprs;
+};
+
+class lunar_ir_global : public lunar_ir_top {
+public:
+
+    lunar_ir_global() : lunar_ir_top(IR_GLOBAL) { }
+    virtual ~lunar_ir_global() { }
+
+    void add_def(std::unique_ptr<lunar_ir_def> def)
+    {
+        m_defs.push_back(std::move(def));
+    }
+
+    virtual void print(std::string &s, const std::string &from);
+
+private:
+    std::vector<std::unique_ptr<lunar_ir_def>> m_defs;
+};
+
+class lunar_ir_threadlocal : public lunar_ir_top {
+public:
+
+    lunar_ir_threadlocal() : lunar_ir_top(IR_THREADLOCAL) { }
+    virtual ~lunar_ir_threadlocal() { }
+
+    void add_def(std::unique_ptr<lunar_ir_def> def)
+    {
+        m_defs.push_back(std::move(def));
+    }
+
+    virtual void print(std::string &s, const std::string &from);
+
+private:
+    std::vector<std::unique_ptr<lunar_ir_def>> m_defs;
 };
 
 class lunar_ir_cond : public lunar_ir_statement {
