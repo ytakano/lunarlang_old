@@ -1983,12 +1983,15 @@ lunar_ir::parse_let(lunar_ir_module *module, parsec<char32_t> &ps)
         return nullptr;
     }
 
+    // ( ( ( ( TYPE IDENTIFIER )+ ) EXPRIDENTLIT? )+ )
     parse_defs<lunar_ir_let>(module, ps, let.get());
     if (! ps.is_success())
         return nullptr;
 
-    // TODO:
     // STEXPR*
+    parse_stexprs<lunar_ir_let>(module, ps, let.get());
+    if (! ps.is_success())
+        return nullptr;
 
     ps.parse_many_char([&]() { return ps.parse_space(); });
     ps.character(U')');

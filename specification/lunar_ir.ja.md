@@ -255,7 +255,7 @@ SIZEを指定した場合は、固定長となる。
 ## 関数定義構文
 
 構文：
-- DEFUN := ( defun IDENTIFIER ( TYPE\* ) ( TYPE IDENTIFIER )\* STEXPR\* )
+- DEFUN := ( defun IDENTIFIER ( TYPE\* ) ( ( TYPE IDENTIFIER )\* ) STEXPR\* )
 
 ## 関数呼び出し式
 
@@ -267,7 +267,7 @@ SIZEを指定した場合は、固定長となる。
 ## 無名関数定義式
 
 構文：
-- LAMBDA := ( lambda ( TYPE\* ) ( TYPE IDENTIFIER )\* STEXPR\* )
+- LAMBDA := ( lambda ( TYPE\* ) ( ( TYPE IDENTIFIER )\* ) STEXPR\* )
 
 関数型の値を返す。
 
