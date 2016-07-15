@@ -13,7 +13,7 @@
  * -----------------------------------------------------------------------------
  *
  * IR           := TOP*
- * TOP          := FUNC | GLOBAL | THREADLOCAL | IMPORT | EXPR | STATEMENT
+ * TOP          := DEFUN | GLOBAL | THREADLOCAL | IMPORT | EXPR | STATEMENT
  * TOPSTATEMENT := LET | COND | WHILE | SELECT | BLOCK | STRUCT | CUNION | UNION
  * STATEMENT    := LET | COND | WHILE | BREAK | SELECT | RETURN | STRUCT | CUNION | UNION | BLOCK | LEAP
  * GLOBAL       := ( global ( ( TYPE (IDENTIFIER+) EXPRIDENTLIT )+ ) )
@@ -69,7 +69,7 @@
  *
  * -----------------------------------------------------------------------------
  *
- * FUNC := ( defun IDENTIFIER ( TYPE* ) ( TYPE IDENTIFIER )* STEXPR* )
+ * DEFUN := ( defun IDENTIFIER ( TYPE* ) ( TYPE IDENTIFIER )* STEXPR* )
  *
  * -----------------------------------------------------------------------------
  *
@@ -969,6 +969,22 @@ class lunar_ir_break : public lunar_ir_statement {
 public:
     lunar_ir_break() { }
     virtual ~lunar_ir_break() { }
+};
+
+class lunar_ir_block : public lunar_ir_statement {
+public:
+    lunar_ir_block() { }
+    virtual ~lunar_ir_block() { }
+
+    void add_stexpr(std::unique_ptr<lunar_ir_stexpr> stexpr)
+    {
+        m_stexprs.push_back(std::move(stexpr));
+    }
+
+    virtual void print(std::string &s, const std::string &from);
+
+private:
+    std::vector<std::unique_ptr<lunar_ir_stexpr>> m_stexprs;
 };
 
 class lunar_ir_return : public lunar_ir_statement {

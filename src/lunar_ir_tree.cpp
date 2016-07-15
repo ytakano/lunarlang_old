@@ -648,4 +648,21 @@ lunar_ir_select::timeout::print(std::string &s, const std::string &from)
     }
 }
 
+void
+lunar_ir_block::print(std::string &s, const std::string &from)
+{
+    std::ostringstream os_cond;
+    os_cond << "\"" << get_line() << ":" << get_col() << ": block\"";
+    s += from + " -> " + os_cond.str() + ";\n";
+
+    int i = 0;
+    for (auto &stexpr: m_stexprs) {
+        std::ostringstream os_stexpr;
+        os_stexpr << "\"" << stexpr->get_line() << ":" << stexpr->get_col() << ": stexpr[" << i << "]\"";
+        s += from + " -> " + os_stexpr.str() + ";\n";
+        stexpr->print(s, os_stexpr.str());
+        i++;
+    }
+}
+
 }

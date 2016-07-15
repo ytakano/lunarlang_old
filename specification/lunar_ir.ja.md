@@ -5,7 +5,7 @@ Lunar言語の中間表現であり、ここからLLVM IRへ変換。
 # 構文
 
 - IR           := TOP*
-- TOP          := FUNC | GLOBAL | THREADLOCAL | IMPORT | EXPR | TOPSTATEMENT
+- TOP          := DEFUN | GLOBAL | THREADLOCAL | IMPORT | EXPR | TOPSTATEMENT
 - TOPSTATEMENT := LET | COND | WHILE | SELECT | BLOCK | STRUCT | CUNION | UNION
 - STATEMENT    := LET | COND | WHILE | BREAK | SELECT | RETURN | STRUCT | CUNION | UNION | BLOCK | LEAP
 - STEXPR       := STATMENT | EXPR
@@ -16,11 +16,11 @@ Lunar言語の中間表現であり、ここからLLVM IRへ変換。
 
 # グローバル変数定義
 
-- GLOBAL := ( global ( ( TYPE ( IDENTIFIER+ ) EXPRIDENTLIT )+ ) )
+- GLOBAL := ( global ( ( ( ( TYPE IDENTIFIER )+ ) EXPRIDENTLIT )+ ) )
 
 # スレッドローカル変数定義
 
-- THREADLOCAL := ( threadlocal ( ( TYPE ( IDENTIFIER+ ) EXPRIDENTLIT )+ ) )
+- THREADLOCAL := ( threadlocal ( ( ( ( TYPE IDENTIFIER )+ ) EXPRIDENTLIT )+ ) )
 
 # インポート
 
@@ -255,7 +255,7 @@ SIZEを指定した場合は、固定長となる。
 ## 関数定義構文
 
 構文：
-- FUNC := ( defun IDENTIFIER ( TYPE\* ) ( TYPE IDENTIFIER )\* STEXPR\* )
+- DEFUN := ( defun IDENTIFIER ( TYPE\* ) ( TYPE IDENTIFIER )\* STEXPR\* )
 
 ## 関数呼び出し式
 

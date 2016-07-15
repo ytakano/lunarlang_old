@@ -106,6 +106,7 @@ private:
     std::unique_ptr<lunar_ir_stexpr>         parse_stexpr(lunar_ir_module *module, parsec<char32_t> &ps);
     std::unique_ptr<lunar_ir_while>          parse_while(lunar_ir_module *module, parsec<char32_t> &ps);
     std::unique_ptr<lunar_ir_select>         parse_select(lunar_ir_module *module, parsec<char32_t> &ps);
+    std::unique_ptr<lunar_ir_block>          parse_block(lunar_ir_module *module, parsec<char32_t> &ps);
     LANG_OWNERSHIP                           parse_ownership(lunar_ir_module *module, parsec<char32_t> &ps);
     template <typename T> std::unique_ptr<T> parse_def_member(lunar_ir_module *module, parsec<char32_t> &ps);
     template <typename T> std::unique_ptr<T> parse_def_member_own(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERSHIP own);

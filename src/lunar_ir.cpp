@@ -2168,6 +2168,19 @@ lunar_ir::parse_select(lunar_ir_module *module, parsec<char32_t> &ps)
     return sel;
 }
 
+std::unique_ptr<lunar_ir_block>
+lunar_ir::parse_block(lunar_ir_module *module, parsec<char32_t> &ps)
+{
+    // STEXPR*
+    auto block = llvm::make_unique<lunar_ir_block>();
+    parse_stexprs<lunar_ir_block>(module, ps, block.get());
+
+    if (! ps.is_success())
+        return nullptr;
+
+    return block;
+}
+
 std::unique_ptr<lunar_ir_stexpr>
 lunar_ir::parse_stexpr(lunar_ir_module *module, parsec<char32_t> &ps)
 {
@@ -2224,6 +2237,13 @@ lunar_ir::parse_topstatement_expr(lunar_ir_module *module, parsec<char32_t> &ps)
     } else if (parse_str_space(module, ps, U"select")) {
         // parse while
         std::unique_ptr<lunar_ir_top> wh = parse_select(module, ps);
+        if (ps.is_success())
+            return wh;
+        else
+            return nullptr;
+    } else if (parse_str_space(module, ps, U"block")) {
+        // parse while
+        std::unique_ptr<lunar_ir_top> wh = parse_block(module, ps);
         if (ps.is_success())
             return wh;
         else
