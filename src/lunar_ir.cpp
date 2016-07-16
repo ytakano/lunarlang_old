@@ -2353,6 +2353,7 @@ lunar_ir::parse_defun_body(lunar_ir_module *module, parsec<char32_t> &ps, lunar_
         return;
     }
 
+    // STEXPR*
     parse_stexprs<lunar_ir_defun>(module, ps, defun);
 }
 
@@ -2385,6 +2386,50 @@ lunar_ir::parse_defun(lunar_ir_module *module, parsec<char32_t> &ps)
     defun->set_col(col);
 
     return defun;
+}
+
+std::unique_ptr<lunar_ir_import>
+lunar_ir::parse_import(lunar_ir_module *module, parsec<char32_t> &ps)
+{
+    auto import = llvm::make_unique<lunar_ir_import>();
+
+    for (;;) {
+        ps.parse_many_char([&]() { return ps.parse_space(); });
+        int line, col;
+        line = ps.get_line();
+        col  = ps.get_col();
+
+        ps.character(U'"');
+        if (! ps.is_success()) {
+            print_parse_err("expected \"\"\"", module, ps);
+            return nullptr;
+        }
+
+        auto str32 = parse_lit_str32(module, ps);
+        if (! ps.is_success())
+            return nullptr;
+
+        str32->set_line(line);
+        str32->set_col(col);
+
+        import->add_module(std::move(str32));
+
+        {
+            parsec<char32_t>::parser_look_ahead plahead(ps);
+            ps.parse_many_char([&]() { return ps.parse_space(); });
+            ps.character(U')');
+        }
+        if (ps.is_success())
+            break;
+
+        ps.parse_many1_char([&]() { return ps.parse_space(); });
+        if (! ps.is_success()) {
+            print_parse_err("need \"white space\"", module, ps);
+            return nullptr;
+        }
+    }
+
+    return import;
 }
 
 std::unique_ptr<lunar_ir_stexpr>
@@ -2441,31 +2486,45 @@ lunar_ir::parse_topstatement_expr(lunar_ir_module *module, parsec<char32_t> &ps)
         else
             return nullptr;
     } else if (parse_str_space(module, ps, U"select")) {
-        // parse while
+        // parse select
         std::unique_ptr<lunar_ir_top> wh = parse_select(module, ps);
         if (ps.is_success())
             return wh;
         else
             return nullptr;
     } else if (parse_str_space(module, ps, U"block")) {
-        // parse while
+        // parse block
         std::unique_ptr<lunar_ir_top> wh = parse_block(module, ps);
         if (ps.is_success())
             return wh;
         else
             return nullptr;
     } else if (parse_str_space(module, ps, U"global")) {
-        // parse while
+        // parse global
         std::unique_ptr<lunar_ir_top> wh = parse_top_var<lunar_ir_global>(module, ps);
         if (ps.is_success())
             return wh;
         else
             return nullptr;
     } else if (parse_str_space(module, ps, U"threadlocal")) {
-        // parse while
+        // parse threadlocal
         std::unique_ptr<lunar_ir_top> wh = parse_top_var<lunar_ir_threadlocal>(module, ps);
         if (ps.is_success())
             return wh;
+        else
+            return nullptr;
+    } else if (parse_str_space(module, ps, U"defun")) {
+        // parse defun
+        std::unique_ptr<lunar_ir_top> defun = parse_defun(module, ps);
+        if (ps.is_success())
+            return defun;
+        else
+            return nullptr;
+    } else if (parse_str_space(module, ps, U"import")) {
+        // parse import
+        std::unique_ptr<lunar_ir_top> import = parse_import(module, ps);
+        if (ps.is_success())
+            return import;
         else
             return nullptr;
     }

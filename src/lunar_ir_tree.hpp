@@ -13,7 +13,7 @@
  * -----------------------------------------------------------------------------
  *
  * IR           := TOP*
- * TOP          := DEFUN | GLOBAL | THREADLOCAL | IMPORT | EXPR | STATEMENT
+ * TOP          := GLOBAL | THREADLOCAL | IMPORT | TOPSTATEMENT | DEFUN | EXPR
  * TOPSTATEMENT := LET | COND | WHILE | SELECT | BLOCK | STRUCT | CUNION | UNION
  * STATEMENT    := LET | COND | WHILE | BREAK | SELECT | RETURN | STRUCT | CUNION | UNION | BLOCK | LEAP
  * GLOBAL       := ( global ( ( ( ( TYPE IDENTIFIER? )+ ) EXPRIDENTLIT )+ ) )
@@ -91,11 +91,15 @@
  *
  * -----------------------------------------------------------------------------
  *
- * EXPR := CALLFUNC
+ * EXPR :=  LAMBDA | NEW | CALLFUNC
  *
  * EXPRIDENT := EXPR | IDENTIFIER
  *
  * CALLFUNC := ( EXPRIDENT EXPRIDENTLIT* )
+ *
+ * LAMBDA := ( lambda ( TYPE\* ) ( ( TYPE IDENTIFIER )\* ) STEXPR\* )
+ *
+ * NEW := ( new TYPE EXPRIDENTLIT* )
  *
  * -----------------------------------------------------------------------------
  *
@@ -380,20 +384,6 @@ private:
     std::unique_ptr<lunar_ir_identifier> m_name;
 };
 
-class lunar_ir_import : public lunar_ir_top {
-public:
-    lunar_ir_import() : lunar_ir_top(IR_IMPORT) { }
-    virtual ~lunar_ir_import() { }
-
-    void add_module(std::u32string module)
-    {
-        m_modules.push_back(module);
-    }
-
-private:
-    std::vector<std::u32string> m_modules;
-};
-
 class lunar_ir_stexpr : public lunar_ir_base {
 public:
     lunar_ir_stexpr(std::unique_ptr<lunar_ir_expr> expr) : m_expr(std::move(expr)), m_is_expr(true) { }
@@ -509,6 +499,22 @@ public:
 private:
     double m_num;
     bool   m_is_float;
+};
+
+class lunar_ir_import : public lunar_ir_top {
+public:
+    lunar_ir_import() : lunar_ir_top(IR_IMPORT) { }
+    virtual ~lunar_ir_import() { }
+
+    virtual void print(std::string &s, const std::string &from);
+
+    void add_module(std::unique_ptr<lunar_ir_lit_str32> module)
+    {
+        m_modules.push_back(std::move(module));
+    }
+
+private:
+    std::vector<std::unique_ptr<lunar_ir_lit_str32>> m_modules;
 };
 
 class lunar_ir_scalar : public lunar_ir_type {
@@ -786,6 +792,8 @@ public:
     lunar_ir_defun(std::unique_ptr<lunar_ir_identifier> id) : lunar_ir_top(IR_FUNC), m_id(std::move(id)) { }
     virtual ~lunar_ir_defun() { }
 
+    virtual void print(std::string &s, const std::string &from);
+
     void add_ret(std::unique_ptr<lunar_ir_type> ret)
     {
         m_ret.push_back(std::move(ret));
@@ -812,6 +820,9 @@ private:
 
 class lunar_ir_def : public lunar_ir_base {
 public:
+    lunar_ir_def() { }
+    virtual ~lunar_ir_def() { };
+
     void add_var(std::unique_ptr<lunar_ir_var> var)
     {
         auto id = var->get_id();

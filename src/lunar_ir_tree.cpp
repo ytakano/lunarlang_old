@@ -566,7 +566,7 @@ lunar_ir_def::print(std::string &s, const std::string &from)
 void
 lunar_ir_var::print(std::string &s, const std::string &from)
 {
-    m_type->print_ownership(s, from);
+    m_type->print(s, from);
     m_id->print(s, from);
 }
 
@@ -705,6 +705,49 @@ lunar_ir_block::print(std::string &s, const std::string &from)
         os_stexpr << "\"" << stexpr->get_line() << ":" << stexpr->get_col() << ": block2[" << i << "]\"";
         s += from + " -> " + os_stexpr.str() + ";\n";
         stexpr->print(s, os_stexpr.str());
+        i++;
+    }
+}
+
+void
+lunar_ir_defun::print(std::string &s, const std::string &from)
+{
+    std::ostringstream os;
+    os << "\"" << get_line() << ":" << get_col() << ": defun\"";
+    s += from + " -> " + os.str() + ";\n";
+
+    int i = 0;
+    for (auto &ret: m_ret) {
+        std::ostringstream os_ret;
+        os_ret << "\"" << get_line() << ":" << get_col() << ": retval[" << i << "]\"";
+        s += os.str() + " -> " + os_ret.str() + ";\n";
+        ret->print(s, os_ret.str());
+        i++;
+    }
+
+    i = 0;
+    for (auto &arg: m_args) {
+        std::ostringstream os_arg;
+        os_arg << "\"" << get_line() << ":" << get_col() << ": arg[" << i << "]\"";
+        s += os.str() + " -> " + os_arg.str() + ";\n";
+        arg->print(s, os_arg.str());
+        i++;
+    }
+}
+
+void
+lunar_ir_import::print(std::string &s, const std::string &from)
+{
+    std::ostringstream os_import;
+    os_import << "\"" << get_line() << ":" << get_col() << ": import\"";
+    s += from + " -> " + os_import.str() + ";\n";
+
+    int i = 0;
+    for (auto &module: m_modules) {
+        std::ostringstream os_module;
+        os_module << "\"" << module->get_line() << ":" << module->get_col() << ": module[" << i << "]\"";
+        s += os_import.str() + " -> " + os_module.str() + ";\n";
+        module->print(s, os_module.str());
         i++;
     }
 }

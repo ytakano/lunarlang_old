@@ -5,3 +5,5 @@
 ( let (((((unique s32) var6))) ) )
 ( global (((((unique s32) var6)) var7) ) )
 ( threadlocal (((((unique s32) var8)) (func4 var9) ) ) )
+( import "module1" "module2" )
+( defun func5 ( u32 (unique u64) ) ( (u32 arg1) ((unique string) arg2) ) )
