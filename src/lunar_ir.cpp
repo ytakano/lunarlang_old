@@ -827,6 +827,7 @@ void
 lunar_ir::parse_types(std::function<void(std::unique_ptr<lunar_ir_type>)> add_type,
                       lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERSHIP own)
 {
+    // ( TYPE* )
     ps.character(U'(');
     if (! ps.is_success()) {
         print_parse_err("expected \"(\"", module, ps);
@@ -871,6 +872,7 @@ lunar_ir::parse_types(std::function<void(std::unique_ptr<lunar_ir_type>)> add_ty
 std::unique_ptr<lunar_ir_func>
 lunar_ir::parse_func(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERSHIP own)
 {
+    // ( func ( TYPE* ) ( TYPE* ) )
     auto func = llvm::make_unique<lunar_ir_func>(own);
 
     parse_types([&](std::unique_ptr<lunar_ir_type> t) { func->add_ret(std::move(t)); }, module, ps, own);
@@ -2222,12 +2224,52 @@ lunar_ir::parse_select(lunar_ir_module *module, parsec<char32_t> &ps)
 std::unique_ptr<lunar_ir_block>
 lunar_ir::parse_block(lunar_ir_module *module, parsec<char32_t> &ps)
 {
-    // STEXPR*
+    // ( STEXPR* ) ( STEXPR* )
+
+    // ( STEXPR* )
+    ps.parse_many_char([&]() { return ps.parse_space(); });
+    ps.character(U'(');
+    if (! ps.is_success()) {
+        print_parse_err("expected \"(\"", module, ps);
+        return nullptr;
+    }
+
     auto block = llvm::make_unique<lunar_ir_block>();
     parse_stexprs<lunar_ir_block>(module, ps, block.get());
-
     if (! ps.is_success())
         return nullptr;
+
+    ps.parse_many_char([&]() { return ps.parse_space(); });
+    ps.character(U')');
+    if (! ps.is_success()) {
+        print_parse_err("expected \")\"", module, ps);
+        return nullptr;
+    }
+
+    ps.parse_many1_char([&]() { return ps.parse_space(); });
+    if (! ps.is_success()) {
+        print_parse_err("expected \"white space\"", module, ps);
+        return nullptr;
+    }
+
+    // ( STEXPR* )
+    ps.character(U'(');
+    if (! ps.is_success()) {
+        print_parse_err("expected \"(\"", module, ps);
+        return nullptr;
+    }
+
+    block->set_target(false);
+    parse_stexprs<lunar_ir_block>(module, ps, block.get());
+    if (! ps.is_success())
+        return nullptr;
+
+    ps.parse_many_char([&]() { return ps.parse_space(); });
+    ps.character(U')');
+    if (! ps.is_success()) {
+        print_parse_err("expected \")\"", module, ps);
+        return nullptr;
+    }
 
     return block;
 }

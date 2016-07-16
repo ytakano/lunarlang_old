@@ -321,10 +321,10 @@ while ループの制御から脱出するときに使う。
 ## block 文
 
 構文：
-- BLOCK := ( block STEXPR* )
+- BLOCK := ( block ( STEXPR\* ) ( STEXPR\* ) )
 
 セマンティクス：
-- ( block 式\* )
+- ( block ( 式\* ) ( leap後に実行される式\* ) )
 
 ## leap 文
 

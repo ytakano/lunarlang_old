@@ -691,9 +691,18 @@ lunar_ir_block::print(std::string &s, const std::string &from)
     s += from + " -> " + os_cond.str() + ";\n";
 
     int i = 0;
-    for (auto &stexpr: m_stexprs) {
+    for (auto &stexpr: m_block1) {
         std::ostringstream os_stexpr;
-        os_stexpr << "\"" << stexpr->get_line() << ":" << stexpr->get_col() << ": stexpr[" << i << "]\"";
+        os_stexpr << "\"" << stexpr->get_line() << ":" << stexpr->get_col() << ": block1[" << i << "]\"";
+        s += from + " -> " + os_stexpr.str() + ";\n";
+        stexpr->print(s, os_stexpr.str());
+        i++;
+    }
+
+    i = 0;
+    for (auto &stexpr: m_block2) {
+        std::ostringstream os_stexpr;
+        os_stexpr << "\"" << stexpr->get_line() << ":" << stexpr->get_col() << ": block2[" << i << "]\"";
         s += from + " -> " + os_stexpr.str() + ";\n";
         stexpr->print(s, os_stexpr.str());
         i++;

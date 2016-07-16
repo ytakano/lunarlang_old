@@ -82,7 +82,7 @@
  * WHILE := ( while EXPRIDENTLIT STEXPR* )
  * BREAK := ( break )
  *
- * BLOCK := ( block STEXPR* )
+ * BLOCK := ( block ( STEXPR\* ) ( STEXPR\* ) )
  * LEAP  := ( leap )
  *
  * SELECT := ( select ( EXPRIDENT STEXPR*)* ( timeout EXPRIDENTLIT STEXPR* )? )
@@ -1009,18 +1009,25 @@ public:
 
 class lunar_ir_block : public lunar_ir_statement {
 public:
-    lunar_ir_block() { }
+    lunar_ir_block() : m_is_block1(true) { }
     virtual ~lunar_ir_block() { }
+
+    void set_target(bool is_block1){ m_is_block1 = is_block1; }
 
     void add_stexpr(std::unique_ptr<lunar_ir_stexpr> stexpr)
     {
-        m_stexprs.push_back(std::move(stexpr));
+        if (m_is_block1)
+            m_block1.push_back(std::move(stexpr));
+        else
+            m_block2.push_back(std::move(stexpr));
     }
 
     virtual void print(std::string &s, const std::string &from);
 
 private:
-    std::vector<std::unique_ptr<lunar_ir_stexpr>> m_stexprs;
+    bool m_is_block1;
+    std::vector<std::unique_ptr<lunar_ir_stexpr>> m_block1;
+    std::vector<std::unique_ptr<lunar_ir_stexpr>> m_block2;
 };
 
 class lunar_ir_return : public lunar_ir_statement {
