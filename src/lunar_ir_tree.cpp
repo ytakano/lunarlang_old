@@ -733,6 +733,15 @@ lunar_ir_defun::print(std::string &s, const std::string &from)
         arg->print(s, os_arg.str());
         i++;
     }
+
+    i = 0;
+    for (auto &stexpr: m_stexprs) {
+        std::ostringstream os_stexpr;
+        os_stexpr << "\"" << stexpr->get_line() << ":" << stexpr->get_col() << ": stexpr[" << i << "]\"";
+        s += from + " -> " + os_stexpr.str() + ";\n";
+        stexpr->print(s, os_stexpr.str());
+        i++;
+    }
 }
 
 void
