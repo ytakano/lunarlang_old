@@ -84,7 +84,7 @@ inline uint8_t skiplist<K, V, MAX_LEVEL>::random_level()
     max_level = 64 - max_level + 1;
     max_level = max_level > MAX_LEVEL ? MAX_LEVEL : max_level;
 
-    while (lvl < max_level && m_xs.xor32() < (UINT32_MAX >> 1))
+    while (lvl < max_level && m_xs.next() < (UINT32_MAX >> 1))
         lvl++;
 
     return lvl;
