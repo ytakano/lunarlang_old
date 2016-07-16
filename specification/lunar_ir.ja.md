@@ -12,7 +12,7 @@ Lunar言語の中間表現であり、ここからLLVM IRへ変換。
 - LITERAL      := STR32 | STR8 | CHAR32 | CHAR8 | INT | FLOAT | HEX | OCT | BIN | ATOM
 - EXPRIDENT    := EXPR | IDENTIFIER
 - EXPRIDENTLIT := EXPR | IDENTIFIER | LITERAL
-- EXPR         := LAMBDA | NEW | CALLFUNC
+- EXPR         := LAMBDA | NEW | MKSTREAM | THREAD | TYPEOF | CALLFUNC
 
 # グローバル変数定義
 
@@ -469,7 +469,7 @@ type 式は真偽値を返す式であり、多相型変数の型を動的に検
 ### ファイルストリーム生成式
 
 構文：
-- MKSTREAM := ( mkfilestream EXPRIDENTLIT )
+- MKFILESTREAM := ( mkfilestream EXPRIDENTLIT )
 
 セマンティクス：
 - ( mkfilestream ファイルディスクリプタ )
