@@ -204,8 +204,8 @@ public:
     lunar_ir_base() : m_line(0), m_col(0) { }
     virtual ~lunar_ir_base() { }
 
-    void set_col(uint64_t col) { m_col = col; }
-    void set_line(uint64_t line) { m_line = line; }
+    virtual void set_col(uint64_t col) { m_col = col; }
+    virtual void set_line(uint64_t line) { m_line = line; }
     uint64_t get_col() { return m_col; }
     uint64_t get_line() { return m_line; }
 
@@ -390,7 +390,27 @@ public:
     lunar_ir_stexpr(std::unique_ptr<lunar_ir_statement> statement) : m_statement(std::move(statement)), m_is_expr(false) { }
     virtual ~lunar_ir_stexpr() { }
 
+    virtual void print(std::string &s, const std::string &from);
+
     bool is_expr() { return m_is_expr; }
+
+    virtual void set_line(uint64_t line)
+    {
+        lunar_ir_base::set_line(line);
+        if (m_is_expr)
+            m_expr->set_line(line);
+        else
+            m_statement->set_line(line);
+    }
+
+    virtual void set_col(uint64_t col)
+    {
+        lunar_ir_base::set_col(col);
+        if (m_is_expr)
+            m_expr->set_col(col);
+        else
+            m_statement->set_col(col);
+    }
 
 private:
     std::unique_ptr<lunar_ir_expr>      m_expr;

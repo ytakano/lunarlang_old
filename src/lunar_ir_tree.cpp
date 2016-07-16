@@ -509,8 +509,14 @@ lunar_ir_let::print(std::string &s, const std::string &from)
         i++;
     }
 
-    for (auto &stexpr: m_stexprs)
-        stexpr->print(s, os.str());
+    i = 0;
+    for (auto &stexpr: m_stexprs) {
+        std::ostringstream os_stexpr;
+        os_stexpr << "\"" << stexpr->get_line() << ":" << stexpr->get_col() << ": stexpr[" << i << "]\"";
+        s += os.str() + " -> " + os_stexpr.str() + ";\n";
+        stexpr->print(s, os_stexpr.str());
+        i++;
+    }
 }
 
 void
@@ -612,17 +618,17 @@ lunar_ir_cond::cond::print(std::string &s, const std::string &from)
 void
 lunar_ir_while::print(std::string &s, const std::string &from)
 {
-    std::ostringstream os_cond;
-    os_cond << "\"" << get_line() << ":" << get_col() << ": while\"";
-    s += from + " -> " + os_cond.str() + ";\n";
+    std::ostringstream os;
+    os << "\"" << get_line() << ":" << get_col() << ": while\"";
+    s += from + " -> " + os.str() + ";\n";
 
-    m_cond->print(s, os_cond.str());
+    m_cond->print(s, os.str());
 
     int i = 0;
     for (auto &stexpr: m_stexprs) {
         std::ostringstream os_stexpr;
         os_stexpr << "\"" << stexpr->get_line() << ":" << stexpr->get_col() << ": stexpr[" << i << "]\"";
-        s += from + " -> " + os_stexpr.str() + ";\n";
+        s += os.str() + " -> " + os_stexpr.str() + ";\n";
         stexpr->print(s, os_stexpr.str());
         i++;
     }
@@ -667,17 +673,17 @@ lunar_ir_select::cond::print(std::string &s, const std::string &from)
 void
 lunar_ir_select::timeout::print(std::string &s, const std::string &from)
 {
-    std::ostringstream os_cond;
-    os_cond << "\"" << get_line() << ":" << get_col() << ": timeout\"";
-    s += from + " -> " + os_cond.str() + ";\n";
+    std::ostringstream os;
+    os << "\"" << get_line() << ":" << get_col() << ": timeout\"";
+    s += from + " -> " + os.str() + ";\n";
 
-    m_expridlit->print(s, os_cond.str());
+    m_expridlit->print(s, os.str());
 
     int i = 0;
     for (auto &stexpr: m_stexprs) {
         std::ostringstream os_stexpr;
         os_stexpr << "\"" << stexpr->get_line() << ":" << stexpr->get_col() << ": stexpr[" << i << "]\"";
-        s += from + " -> " + os_stexpr.str() + ";\n";
+        s += os.str() + " -> " + os_stexpr.str() + ";\n";
         stexpr->print(s, os_stexpr.str());
         i++;
     }
@@ -686,15 +692,15 @@ lunar_ir_select::timeout::print(std::string &s, const std::string &from)
 void
 lunar_ir_block::print(std::string &s, const std::string &from)
 {
-    std::ostringstream os_cond;
-    os_cond << "\"" << get_line() << ":" << get_col() << ": block\"";
-    s += from + " -> " + os_cond.str() + ";\n";
+    std::ostringstream os;
+    os << "\"" << get_line() << ":" << get_col() << ": block\"";
+    s += from + " -> " + os.str() + ";\n";
 
     int i = 0;
     for (auto &stexpr: m_block1) {
         std::ostringstream os_stexpr;
         os_stexpr << "\"" << stexpr->get_line() << ":" << stexpr->get_col() << ": block1[" << i << "]\"";
-        s += from + " -> " + os_stexpr.str() + ";\n";
+        s += os.str() + " -> " + os_stexpr.str() + ";\n";
         stexpr->print(s, os_stexpr.str());
         i++;
     }
@@ -703,7 +709,7 @@ lunar_ir_block::print(std::string &s, const std::string &from)
     for (auto &stexpr: m_block2) {
         std::ostringstream os_stexpr;
         os_stexpr << "\"" << stexpr->get_line() << ":" << stexpr->get_col() << ": block2[" << i << "]\"";
-        s += from + " -> " + os_stexpr.str() + ";\n";
+        s += os.str() + " -> " + os_stexpr.str() + ";\n";
         stexpr->print(s, os_stexpr.str());
         i++;
     }
@@ -738,7 +744,7 @@ lunar_ir_defun::print(std::string &s, const std::string &from)
     for (auto &stexpr: m_stexprs) {
         std::ostringstream os_stexpr;
         os_stexpr << "\"" << stexpr->get_line() << ":" << stexpr->get_col() << ": stexpr[" << i << "]\"";
-        s += from + " -> " + os_stexpr.str() + ";\n";
+        s += os.str() + " -> " + os_stexpr.str() + ";\n";
         stexpr->print(s, os_stexpr.str());
         i++;
     }
@@ -759,6 +765,16 @@ lunar_ir_import::print(std::string &s, const std::string &from)
         module->print(s, os_module.str());
         i++;
     }
+}
+
+
+void
+lunar_ir_stexpr::print(std::string &s, const std::string &from)
+{
+    if (m_is_expr)
+        m_expr->print(s, from);
+    else
+        m_statement->print(s, from);
 }
 
 }

@@ -1,0 +1,15 @@
+(defun func1 ( u32 (unique u64) ) ( (u32 arg1) ((unique string) arg2) )
+       (func2 arg3 arg4)
+       (while var1
+         (func1 var1)
+         (func2 var2)
+         (select ( var5 (func1 arg1)) ((func3) (func2 arg2)) ( timeout 1000 (func4 arg3)) ))
+       (let ((((u32 a)) 100)
+             (((u32 b)) 200))
+         (func3 arg5)
+         (func4 "abc" 10.0f)
+         (cond (var1 (block
+                      ((func1 arg1)
+                       (func2 arg2))
+                      ((func3 arg3))))
+               ((func1 var2 var3) (func5 arg6) ) ( else (func6 arg7)))))
