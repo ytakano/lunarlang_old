@@ -69,7 +69,7 @@
  *
  * -----------------------------------------------------------------------------
  *
- * DEFUN := ( defun IDENTIFIER ( TYPE* ) ( TYPE IDENTIFIER )* STEXPR* )
+ * DEFUN := ( defun IDENTIFIER ( TYPE* ) ( ( TYPE IDENTIFIER )* ) STEXPR* )
  *
  * -----------------------------------------------------------------------------
  *
@@ -783,7 +783,7 @@ private:
 
 class lunar_ir_defun : public lunar_ir_top {
 public:
-    lunar_ir_defun(const std::u32string &name) : lunar_ir_top(IR_FUNC), m_name(name) { }
+    lunar_ir_defun(std::unique_ptr<lunar_ir_identifier> id) : lunar_ir_top(IR_FUNC), m_id(std::move(id)) { }
     virtual ~lunar_ir_defun() { }
 
     void add_ret(std::unique_ptr<lunar_ir_type> ret)
@@ -806,7 +806,7 @@ private:
     std::vector<std::unique_ptr<lunar_ir_type>> m_ret;
     std::vector<std::unique_ptr<lunar_ir_var>>  m_args;
     std::unordered_map<std::u32string, lunar_ir_var*> m_argmap;
-    std::u32string m_name;
+    std::unique_ptr<lunar_ir_identifier> m_id; // if m_id is nullptr, then this is lambda function
     std::vector<std::unique_ptr<lunar_ir_stexpr>> m_stexprs;
 };
 
