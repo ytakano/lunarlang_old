@@ -859,4 +859,15 @@ lunar_ir_new::print(std::string &s, const std::string &from)
         m_init->print(s, os.str());
 }
 
+void
+lunar_ir_mkstream::print(std::string &s, const std::string &from)
+{
+    std::ostringstream os;
+    os << "\"" << get_line() << ":" << get_col() << ": mkstream\"";
+    s += from + " -> " + os.str() + ";\n";
+
+    m_type->print(s, os.str());
+    m_size->print(s, os.str());
+}
+
 }

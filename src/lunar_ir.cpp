@@ -669,6 +669,8 @@ lunar_ir::parse_expr(lunar_ir_module *module, parsec<char32_t> &ps)
             return parse_lambda(module, ps);
         else if (exprid->get_id() == U"new")
             return parse_new(module, ps);
+        else if (exprid->get_id() == U"mkstream")
+            return parse_mkstream(module, ps);
     }
 
     auto expr = llvm::make_unique<lunar_ir_expr>(std::move(exprid));
@@ -2483,6 +2485,13 @@ std::unique_ptr<lunar_ir_lambda>
 lunar_ir::parse_lambda(lunar_ir_module *module, parsec<char32_t> &ps)
 {
     // ( TYPE* ) ( ( TYPE IDENTIFIER )* ) STEXPR*
+
+    ps.parse_many1_char([&]() { return ps.parse_space(); });
+    if (! ps.is_success()) {
+        print_parse_err("need white space", module, ps);
+        return nullptr;
+    }
+
     auto lambda = llvm::make_unique<lunar_ir_lambda>();
     parse_defun_body<lunar_ir_lambda>(module, ps, lambda.get());
     if (! ps.is_success())
@@ -2496,7 +2505,11 @@ lunar_ir::parse_new(lunar_ir_module *module, parsec<char32_t> &ps)
 {
     // TYPE EXPRIDENTLIT?
 
-    ps.parse_many_char([&]() { return ps.parse_space(); });
+    ps.parse_many1_char([&]() { return ps.parse_space(); });
+    if (! ps.is_success()) {
+        print_parse_err("need white space", module, ps);
+        return nullptr;
+    }
 
     // TYPE
     auto type = parse_type(module, ps);
@@ -2513,7 +2526,11 @@ lunar_ir::parse_new(lunar_ir_module *module, parsec<char32_t> &ps)
     if (ps.is_success())
         return irnew;
 
-    // EXPRIDENTLIT?
+    ps.parse_many1_char([&]() { return ps.parse_space(); });
+    if (! ps.is_success())
+        print_parse_err("need \"white space\"", module, ps);
+
+    // EXPRIDENTLIT
     auto expridlit = parse_expridlit(module, ps);
     if (! ps.is_success())
         return nullptr;
@@ -2521,6 +2538,34 @@ lunar_ir::parse_new(lunar_ir_module *module, parsec<char32_t> &ps)
     irnew->set_initializer(std::move(expridlit));
 
     return irnew;
+}
+
+std::unique_ptr<lunar_ir_mkstream>
+lunar_ir::parse_mkstream(lunar_ir_module *module, parsec<char32_t> &ps)
+{
+    // TYPE EXPRIDENTLIT
+
+    ps.parse_many1_char([&]() { return ps.parse_space(); });
+    if (! ps.is_success()) {
+        print_parse_err("need white space", module, ps);
+        return nullptr;
+    }
+
+    // TYPE
+    auto type = parse_type(module, ps);
+    if (! ps.is_success())
+        return nullptr;
+
+    ps.parse_many1_char([&]() { return ps.parse_space(); });
+    if (! ps.is_success())
+        print_parse_err("need \"white space\"", module, ps);
+
+    // EXPRIDENTLIT
+    auto expridlit = parse_expridlit(module, ps);
+    if (! ps.is_success())
+        return nullptr;
+
+    return llvm::make_unique<lunar_ir_mkstream>(std::move(type), std::move(expridlit));
 }
 
 std::unique_ptr<lunar_ir_import>

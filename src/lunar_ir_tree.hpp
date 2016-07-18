@@ -1135,6 +1135,19 @@ private:
     std::unique_ptr<lunar_ir_expridlit> m_init;
 };
 
+class lunar_ir_mkstream : public lunar_ir_expr {
+public:
+    lunar_ir_mkstream(std::unique_ptr<lunar_ir_type> type, std::unique_ptr<lunar_ir_expridlit> size)
+        : m_type(std::move(type)), m_size(std::move(size)) { }
+    virtual ~lunar_ir_mkstream() { }
+
+    virtual void print(std::string &s, const std::string &from);
+
+private:
+    std::unique_ptr<lunar_ir_type> m_type;
+    std::unique_ptr<lunar_ir_expridlit> m_size;
+};
+
 }
 
 #endif // LUNAR_IR_TREE

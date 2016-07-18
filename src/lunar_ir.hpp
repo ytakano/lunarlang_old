@@ -112,6 +112,7 @@ private:
     std::unique_ptr<lunar_ir_import>         parse_import(lunar_ir_module *module, parsec<char32_t> &ps);
     std::unique_ptr<lunar_ir_return>         parse_return(lunar_ir_module *module, parsec<char32_t> &ps);
     std::unique_ptr<lunar_ir_new>            parse_new(lunar_ir_module *module, parsec<char32_t> &ps);
+    std::unique_ptr<lunar_ir_mkstream>       parse_mkstream(lunar_ir_module *module, parsec<char32_t> &ps);
     LANG_OWNERSHIP                           parse_ownership(lunar_ir_module *module, parsec<char32_t> &ps);
     template <typename T> void               parse_defs(lunar_ir_module *module, parsec<char32_t> &ps, T *ptr);
     template <typename T> void               parse_defun_body(lunar_ir_module *module, parsec<char32_t> &ps, T *fn);
