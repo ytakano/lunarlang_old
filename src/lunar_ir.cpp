@@ -201,35 +201,35 @@ do {                                                                    \
     std::string spaces;                                                 \
     for (int i = 1; i < msg.col; i++)                                   \
         spaces += ' ';                                                  \
-    fprintf(stderr, "%s:%d\n%s:%d:%d: error: %s\n%s\n%s^\n",            \
+    fprintf(stderr, "%s:%d\n%s:%llu:%llu: error: %s\n%s\n%s^\n",        \
             __FILE__, __LINE__, module->get_filename().c_str(),         \
             msg.line, msg.col,                                          \
             (str), get_line(module->get_filename(), msg.line).c_str(),  \
             spaces.c_str());                                            \
 } while (0)
 
-#define print_parse_err_linecol(str, module, ps, line, col)     \
-do {                                                            \
-    std::string spaces;                                         \
-    for (int i = 1; i < col; i++)                               \
-        spaces += ' ';                                          \
-    fprintf(stderr, "%s:%d\n%s:%d:%d: error: %s\n%s\n%s^\n",    \
-            __FILE__, __LINE__, module->get_filename().c_str(), \
-            (line), (col), (str),                               \
-            get_line(module->get_filename(), line).c_str(),     \
-            spaces.c_str());                                    \
+#define print_parse_err_linecol(str, module, ps, line, col)         \
+do {                                                                \
+    std::string spaces;                                             \
+    for (int i = 1; i < col; i++)                                   \
+        spaces += ' ';                                              \
+    fprintf(stderr, "%s:%d\n%s:%llu:%llu: error: %s\n%s\n%s^\n",    \
+            __FILE__, __LINE__, module->get_filename().c_str(),     \
+            (line), (col), (str),                                   \
+            get_line(module->get_filename(), line).c_str(),         \
+            spaces.c_str());                                        \
 } while (0)
 
-#define print_parse_warn_linecol(str, module, ps, line, col)    \
-do {                                                            \
-    std::string spaces;                                         \
-    for (int i = 1; i < col; i++)                               \
-        spaces += ' ';                                          \
-    fprintf(stderr, "%s:%d\n%s:%d:%d: warning: %s\n%s\n%s^\n",  \
-            __FILE__, __LINE__, module->get_filename().c_str(), \
-            (line), (col), (str),                               \
-            get_line(module->get_filename(), line).c_str(),     \
-            spaces.c_str());                                    \
+#define print_parse_warn_linecol(str, module, ps, line, col)        \
+do {                                                                \
+    std::string spaces;                                             \
+    for (int i = 1; i < col; i++)                                   \
+        spaces += ' ';                                              \
+    fprintf(stderr, "%s:%d\n%s:%llu:%llu: warning: %s\n%s\n%s^\n",  \
+            __FILE__, __LINE__, module->get_filename().c_str(),     \
+            (line), (col), (str),                                   \
+            get_line(module->get_filename(), line).c_str(),         \
+            spaces.c_str());                                        \
 } while (0)
 
 const std::string&
@@ -475,7 +475,7 @@ lunar_ir::parse_literal(lunar_ir_module *module, parsec<char32_t> &ps)
 std::unique_ptr<lunar_ir_expridlit>
 lunar_ir::parse_expridlit(lunar_ir_module *module, parsec<char32_t> &ps)
 {
-    int line, col;
+    uint64_t line, col;
     line = ps.get_line();
     col  = ps.get_col();
 
@@ -595,7 +595,7 @@ LITERAL:
 std::unique_ptr<lunar_ir_exprid>
 lunar_ir::parse_exprid(lunar_ir_module *module, parsec<char32_t> &ps)
 {
-    int line, col;
+    uint64_t line, col;
     line = ps.get_line();
     col  = ps.get_col();
 
@@ -663,7 +663,7 @@ lunar_ir::parse_expr(lunar_ir_module *module, parsec<char32_t> &ps)
             return nullptr;
         }
 
-        int line, col;
+        uint64_t line, col;
         line = ps.get_line();
         col  = ps.get_col();
 
@@ -894,11 +894,11 @@ lunar_ir::parse_func(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERSH
 }
 
 std::unique_ptr<lunar_ir_type>
-lunar_ir::parse_type0(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERSHIP own, int ownline, int owncol)
+lunar_ir::parse_type0(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERSHIP own, uint64_t ownline, uint64_t owncol)
 {
     ps.parse_many_char([&]() { return ps.parse_space(); });
 
-    int line, col;
+    uint64_t line, col;
     line = ps.get_line();
     col  = ps.get_col();
 
@@ -1122,7 +1122,7 @@ lunar_ir::parse_type(lunar_ir_module *module, parsec<char32_t> &ps)
 {
     ps.parse_many_char([&]() { return ps.parse_space(); });
 
-    int line, col, ownline, owncol;
+    uint64_t line, col, ownline, owncol;
     line = ps.get_line();
     col  = ps.get_col();
 
@@ -1330,7 +1330,7 @@ lunar_ir::parse_lit_float(lunar_ir_module *module, parsec<char32_t> &ps)
 {
     // INT . NUM0to9+ EXP? f?
 
-    int line, col;
+    uint64_t line, col;
     line = ps.get_line();
     col  = ps.get_col();
 
@@ -1446,7 +1446,7 @@ lunar_ir::parse_lit_uint(lunar_ir_module *module, parsec<char32_t> &ps)
 {
     // NUM1to9 NUM0to9* | 0
 
-    int line, col;
+    uint64_t line, col;
     line = ps.get_line();
     col  = ps.get_col();
 
@@ -1492,7 +1492,7 @@ lunar_ir::parse_lit_int(lunar_ir_module *module, parsec<char32_t> &ps)
 {
     // - DIGIT
 
-    int line, col;
+    uint64_t line, col;
     line = ps.get_line();
     col  = ps.get_col();
 
@@ -1532,7 +1532,7 @@ lunar_ir::parse_lit_hex(lunar_ir_module *module, parsec<char32_t> &ps)
 {
     // 0x HEXNUM2* | 0X HEXNUM2*
 
-    int line, col;
+    uint64_t line, col;
     line = ps.get_line();
     col  = ps.get_col();
 
@@ -1575,7 +1575,7 @@ lunar_ir::parse_lit_oct(lunar_ir_module *module, parsec<char32_t> &ps)
 {
     // 0 OCTNUM*
 
-    int line, col;
+    uint64_t line, col;
     line = ps.get_line();
     col  = ps.get_col();
 
@@ -1612,7 +1612,7 @@ lunar_ir::parse_lit_bin(lunar_ir_module *module, parsec<char32_t> &ps)
 {
     // 0b BINNUM* | 0B BINNUM*
 
-    int line, col;
+    uint64_t line, col;
     line = ps.get_line();
     col  = ps.get_col();
 
@@ -1657,7 +1657,7 @@ lunar_ir::parse_lit_char8(lunar_ir_module *module, parsec<char32_t> &ps)
 {
     // b ' CHARS '
 
-    int line, col;
+    uint64_t line, col;
     line = ps.get_line();
     col  = ps.get_col();
 
@@ -1865,7 +1865,7 @@ lunar_ir::parse_defs(lunar_ir_module *module, parsec<char32_t> &ps, T *ptr)
         for (;;) {
             ps.parse_many_char([&]() { return ps.parse_space(); });
 
-            int line, col;
+            uint64_t line, col;
             line = ps.get_line();
             col  = ps.get_col();
 
@@ -2082,7 +2082,7 @@ lunar_ir::parse_cond(lunar_ir_module *module, parsec<char32_t> &ps)
     for (;;) {
         ps.parse_many_char([&]() { return ps.parse_space(); });
 
-        int line, col;
+        uint64_t line, col;
         line = ps.get_line();
         col  = ps.get_col();
 
@@ -2175,7 +2175,7 @@ lunar_ir::parse_select(lunar_ir_module *module, parsec<char32_t> &ps)
     for (;;) {
         ps.parse_many_char([&]() { return ps.parse_space(); });
 
-        int line, col;
+        uint64_t line, col;
         line = ps.get_line();
         col  = ps.get_col();
 
@@ -2232,6 +2232,60 @@ lunar_ir::parse_select(lunar_ir_module *module, parsec<char32_t> &ps)
     }
 
     return sel;
+}
+
+std::unique_ptr<lunar_ir_return>
+lunar_ir::parse_return(lunar_ir_module *module, parsec<char32_t> &ps)
+{
+    // ( EXPRIDENTLIT* )
+
+    uint64_t line, col;
+    line = ps.get_line();
+    col  = ps.get_col();
+
+    ps.character(U'(');
+    if (! ps.is_success()) {
+        print_parse_err("expected \"(\"", module, ps);
+        return nullptr;
+    };
+
+    auto ret = llvm::make_unique<lunar_ir_return>();
+    ret->set_line(line);
+    ret->set_col(col);
+
+    {
+        parsec<char32_t>::parser_look_ahead plahead(ps);
+        ps.parse_many_char([&]() { return ps.parse_space(); });
+        ps.character(U')');
+    }
+
+    if (ps.is_success())
+        return ret;
+
+    for (;;) {
+        auto expridlit = parse_expridlit(module, ps);
+        if (! ps.is_success())
+            return nullptr;
+
+        ret->add_expridlit(std::move(expridlit));
+
+        {
+            parsec<char32_t>::parser_look_ahead plahead(ps);
+            ps.parse_many_char([&]() { return ps.parse_space(); });
+            ps.character(U')');
+        }
+
+        if (ps.is_success())
+            break;
+
+        ps.parse_many1_char([&]() { return ps.parse_space(); });
+        if (! ps.is_success()) {
+            print_parse_err("need \"white space\"", module, ps);
+            return nullptr;
+        }
+    }
+
+    return ret;
 }
 
 std::unique_ptr<lunar_ir_block>
@@ -2375,7 +2429,7 @@ lunar_ir::parse_defun(lunar_ir_module *module, parsec<char32_t> &ps)
     // IDENTIFIER ( TYPE* ) ( ( TYPE IDENTIFIER )* ) STEXPR*
 
     ps.parse_many_char([&]() { return ps.parse_space(); });
-    int line, col;
+    uint64_t line, col;
     line = ps.get_line();
     col  = ps.get_col();
 
@@ -2407,7 +2461,7 @@ lunar_ir::parse_import(lunar_ir_module *module, parsec<char32_t> &ps)
 
     for (;;) {
         ps.parse_many_char([&]() { return ps.parse_space(); });
-        int line, col;
+        uint64_t line, col;
         line = ps.get_line();
         col  = ps.get_col();
 
@@ -2448,7 +2502,7 @@ std::unique_ptr<lunar_ir_stexpr>
 lunar_ir::parse_stexpr(lunar_ir_module *module, parsec<char32_t> &ps)
 {
     ps.parse_many_char([&]() { return ps.parse_space(); });
-    int line, col;
+    uint64_t line, col;
     line = ps.get_line();
     col  = ps.get_col();
 
@@ -2476,6 +2530,8 @@ lunar_ir::parse_stexpr(lunar_ir_module *module, parsec<char32_t> &ps)
         ret = llvm::make_unique<lunar_ir_stexpr>(parse_select(module, ps));
     } else if (parse_str_space(module, ps, U"block")) {
         ret = llvm::make_unique<lunar_ir_stexpr>(parse_block(module, ps));
+    } else if (parse_str_space(module, ps, U"return")) {
+        ret = llvm::make_unique<lunar_ir_stexpr>(parse_return(module, ps));
     } else {
         ret = llvm::make_unique<lunar_ir_stexpr>(parse_expr(module, ps));
     }

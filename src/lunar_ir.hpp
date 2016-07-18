@@ -73,7 +73,7 @@ private:
     char32_t parse_lit_char(lunar_ir_module *module, parsec<char32_t> *ps, char32_t endc);
     std::unique_ptr<lunar_ir_identifier>     parse_identifier(lunar_ir_module *module, parsec<char32_t> &ps);
     std::unique_ptr<lunar_ir_type>           parse_type(lunar_ir_module *module, parsec<char32_t> &ps);
-    std::unique_ptr<lunar_ir_type>           parse_type0(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERSHIP own, int ownline, int owncol);
+    std::unique_ptr<lunar_ir_type>           parse_type0(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERSHIP own, uint64_t ownline, uint64_t owncol);
     std::unique_ptr<lunar_ir_array>          parse_array(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERSHIP own);
     std::unique_ptr<lunar_ir_expr>           parse_expr(lunar_ir_module *module, parsec<char32_t> &ps);
     std::unique_ptr<lunar_ir_set>            parse_set(lunar_ir_module *module, parsec<char32_t> &ps, LANG_OWNERSHIP own);
@@ -109,6 +109,7 @@ private:
     std::unique_ptr<lunar_ir_block>          parse_block(lunar_ir_module *module, parsec<char32_t> &ps);
     std::unique_ptr<lunar_ir_defun>          parse_defun(lunar_ir_module *module, parsec<char32_t> &ps);
     std::unique_ptr<lunar_ir_import>         parse_import(lunar_ir_module *module, parsec<char32_t> &ps);
+    std::unique_ptr<lunar_ir_return>         parse_return(lunar_ir_module *module, parsec<char32_t> &ps);
     LANG_OWNERSHIP                           parse_ownership(lunar_ir_module *module, parsec<char32_t> &ps);
     template <typename T> void               parse_defs(lunar_ir_module *module, parsec<char32_t> &ps, T *ptr);
     template <typename T> std::unique_ptr<T> parse_top_var(lunar_ir_module *module, parsec<char32_t> &ps);

@@ -336,10 +336,10 @@ block 脱出するときに使う。
 ## return 文
 
 構文：
-- RETURN := ( return EXPRIDENTLIT* )
+- RETURN := ( return ( EXPRIDENTLIT* ) )
 
 セマンティクス：
-- ( return 返り値* )
+- ( return ( 返り値* ) )
 
 ## select 文
 

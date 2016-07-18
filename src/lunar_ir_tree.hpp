@@ -87,7 +87,7 @@
  *
  * SELECT := ( select ( EXPRIDENT STEXPR*)* ( timeout EXPRIDENTLIT STEXPR* )? )
  *
- * RETURN := ( return EXPRIDENTLIT* )
+ * RETURN := ( return ( EXPRIDENTLIT* ) )
  *
  * -----------------------------------------------------------------------------
  *
@@ -1066,13 +1066,13 @@ public:
     lunar_ir_return() { }
     virtual ~lunar_ir_return() { }
 
-    void add_expr(std::unique_ptr<lunar_ir_expr> expr)
+    void add_expridlit(std::unique_ptr<lunar_ir_expridlit> expridlit)
     {
-        m_exprs.push_back(std::move(expr));
+        m_expridlits.push_back(std::move(expridlit));
     }
 
 private:
-    std::vector<std::unique_ptr<lunar_ir_expr>> m_exprs;
+    std::vector<std::unique_ptr<lunar_ir_expridlit>> m_expridlits;
 };
 
 }

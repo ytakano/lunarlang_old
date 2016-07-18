@@ -22,8 +22,8 @@ public:
 
     struct message {
         STRM_RESULT result;
-        int         line;
-        int         col;
+        uint64_t    line;
+        uint64_t    col;
     };
 
     class parser_space {
