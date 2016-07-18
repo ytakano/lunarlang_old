@@ -1061,6 +1061,12 @@ private:
     std::vector<std::unique_ptr<lunar_ir_stexpr>> m_block2;
 };
 
+class lunar_ir_leap : public lunar_ir_statement {
+public:
+    lunar_ir_leap() { }
+    virtual ~lunar_ir_leap() { }
+};
+
 class lunar_ir_return : public lunar_ir_statement {
 public:
     lunar_ir_return() { }

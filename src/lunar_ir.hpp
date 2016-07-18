@@ -68,6 +68,7 @@ private:
     bool parse_top(lunar_ir_module *module, parsec<char32_t> &ps);
     void parse_member(lunar_ir_member *member, lunar_ir_module *module, parsec<char32_t> &ps);
     bool parse_str_space(lunar_ir_module *module, parsec<char32_t> &ps, const char32_t *str);
+    bool parse_str_paren(lunar_ir_module *module, parsec<char32_t> &ps, const char32_t *str);
     void parse_types(lunar_ir_module *module, parsec<char32_t> &ps, std::function<void(std::unique_ptr<lunar_ir_type>)> add_type);
     void parse_defun_body(lunar_ir_module *module, parsec<char32_t> &ps, lunar_ir_defun *defun);
     char32_t parse_lit_char(lunar_ir_module *module, parsec<char32_t> *ps, char32_t endc);
