@@ -664,6 +664,10 @@ lunar_ir::parse_expr(lunar_ir_module *module, parsec<char32_t> &ps)
     if (! ps.is_success())
         return nullptr;
 
+    if (exprid->get_type() == lunar_ir_exprid::EXPRID_ID && exprid->get_id() == U"lambda") {
+        return parse_lambda(module, ps);
+    }
+
     auto expr = llvm::make_unique<lunar_ir_expr>(std::move(exprid));
 
     // parse arguments
@@ -2257,21 +2261,9 @@ lunar_ir::parse_select(lunar_ir_module *module, parsec<char32_t> &ps)
 std::unique_ptr<lunar_ir_return>
 lunar_ir::parse_return(lunar_ir_module *module, parsec<char32_t> &ps)
 {
-    // ( EXPRIDENTLIT* )
-
-    uint64_t line, col;
-    line = ps.get_line();
-    col  = ps.get_col();
-
-    ps.character(U'(');
-    if (! ps.is_success()) {
-        print_parse_err("expected \"(\"", module, ps);
-        return nullptr;
-    };
+    // EXPRIDENTLIT*
 
     auto ret = llvm::make_unique<lunar_ir_return>();
-    ret->set_line(line);
-    ret->set_col(col);
 
     {
         parsec<char32_t>::parser_look_ahead plahead(ps);
@@ -2311,12 +2303,6 @@ lunar_ir::parse_return(lunar_ir_module *module, parsec<char32_t> &ps)
             return nullptr;
         }
     }
-
-    ps.character(U')');
-    if (! ps.is_success()) {
-        print_parse_err("expected \")\"", module, ps);
-        return nullptr;
-    };
 
     return ret;
 }
@@ -2374,13 +2360,14 @@ lunar_ir::parse_block(lunar_ir_module *module, parsec<char32_t> &ps)
     return block;
 }
 
+template <typename T>
 void
-lunar_ir::parse_defun_body(lunar_ir_module *module, parsec<char32_t> &ps, lunar_ir_defun *defun)
+lunar_ir::parse_defun_body(lunar_ir_module *module, parsec<char32_t> &ps, T *fn)
 {
     // ( TYPE* ) ( ( TYPE IDENTIFIER )* ) STEXPR*
 
     // ( TYPE* )
-    parse_types(module, ps, [&](std::unique_ptr<lunar_ir_type> t) { defun->add_ret(std::move(t)); });
+    parse_types(module, ps, [&](std::unique_ptr<lunar_ir_type> t) { fn->add_ret(std::move(t)); });
     if (! ps.is_success())
         return;
 
@@ -2426,7 +2413,7 @@ lunar_ir::parse_defun_body(lunar_ir_module *module, parsec<char32_t> &ps, lunar_
                 return;
 
             auto var = llvm::make_unique<lunar_ir_var>(std::move(type), std::move(id));
-            defun->add_arg(std::move(var));
+            fn->add_arg(std::move(var));
 
             ps.parse_many_char([&]() { return ps.parse_space(); });
             ps.character(U')');
@@ -2453,7 +2440,7 @@ lunar_ir::parse_defun_body(lunar_ir_module *module, parsec<char32_t> &ps, lunar_
     }
 
     // STEXPR*
-    parse_stexprs<lunar_ir_defun>(module, ps, defun);
+    parse_stexprs<T>(module, ps, fn);
 }
 
 std::unique_ptr<lunar_ir_defun>
@@ -2466,6 +2453,7 @@ lunar_ir::parse_defun(lunar_ir_module *module, parsec<char32_t> &ps)
     line = ps.get_line();
     col  = ps.get_col();
 
+    // IDENTIFIER
     auto id = parse_identifier(module, ps);
     if (! ps.is_success())
         return nullptr;
@@ -2476,8 +2464,9 @@ lunar_ir::parse_defun(lunar_ir_module *module, parsec<char32_t> &ps)
         return nullptr;
     }
 
+    // ( TYPE* ) ( ( TYPE IDENTIFIER )* ) STEXPR*
     auto defun = llvm::make_unique<lunar_ir_defun>(std::move(id));
-    parse_defun_body(module, ps, defun.get());
+    parse_defun_body<lunar_ir_defun>(module, ps, defun.get());
     if (! ps.is_success())
         return nullptr;
 
@@ -2485,6 +2474,18 @@ lunar_ir::parse_defun(lunar_ir_module *module, parsec<char32_t> &ps)
     defun->set_col(col);
 
     return defun;
+}
+
+std::unique_ptr<lunar_ir_lambda>
+lunar_ir::parse_lambda(lunar_ir_module *module, parsec<char32_t> &ps)
+{
+    // ( TYPE* ) ( ( TYPE IDENTIFIER )* ) STEXPR*
+    auto lambda = llvm::make_unique<lunar_ir_lambda>();
+    parse_defun_body<lunar_ir_lambda>(module, ps, lambda.get());
+    if (! ps.is_success())
+        return nullptr;
+
+    return lambda;
 }
 
 std::unique_ptr<lunar_ir_import>
@@ -2565,8 +2566,10 @@ lunar_ir::parse_stexpr(lunar_ir_module *module, parsec<char32_t> &ps)
         ret = llvm::make_unique<lunar_ir_stexpr>(parse_block(module, ps));
     } else if (parse_str_space(module, ps, U"return")) {
         ret = llvm::make_unique<lunar_ir_stexpr>(parse_return(module, ps));
+    } else if (parse_str_paren(module, ps, U"return")) {
+        auto irret = llvm::make_unique<lunar_ir_return>();
+        ret = llvm::make_unique<lunar_ir_stexpr>(std::move(irret));
     } else if (parse_str_paren(module, ps, U"break")) {
-        printf("here\n");
         auto irbrk = llvm::make_unique<lunar_ir_break>();
         ret = llvm::make_unique<lunar_ir_stexpr>(std::move(irbrk));
     } else if (parse_str_paren(module, ps, U"leap")) {

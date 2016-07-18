@@ -1,4 +1,4 @@
-(defun func1 ( u32 (unique u64) ) ( (u32 arg1) ((unique string) arg2) )
+(defun funcFoo ( u32 (unique u64) ) ( (u32 arg1) ((unique string) arg2) )
        (func2 arg3 arg4)
        (while var1
          (func1 var1)
@@ -15,4 +15,6 @@
                ((func1 var2 var3) (func5 arg6) ) ( else (func6 arg7))))
        ( break )
        ( leap )
-       (return ("abc" (func5))))
+       ( lambda (u16 s32) ((u32 arg1) (u8 arg2))
+         (return (funcBar arg1 arg2 (funcBuz arg3))))
+       (return "abc" (func5)))

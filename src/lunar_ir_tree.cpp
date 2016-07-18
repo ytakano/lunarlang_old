@@ -738,6 +738,8 @@ lunar_ir_defun::print(std::string &s, const std::string &from)
     os << "\"" << get_line() << ":" << get_col() << ": defun\"";
     s += from + " -> " + os.str() + ";\n";
 
+    m_id->print(s, os.str());
+
     int i = 0;
     for (auto &ret: m_ret) {
         std::ostringstream os_ret;
@@ -750,7 +752,42 @@ lunar_ir_defun::print(std::string &s, const std::string &from)
     i = 0;
     for (auto &arg: m_args) {
         std::ostringstream os_arg;
-        os_arg << "\"" << get_line() << ":" << get_col() << ": arg[" << i << "]\"";
+        os_arg << "\"" << arg->get_line() << ":" << arg->get_col() << ": arg[" << i << "]\"";
+        s += os.str() + " -> " + os_arg.str() + ";\n";
+        arg->print(s, os_arg.str());
+        i++;
+    }
+
+    i = 0;
+    for (auto &stexpr: m_stexprs) {
+        std::ostringstream os_stexpr;
+        os_stexpr << "\"" << stexpr->get_line() << ":" << stexpr->get_col() << ": stexpr[" << i << "]\"";
+        s += os.str() + " -> " + os_stexpr.str() + ";\n";
+        stexpr->print(s, os_stexpr.str());
+        i++;
+    }
+}
+
+void
+lunar_ir_lambda::print(std::string &s, const std::string &from)
+{
+    std::ostringstream os;
+    os << "\"" << get_line() << ":" << get_col() << ": lambda\"";
+    s += from + " -> " + os.str() + ";\n";
+
+    int i = 0;
+    for (auto &ret: m_ret) {
+        std::ostringstream os_ret;
+        os_ret << "\"" << get_line() << ":" << get_col() << ": retval[" << i << "]\"";
+        s += os.str() + " -> " + os_ret.str() + ";\n";
+        ret->print(s, os_ret.str());
+        i++;
+    }
+
+    i = 0;
+    for (auto &arg: m_args) {
+        std::ostringstream os_arg;
+        os_arg << "\"" << arg->get_line() << ":" << arg->get_col() << ": arg[" << i << "]\"";
         s += os.str() + " -> " + os_arg.str() + ";\n";
         arg->print(s, os_arg.str());
         i++;

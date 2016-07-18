@@ -308,6 +308,7 @@ private:
 class lunar_ir_expr : public lunar_ir_top {
 public:
     lunar_ir_expr(std::unique_ptr<lunar_ir_exprid> func) : lunar_ir_top(IR_EXPR), m_func(std::move(func)) { }
+    lunar_ir_expr() : lunar_ir_top(IR_EXPR) { }
     virtual ~lunar_ir_expr() { }
 
     void add_arg(std::unique_ptr<lunar_ir_expridlit> arg)
@@ -834,7 +835,37 @@ private:
     std::vector<std::unique_ptr<lunar_ir_type>> m_ret;
     std::vector<std::unique_ptr<lunar_ir_var>>  m_args;
     std::unordered_map<std::u32string, lunar_ir_var*> m_argmap;
-    std::unique_ptr<lunar_ir_identifier> m_id; // if m_id is nullptr, then this is lambda function
+    std::unique_ptr<lunar_ir_identifier> m_id;
+    std::vector<std::unique_ptr<lunar_ir_stexpr>> m_stexprs;
+};
+
+class lunar_ir_lambda : public lunar_ir_expr {
+public:
+    lunar_ir_lambda() { }
+    virtual ~lunar_ir_lambda() { }
+
+    virtual void print(std::string &s, const std::string &from);
+
+    void add_ret(std::unique_ptr<lunar_ir_type> ret)
+    {
+        m_ret.push_back(std::move(ret));
+    }
+
+    void add_arg(std::unique_ptr<lunar_ir_var> var)
+    {
+        m_argmap[var->get_id()] = var.get();
+        m_args.push_back(std::move(var));
+    }
+
+    void add_stexpr(std::unique_ptr<lunar_ir_stexpr> stexpr)
+    {
+        m_stexprs.push_back(std::move(stexpr));
+    }
+
+private:
+    std::vector<std::unique_ptr<lunar_ir_type>> m_ret;
+    std::vector<std::unique_ptr<lunar_ir_var>>  m_args;
+    std::unordered_map<std::u32string, lunar_ir_var*> m_argmap;
     std::vector<std::unique_ptr<lunar_ir_stexpr>> m_stexprs;
 };
 
