@@ -18,3 +18,4 @@
        ( lambda (u16 s32) ((u32 arg1) (u8 arg2))
          (return (funcBar arg1 arg2 (funcBuz arg3))))
        (return "abc" (func5)))
+(funfBuz 1 2 3.0e-10)

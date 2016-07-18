@@ -2638,23 +2638,23 @@ lunar_ir::parse_topstatement_expr(lunar_ir_module *module, parsec<char32_t> &ps)
 bool
 lunar_ir::parse_top(lunar_ir_module *module, parsec<char32_t> &ps)
 {
+    ps.parse_many_char([&]() { return ps.parse_space(); });
+
+    {
+        parsec<char32_t>::parser_look_ahead plahead(ps);
+        if (ps.parse_eof())
+            return true;
+    }
+
     for (;;) {
-        ps.parse_many_char([&]() { return ps.parse_space(); });
-
         uint64_t line, col;
-
         line = ps.get_line();
         col  = ps.get_col();
 
         ps.character(U'(');
         if (! ps.is_success()) {
-            if (ps.is_eof()) {
-                ps.set_is_success(true);
-                return true;
-            } else {
-                print_parse_err("expected \"(\"", module, ps);
-                return false;
-            }
+            print_parse_err("expected \"(\"", module, ps);
+            return false;
         }
 
         auto def = parse_topstatement_expr(module, ps);
@@ -2671,6 +2671,19 @@ lunar_ir::parse_top(lunar_ir_module *module, parsec<char32_t> &ps)
         ps.character(U')');
         if (! ps.is_success()) {
             print_parse_err("expected \")\"", module, ps);
+            return false;
+        }
+
+        {
+            parsec<char32_t>::parser_look_ahead plahead(ps);
+            ps.parse_many_char([&]() { return ps.parse_space(); });
+            if (ps.parse_eof())
+                return true;
+        }
+
+        ps.parse_many1_char([&]() { return ps.parse_space(); });
+        if (! ps.is_success()) {
+            print_parse_err("need \"white space\"", module, ps);
             return false;
         }
     }

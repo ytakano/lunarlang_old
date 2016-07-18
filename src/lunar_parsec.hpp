@@ -343,6 +343,12 @@ public:
         m_err.col    = col;
     }
 
+    bool parse_eof()
+    {
+        parser_satisfy(*this, [](char32_t c) { return true; });
+        return m_is_eof;
+    }
+
     T satisfy(std::function<bool(T)> f)
     {
         return parser_satisfy(*this, f);
