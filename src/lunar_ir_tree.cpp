@@ -743,7 +743,7 @@ lunar_ir_defun::print(std::string &s, const std::string &from)
     int i = 0;
     for (auto &ret: m_ret) {
         std::ostringstream os_ret;
-        os_ret << "\"" << get_line() << ":" << get_col() << ": retval[" << i << "]\"";
+        os_ret << "\"" << ret->get_line() << ":" << ret->get_col() << ": retval[" << i << "]\"";
         s += os.str() + " -> " + os_ret.str() + ";\n";
         ret->print(s, os_ret.str());
         i++;
@@ -778,7 +778,7 @@ lunar_ir_lambda::print(std::string &s, const std::string &from)
     int i = 0;
     for (auto &ret: m_ret) {
         std::ostringstream os_ret;
-        os_ret << "\"" << get_line() << ":" << get_col() << ": retval[" << i << "]\"";
+        os_ret << "\"" << ret->get_line() << ":" << ret->get_col() << ": retval[" << i << "]\"";
         s += os.str() + " -> " + os_ret.str() + ";\n";
         ret->print(s, os_ret.str());
         i++;

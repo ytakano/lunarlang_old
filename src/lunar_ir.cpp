@@ -2395,6 +2395,10 @@ lunar_ir::parse_defun_body(lunar_ir_module *module, parsec<char32_t> &ps, T *fn)
         // ( TYPE IDENTIFIER )*
         for (;;) {
             ps.parse_many_char([&]() { return ps.parse_space(); });
+            uint64_t line, col;
+            line = ps.get_line();
+            col  = ps.get_col();
+
             ps.character(U'(');
             if (! ps.is_success()) {
                 print_parse_err("expected \"(\"", module, ps);
@@ -2418,6 +2422,8 @@ lunar_ir::parse_defun_body(lunar_ir_module *module, parsec<char32_t> &ps, T *fn)
                 return;
 
             auto var = llvm::make_unique<lunar_ir_var>(std::move(type), std::move(id));
+            var->set_line(line);
+            var->set_col(col);
             fn->add_arg(std::move(var));
 
             ps.parse_many_char([&]() { return ps.parse_space(); });
