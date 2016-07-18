@@ -670,7 +670,9 @@ lunar_ir::parse_expr(lunar_ir_module *module, parsec<char32_t> &ps)
         else if (exprid->get_id() == U"new")
             return parse_new(module, ps);
         else if (exprid->get_id() == U"mkstream")
-            return parse_mkstream(module, ps);
+            return parse_type_expridlit<lunar_ir_mkstream>(module, ps);
+        else if (exprid->get_id() == U"typeof")
+            return parse_type_expridlit<lunar_ir_typeof>(module, ps);
     }
 
     auto expr = llvm::make_unique<lunar_ir_expr>(std::move(exprid));
@@ -2546,8 +2548,9 @@ lunar_ir::parse_new(lunar_ir_module *module, parsec<char32_t> &ps)
     return irnew;
 }
 
-std::unique_ptr<lunar_ir_mkstream>
-lunar_ir::parse_mkstream(lunar_ir_module *module, parsec<char32_t> &ps)
+template <typename T>
+std::unique_ptr<T>
+lunar_ir::parse_type_expridlit(lunar_ir_module *module, parsec<char32_t> &ps)
 {
     // TYPE EXPRIDENTLIT
 
@@ -2571,7 +2574,7 @@ lunar_ir::parse_mkstream(lunar_ir_module *module, parsec<char32_t> &ps)
     if (! ps.is_success())
         return nullptr;
 
-    return llvm::make_unique<lunar_ir_mkstream>(std::move(type), std::move(expridlit));
+    return llvm::make_unique<T>(std::move(type), std::move(expridlit));
 }
 
 std::unique_ptr<lunar_ir_import>

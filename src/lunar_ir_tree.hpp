@@ -91,7 +91,7 @@
  *
  * -----------------------------------------------------------------------------
  *
- * EXPR :=  LAMBDA | NEW | MKSTREAM | THREAD | CALLFUNC
+ * EXPR :=  LAMBDA | NEW | MKSTREAM | THREAD | TYPEOF | CALLFUNC
  *
  * EXPRIDENT := EXPR | IDENTIFIER
  *
@@ -100,6 +100,12 @@
  * LAMBDA := ( lambda ( TYPE\* ) ( ( TYPE IDENTIFIER )\* ) STEXPR\* )
  *
  * NEW := ( new TYPE EXPRIDENTLIT? )
+ *
+ * MKSTREAM := ( mkstream TYPE EXPRIDENTLIT )
+ *
+ * THREAD := ( thread EXPRIDENTLIT TYPE EXPRIDENTLIT EXPRIDENT EXPRIDENTLIT )
+ *
+ * TYPEOF := ( type TYPE EXPRIDENTLIT )
  *
  * -----------------------------------------------------------------------------
  *
@@ -1140,6 +1146,19 @@ public:
     lunar_ir_mkstream(std::unique_ptr<lunar_ir_type> type, std::unique_ptr<lunar_ir_expridlit> size)
         : m_type(std::move(type)), m_size(std::move(size)) { }
     virtual ~lunar_ir_mkstream() { }
+
+    virtual void print(std::string &s, const std::string &from);
+
+private:
+    std::unique_ptr<lunar_ir_type> m_type;
+    std::unique_ptr<lunar_ir_expridlit> m_size;
+};
+
+class lunar_ir_typeof : public lunar_ir_expr {
+public:
+    lunar_ir_typeof(std::unique_ptr<lunar_ir_type> type, std::unique_ptr<lunar_ir_expridlit> size)
+        : m_type(std::move(type)), m_size(std::move(size)) { }
+    virtual ~lunar_ir_typeof() { }
 
     virtual void print(std::string &s, const std::string &from);
 

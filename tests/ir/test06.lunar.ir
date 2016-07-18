@@ -21,3 +21,4 @@
 (funfBuz 1 2 3.0e-10)
 (mkstream (unique u64) 100)
 (let (((((unique u32) a)) (new (unique u32) 1))))
+(typeof (unique string) var2)

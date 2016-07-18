@@ -12,7 +12,7 @@ Lunar言語の中間表現であり、ここからLLVM IRへ変換。
 - LITERAL      := STR32 | STR8 | CHAR32 | CHAR8 | INT | FLOAT | HEX | OCT | BIN | ATOM
 - EXPRIDENT    := EXPR | IDENTIFIER
 - EXPRIDENTLIT := EXPR | IDENTIFIER | LITERAL
-- EXPR         := LAMBDA | NEW | MKSTREAM | THREAD | CALLFUNC
+- EXPR         := LAMBDA | NEW | MKSTREAM | TYPEOF | THREAD | CALLFUNC
 
 # グローバル変数定義
 
@@ -440,7 +440,7 @@ TYPE型の値を返す。
 ## type 式、型検査
 
 構文：
-- TYPEOF := ( type TYPE0 EXPRIDENTLIT )
+- TYPEOF := ( type TYPE EXPRIDENTLIT )
 
 セマンティクス：
 - ( type 検査する形名 識別子など )
