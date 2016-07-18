@@ -673,6 +673,8 @@ lunar_ir::parse_expr(lunar_ir_module *module, parsec<char32_t> &ps)
             return parse_type_expridlit<lunar_ir_mkstream>(module, ps);
         else if (exprid->get_id() == U"typeof")
             return parse_type_expridlit<lunar_ir_typeof>(module, ps);
+        else if (exprid->get_id() == U"thread")
+            return parse_thread(module, ps);
     }
 
     auto expr = llvm::make_unique<lunar_ir_expr>(std::move(exprid));
@@ -2575,6 +2577,69 @@ lunar_ir::parse_type_expridlit(lunar_ir_module *module, parsec<char32_t> &ps)
         return nullptr;
 
     return llvm::make_unique<T>(std::move(type), std::move(expridlit));
+}
+
+std::unique_ptr<lunar_ir_thread>
+lunar_ir::parse_thread(lunar_ir_module *module, parsec<char32_t> &ps)
+{
+    // EXPRIDENTLIT TYPE EXPRIDENTLIT EXPRIDENT EXPRIDENTLIT
+
+    ps.parse_many1_char([&]() { return ps.parse_space(); });
+    if (! ps.is_success()) {
+        print_parse_err("need white space", module, ps);
+        return nullptr;
+    }
+
+    // EXPRIDENTLIT
+    auto id = parse_expridlit(module, ps);
+    if (! ps.is_success())
+        return nullptr;
+
+    ps.parse_many1_char([&]() { return ps.parse_space(); });
+    if (! ps.is_success()) {
+        print_parse_err("need white space", module, ps);
+        return nullptr;
+    }
+
+    // TYPE
+    auto type = parse_type(module, ps);
+    if (! ps.is_success())
+        return nullptr;
+
+    ps.parse_many1_char([&]() { return ps.parse_space(); });
+    if (! ps.is_success()) {
+        print_parse_err("need white space", module, ps);
+        return nullptr;
+    }
+
+    // EXPRIDENT
+    auto qsize = parse_expridlit(module, ps);
+    if (! ps.is_success())
+        return nullptr;
+
+    ps.parse_many1_char([&]() { return ps.parse_space(); });
+    if (! ps.is_success()) {
+        print_parse_err("need white space", module, ps);
+        return nullptr;
+    }
+
+    // EXPRIDENT
+    auto func = parse_exprid(module, ps);
+    if (! ps.is_success())
+        return nullptr;
+
+    ps.parse_many1_char([&]() { return ps.parse_space(); });
+    if (! ps.is_success()) {
+        print_parse_err("need white space", module, ps);
+        return nullptr;
+    }
+
+    // EXPRIDENTLIT
+    auto arg = parse_expridlit(module, ps);
+    if (! ps.is_success())
+        return nullptr;
+
+    return llvm::make_unique<lunar_ir_thread>(std::move(id), std::move(type), std::move(qsize), std::move(func), std::move(arg));
 }
 
 std::unique_ptr<lunar_ir_import>

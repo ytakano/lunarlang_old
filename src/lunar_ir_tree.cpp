@@ -881,4 +881,18 @@ lunar_ir_typeof::print(std::string &s, const std::string &from)
     m_size->print(s, os.str());
 }
 
+void
+lunar_ir_thread::print(std::string &s, const std::string &from)
+{
+    std::ostringstream os;
+    os << "\"" << get_line() << ":" << get_col() << ": thread\"";
+    s += from + " -> " + os.str() + ";\n";
+
+    m_id->print(s, os.str());
+    m_type->print(s, os.str());
+    m_qsize->print(s, os.str());
+    m_func->print(s, os.str());
+    m_arg->print(s, os.str());
+}
+
 }

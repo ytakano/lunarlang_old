@@ -1167,6 +1167,30 @@ private:
     std::unique_ptr<lunar_ir_expridlit> m_size;
 };
 
+class lunar_ir_thread : public lunar_ir_expr {
+public:
+    lunar_ir_thread(std::unique_ptr<lunar_ir_expridlit> id,
+                    std::unique_ptr<lunar_ir_type> type,
+                    std::unique_ptr<lunar_ir_expridlit> qsize,
+                    std::unique_ptr<lunar_ir_exprid> func,
+                    std::unique_ptr<lunar_ir_expridlit> arg)
+        : m_id(std::move(id)),
+          m_type(std::move(type)),
+          m_qsize(std::move(qsize)),
+          m_func(std::move(func)),
+          m_arg(std::move(arg)) { }
+    virtual ~lunar_ir_thread() { }
+
+    virtual void print(std::string &s, const std::string &from);
+
+private:
+    std::unique_ptr<lunar_ir_expridlit> m_id;
+    std::unique_ptr<lunar_ir_type>      m_type;
+    std::unique_ptr<lunar_ir_expridlit> m_qsize;
+    std::unique_ptr<lunar_ir_exprid>    m_func;
+    std::unique_ptr<lunar_ir_expridlit> m_arg;
+};
+
 }
 
 #endif // LUNAR_IR_TREE
