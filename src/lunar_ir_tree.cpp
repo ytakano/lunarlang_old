@@ -837,13 +837,26 @@ lunar_ir_return::print(std::string &s, const std::string &from)
     s += from + " -> " + os.str() + ";\n";
 
     int i = 0;
-    for (auto &expridlit: m_expridlits) {
+    for (auto &expridlit: m_retvals) {
         std::ostringstream os_ret;
         os_ret << "\"" << expridlit->get_line() << ":" << expridlit->get_col() << ": return[" << i << "]\"";
         s += os.str() + " -> " + os_ret.str() + ";\n";
         expridlit->print(s, os_ret.str());
         i++;
     }
+}
+
+void
+lunar_ir_new::print(std::string &s, const std::string &from)
+{
+    std::ostringstream os;
+    os << "\"" << get_line() << ":" << get_col() << ": new\"";
+    s += from + " -> " + os.str() + ";\n";
+
+    m_type->print(s, os.str());
+
+    if (m_init)
+        m_init->print(s, os.str());
 }
 
 }

@@ -19,3 +19,4 @@
          (return (funcBar arg1 arg2 (funcBuz arg3))))
        (return "abc" (func5)))
 (funfBuz 1 2 3.0e-10)
+(let (((((unique u32) a)) (new (unique u32)))))

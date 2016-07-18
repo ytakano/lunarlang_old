@@ -414,10 +414,10 @@ block 脱出するときに使う。
 ### 変数生成式
 
 構文：
-- NEW := ( new TYPE EXPRIDENTLIT* )
+- NEW := ( new TYPE EXPRIDENTLIT? )
 
 セマンティクス：
-- ( new 型 初期化引数* )
+- ( new 型 初期化引数 )
 
 TYPE型の値を返す。
 

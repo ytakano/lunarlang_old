@@ -99,7 +99,7 @@
  *
  * LAMBDA := ( lambda ( TYPE\* ) ( ( TYPE IDENTIFIER )\* ) STEXPR\* )
  *
- * NEW := ( new TYPE EXPRIDENTLIT* )
+ * NEW := ( new TYPE EXPRIDENTLIT? )
  *
  * -----------------------------------------------------------------------------
  *
@@ -1109,13 +1109,30 @@ public:
 
     void add_expridlit(std::unique_ptr<lunar_ir_expridlit> expridlit)
     {
-        m_expridlits.push_back(std::move(expridlit));
+        m_retvals.push_back(std::move(expridlit));
     }
 
     virtual void print(std::string &s, const std::string &from);
 
 private:
-    std::vector<std::unique_ptr<lunar_ir_expridlit>> m_expridlits;
+    std::vector<std::unique_ptr<lunar_ir_expridlit>> m_retvals;
+};
+
+class lunar_ir_new : public lunar_ir_expr {
+public:
+    lunar_ir_new(std::unique_ptr<lunar_ir_type> type) : m_type(std::move(type)) { }
+    virtual ~lunar_ir_new() { }
+
+    void set_initializer(std::unique_ptr<lunar_ir_expridlit> init)
+    {
+        m_init = std::move(init);
+    }
+
+    virtual void print(std::string &s, const std::string &from);
+
+private:
+    std::unique_ptr<lunar_ir_type> m_type;
+    std::unique_ptr<lunar_ir_expridlit> m_init;
 };
 
 }

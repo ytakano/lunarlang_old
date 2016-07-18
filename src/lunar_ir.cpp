@@ -664,8 +664,11 @@ lunar_ir::parse_expr(lunar_ir_module *module, parsec<char32_t> &ps)
     if (! ps.is_success())
         return nullptr;
 
-    if (exprid->get_type() == lunar_ir_exprid::EXPRID_ID && exprid->get_id() == U"lambda") {
-        return parse_lambda(module, ps);
+    if (exprid->get_type() == lunar_ir_exprid::EXPRID_ID) {
+        if (exprid->get_id() == U"lambda")
+            return parse_lambda(module, ps);
+        else if (exprid->get_id() == U"new")
+            return parse_new(module, ps);
     }
 
     auto expr = llvm::make_unique<lunar_ir_expr>(std::move(exprid));
@@ -2486,6 +2489,38 @@ lunar_ir::parse_lambda(lunar_ir_module *module, parsec<char32_t> &ps)
         return nullptr;
 
     return lambda;
+}
+
+std::unique_ptr<lunar_ir_new>
+lunar_ir::parse_new(lunar_ir_module *module, parsec<char32_t> &ps)
+{
+    // TYPE EXPRIDENTLIT?
+
+    ps.parse_many_char([&]() { return ps.parse_space(); });
+
+    // TYPE
+    auto type = parse_type(module, ps);
+    if (! ps.is_success())
+        return nullptr;
+
+    auto irnew = llvm::make_unique<lunar_ir_new>(std::move(type));
+
+    {
+        parsec<char32_t>::parser_look_ahead plahead(ps);
+        ps.parse_many_char([&]() { return ps.parse_space(); });
+        ps.character(U')');
+    }
+    if (ps.is_success())
+        return irnew;
+
+    // EXPRIDENTLIT?
+    auto expridlit = parse_expridlit(module, ps);
+    if (! ps.is_success())
+        return nullptr;
+
+    irnew->set_initializer(std::move(expridlit));
+
+    return irnew;
 }
 
 std::unique_ptr<lunar_ir_import>
