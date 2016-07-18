@@ -1,13 +1,29 @@
 #include "lunar_ir_tree.hpp"
 #include "lunar_string.hpp"
 
-namespace lunar{
+namespace lunar {
 
 void
 lunar_ir_identifier::print(std::string &s, const std::string &from)
 {
     std::ostringstream os;
     os << from << " -> \"" << get_line() << ":" << get_col() << ": identifier: " << to_string(*m_id) << "\";\n";
+    s += os.str();
+}
+
+void
+lunar_ir_break::print(std::string &s, const std::string &from)
+{
+    std::ostringstream os;
+    os << from << " -> \"" << get_line() << ":" << get_col() << ": break\";\n";
+    s += os.str();
+}
+
+void
+lunar_ir_leap::print(std::string &s, const std::string &from)
+{
+    std::ostringstream os;
+    os << from << " -> \"" << get_line() << ":" << get_col() << ": leap\";\n";
     s += os.str();
 }
 
@@ -767,7 +783,6 @@ lunar_ir_import::print(std::string &s, const std::string &from)
     }
 }
 
-
 void
 lunar_ir_stexpr::print(std::string &s, const std::string &from)
 {
@@ -775,6 +790,23 @@ lunar_ir_stexpr::print(std::string &s, const std::string &from)
         m_expr->print(s, from);
     else
         m_statement->print(s, from);
+}
+
+void
+lunar_ir_return::print(std::string &s, const std::string &from)
+{
+    std::ostringstream os;
+    os << "\"" << get_line() << ":" << get_col() << ": return\"";
+    s += from + " -> " + os.str() + ";\n";
+
+    int i = 0;
+    for (auto &expridlit: m_expridlits) {
+        std::ostringstream os_ret;
+        os_ret << "\"" << expridlit->get_line() << ":" << expridlit->get_col() << ": return[" << i << "]\"";
+        s += os.str() + " -> " + os_ret.str() + ";\n";
+        expridlit->print(s, os_ret.str());
+        i++;
+    }
 }
 
 }

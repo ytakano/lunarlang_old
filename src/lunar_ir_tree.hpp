@@ -1036,6 +1036,8 @@ class lunar_ir_break : public lunar_ir_statement {
 public:
     lunar_ir_break() { }
     virtual ~lunar_ir_break() { }
+
+    virtual void print(std::string &s, const std::string &from);
 };
 
 class lunar_ir_block : public lunar_ir_statement {
@@ -1065,6 +1067,8 @@ class lunar_ir_leap : public lunar_ir_statement {
 public:
     lunar_ir_leap() { }
     virtual ~lunar_ir_leap() { }
+
+    virtual void print(std::string &s, const std::string &from);
 };
 
 class lunar_ir_return : public lunar_ir_statement {
@@ -1076,6 +1080,8 @@ public:
     {
         m_expridlits.push_back(std::move(expridlit));
     }
+
+    virtual void print(std::string &s, const std::string &from);
 
 private:
     std::vector<std::unique_ptr<lunar_ir_expridlit>> m_expridlits;

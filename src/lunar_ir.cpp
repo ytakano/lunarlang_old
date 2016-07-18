@@ -326,13 +326,16 @@ lunar_ir::parse_str_paren(lunar_ir_module *module, parsec<char32_t> &ps, const c
     {
         parsec<char32_t>::parser_try ptry(ps);
         ps.parse_string(str);
-        if (ps.is_success()) {
-            ps.parse_many_char([&]() { return ps.parse_space(); });
-            ps.character(U')');
-            if (ps.is_success())
-                return true;
-        }
     }
+
+    if (ps.is_success()) {
+        parsec<char32_t>::parser_look_ahead plahead(ps);
+        ps.parse_many_char([&]() { return ps.parse_space(); });
+        ps.character(U')');
+    }
+
+    if (ps.is_success())
+        return true;
 
     return false;
 }
@@ -2280,9 +2283,16 @@ lunar_ir::parse_return(lunar_ir_module *module, parsec<char32_t> &ps)
         return ret;
 
     for (;;) {
+        uint64_t line, col;
+        line = ps.get_line();
+        col  = ps.get_col();
+
         auto expridlit = parse_expridlit(module, ps);
         if (! ps.is_success())
             return nullptr;
+
+        expridlit->set_line(line);
+        expridlit->set_col(col);
 
         ret->add_expridlit(std::move(expridlit));
 
@@ -2301,6 +2311,12 @@ lunar_ir::parse_return(lunar_ir_module *module, parsec<char32_t> &ps)
             return nullptr;
         }
     }
+
+    ps.character(U')');
+    if (! ps.is_success()) {
+        print_parse_err("expected \")\"", module, ps);
+        return nullptr;
+    };
 
     return ret;
 }
@@ -2550,6 +2566,7 @@ lunar_ir::parse_stexpr(lunar_ir_module *module, parsec<char32_t> &ps)
     } else if (parse_str_space(module, ps, U"return")) {
         ret = llvm::make_unique<lunar_ir_stexpr>(parse_return(module, ps));
     } else if (parse_str_paren(module, ps, U"break")) {
+        printf("here\n");
         auto irbrk = llvm::make_unique<lunar_ir_break>();
         ret = llvm::make_unique<lunar_ir_stexpr>(std::move(irbrk));
     } else if (parse_str_paren(module, ps, U"leap")) {
