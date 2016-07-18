@@ -12,7 +12,7 @@ Lunar言語の中間表現であり、ここからLLVM IRへ変換。
 - LITERAL      := STR32 | STR8 | CHAR32 | CHAR8 | INT | FLOAT | HEX | OCT | BIN | ATOM
 - EXPRIDENT    := EXPR | IDENTIFIER
 - EXPRIDENTLIT := EXPR | IDENTIFIER | LITERAL
-- EXPR         := LAMBDA | NEW | MKSTREAM | THREAD | TYPEOF | CALLFUNC
+- EXPR         := LAMBDA | NEW | MKSTREAM | THREAD | CALLFUNC
 
 # グローバル変数定義
 
@@ -223,8 +223,6 @@ SIZEを指定した場合は、固定長となる。
 
 データストリームには以下の制約がある。
 - 読み込み用の端点は所有権がuniqueであり、書き込み用の端点は所有権がsharedでなければならない。
-- データストリームが扱える値は、sharedもしくはunique変数か、プリミティブスカラ変数のみである。
-- データストリームに送信する構造体内にある変数は、shared、unique、immovable変数のみである。ref変数を内部に持っている構造体は、ストリームで送信することは出来ない。
 
 ### ファイルストリーム型
 
@@ -540,10 +538,7 @@ OSネイティブなデタッチスレッドを生成。
 - THREAD := ( thread EXPRIDENTLIT TYPE EXPRIDENTLIT EXPRIDENT EXPRIDENTLIT )
 
 セマンティクス：
-- ( thread スレッドの名前 スレッドキューの型 キューのサイズ 呼び出す関数 関数へ渡す引数* )
-
-ストリームと同じく、スレッドキューには以下の制約がある。
-- スレッドキューが扱える値は、sharedもしくはunique変数か、プリミティブスカラ変数のみである。
+- ( thread スレッドの名前 スレッドキューの型 キューのサイズ 呼び出す関数 関数へ渡す引数 )
 
 ## ロック・同期処理
 

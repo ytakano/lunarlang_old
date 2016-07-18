@@ -91,7 +91,7 @@
  *
  * -----------------------------------------------------------------------------
  *
- * EXPR :=  LAMBDA | NEW | CALLFUNC
+ * EXPR :=  LAMBDA | NEW | MKSTREAM | THREAD | CALLFUNC
  *
  * EXPRIDENT := EXPR | IDENTIFIER
  *
