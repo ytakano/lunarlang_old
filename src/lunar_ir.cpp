@@ -199,7 +199,7 @@ lunar_ir::compile(const std::string &mainfile)
 do {                                                                    \
     auto msg = (ps).get_errmsg();                                       \
     std::string spaces;                                                 \
-    for (int i = 1; i < msg.col; i++)                                   \
+    for (uint64_t i = 1; i < msg.col; i++)                              \
         spaces += ' ';                                                  \
     fprintf(stderr, "%s:%d\n%s:%llu:%llu: error: %s\n%s\n%s^\n",        \
             __FILE__, __LINE__, module->get_filename().c_str(),         \
@@ -211,7 +211,7 @@ do {                                                                    \
 #define print_parse_err_linecol(str, module, ps, line, col)         \
 do {                                                                \
     std::string spaces;                                             \
-    for (int i = 1; i < col; i++)                                   \
+    for (uint64_t i = 1; i < col; i++)                              \
         spaces += ' ';                                              \
     fprintf(stderr, "%s:%d\n%s:%llu:%llu: error: %s\n%s\n%s^\n",    \
             __FILE__, __LINE__, module->get_filename().c_str(),     \
@@ -223,7 +223,7 @@ do {                                                                \
 #define print_parse_warn_linecol(str, module, ps, line, col)        \
 do {                                                                \
     std::string spaces;                                             \
-    for (int i = 1; i < col; i++)                                   \
+    for (uint64_t i = 1; i < col; i++)                              \
         spaces += ' ';                                              \
     fprintf(stderr, "%s:%d\n%s:%llu:%llu: warning: %s\n%s\n%s^\n",  \
             __FILE__, __LINE__, module->get_filename().c_str(),     \

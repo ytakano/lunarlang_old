@@ -383,6 +383,9 @@ private:
 
             spin_lock_acquire_unsafe lock(m_qlock);
 
+            if (m_qlen == m_max_qlen)
+                return STRM_NO_VACANCY;
+
             *m_qtail = p;
             m_qlen++;
             m_qtail++;
@@ -421,13 +424,10 @@ private:
                     return STRM_NO_MORE_DATA;
             }
 
+            spin_lock_acquire lock(m_qlock);
+
             *p = *m_qhead;
-
-            {
-                spin_lock_acquire lock(m_qlock);
-                m_qlen--;
-            }
-
+            m_qlen--;
             m_qhead++;
 
             if (m_qhead == m_qend) {
