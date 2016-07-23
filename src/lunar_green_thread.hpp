@@ -428,10 +428,13 @@ private:
                     return STRM_NO_MORE_DATA;
             }
 
-            spin_lock_acquire lock(m_qlock);
-
             *p = *m_qhead;
-            m_qlen--;
+
+            {
+                spin_lock_acquire lock(m_qlock);
+                m_qlen--;
+            }
+
             m_qhead++;
 
             if (m_qhead == m_qend) {
