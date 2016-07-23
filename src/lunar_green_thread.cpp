@@ -455,19 +455,31 @@ pop_threadq_green_thread_bool(bool *ptr)
 }
 
 STRM_RESULT
-pop_ptr(void *p, void **data)
+pop_stream_ptr(void *p, void **data)
 {
     return lunar_gt->pop_stream<void*>((shared_stream*)p, *data);
 }
 
 STRM_RESULT
-push_ptr(void *p, void *data)
+pop_stream_bytes(void *p, char *data)
+{
+    return lunar_gt->pop_streamN<char>((shared_stream*)p, data);
+}
+
+STRM_RESULT
+push_stream_ptr(void *p, void *data)
 {
     return lunar_gt->push_stream<void*>((shared_stream*)p, data);
 }
 
+STRM_RESULT
+push_stream_bytes(void *p, char *data)
+{
+    return lunar_gt->push_streamN<char>((shared_stream*)p, data);
+}
+
 void
-push_eof(void *p)
+push_stream_eof(void *p)
 {
     lunar_gt->push_eof_stream<void*>((shared_stream*)p);
 }
@@ -488,7 +500,22 @@ green_thread::pop_stream(shared_stream *p, T &ret)
 
     ringq<T> *q = (ringq<T>*)p->shared_data->stream.ptr;
 
-    auto result = q->pop(ret);
+    auto result = q->pop(&ret);
+
+    assert(result != STRM_NO_VACANCY);
+
+    return result;
+}
+
+template<typename T>
+STRM_RESULT
+green_thread::pop_streamN(shared_stream *p, T *ret)
+{
+    assert(p->flag & shared_stream::READ);
+
+    ringq<T> *q = (ringq<T>*)p->shared_data->stream.ptr;
+
+    auto result = q->popN(ret);
 
     assert(result != STRM_NO_VACANCY);
 
@@ -519,7 +546,28 @@ green_thread::push_stream(shared_stream *p, T data)
         return STRM_CLOSED;
     }
 
-    auto result = q->push(data);
+    auto result = q->push(&data);
+    if (result == STRM_SUCCESS) {
+        NOTIFY_STREAM(p, q);
+    }
+
+    return result;
+}
+
+template<typename T>
+STRM_RESULT
+green_thread::push_streamN(shared_stream *p, T *data)
+{
+    assert(p->flag & shared_stream::WRITE);
+
+    ringq<T> *q = (ringq<T>*)p->shared_data->stream.ptr;
+
+    if (p->shared_data->flag_shared & shared_stream::CLOSED_READ || q->is_eof()) {
+        NOTIFY_STREAM(p, q);
+        return STRM_CLOSED;
+    }
+
+    auto result = q->pushN(data);
     if (result == STRM_SUCCESS) {
         NOTIFY_STREAM(p, q);
     }

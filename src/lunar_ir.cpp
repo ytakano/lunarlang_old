@@ -2876,8 +2876,8 @@ run_parse(void *ptr)
 
         make_ptr_stream(&rs, &ws, 2);
 
-        push_ptr(&ws, str);
-        push_eof(&ws);
+        push_stream_ptr(&ws, str);
+        push_stream_eof(&ws);
 
         parsec<char32_t> ps(&rs);
         ps.set_nodel();

@@ -7,9 +7,12 @@ volatile int n = 0;
 void
 func3(void *arg) {
     auto ws = (lunar::shared_stream*)arg;
+    int  num[2] = {0, 1};
     for (;;) {
         lunar::select_green_thread(nullptr, 0, nullptr, 0, false, 11000);
-        auto ret = lunar::push_ptr(ws, nullptr);
+        auto ret = lunar::push_stream_bytes(ws, (char*)num);
+        num[0] += 2;
+        num[1] += 2;
         assert(ret == lunar::STRM_SUCCESS);
         fflush(stdout);
     }
@@ -23,7 +26,7 @@ func1(void *arg)
 
     auto rs = new lunar::shared_stream;
     auto ws = new lunar::shared_stream;
-    lunar::make_ptr_stream(rs, ws, 1);
+    lunar::make_bytes_stream(rs, ws, 1, sizeof(int) * 2);
 
     lunar::spawn_green_thread(func3, ws);
 
@@ -64,10 +67,10 @@ func1(void *arg)
         ssize_t len;
         lunar::get_streams_ready_green_thread(&streams, &len);
         for (int i = 0; i < len; i++) {
-            void *val;
-            auto ret = lunar::pop_ptr((lunar::shared_stream*)streams[i], &val);
+            int num[2];
+            auto ret = lunar::pop_stream_bytes((lunar::shared_stream*)streams[i], (char*)num);
             assert(ret == lunar::STRM_SUCCESS);
-            printf("recv stream!\n> ");
+            printf("recv stream! num[0] = %d, num[1] = %d\n> ", num[0], num[1]);
             fflush(stdout);
         }
 

@@ -16,12 +16,12 @@ void
 func2(void *arg)
 {
     auto rs = (lunar::shared_stream*)arg;
-    
+
     for (;;) {
         lunar::select_green_thread(nullptr, 0, (void**)&rs, 1, false, 0);
         uint64_t n = 0;
         void *ret;
-        while (lunar::pop_ptr(rs, &ret) != lunar::STRM_NO_MORE_DATA) n++;
+        while (lunar::pop_stream_ptr(rs, &ret) != lunar::STRM_NO_MORE_DATA) n++;
         num += n;
     }
 }
@@ -34,11 +34,11 @@ func1(void *arg)
     lunar::make_ptr_stream(rs, ws, 1);
 
     lunar::spawn_green_thread(func2, rs);
-    
+
     lunar::schedule_green_thread();
-    
+
     for (;;) {
-        while(lunar::push_ptr(ws, nullptr) != lunar::STRM_NO_VACANCY);
+        while(lunar::push_stream_ptr(ws, nullptr) != lunar::STRM_NO_VACANCY);
         lunar::schedule_green_thread();
     }
 }

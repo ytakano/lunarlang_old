@@ -86,7 +86,7 @@ public:
                 break;
             } else if (result == STRM_NO_MORE_DATA) {
                 string_t *ptr;
-                auto result2 = pop_ptr(ps.m_shared_stream, (void**)&ptr);
+                auto result2 = pop_stream_ptr(ps.m_shared_stream, (void**)&ptr);
                 if (result2 == STRM_SUCCESS) {
                     ps.m_bytes.push_back(ptr);
                 } else if (result2 == STRM_CLOSED) {

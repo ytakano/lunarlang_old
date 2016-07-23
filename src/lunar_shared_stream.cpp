@@ -9,14 +9,33 @@ namespace lunar {
 
 template <typename T>
 void
-make_stream(shared_stream *ronly, shared_stream *wonly, int bufsize)
+make_stream(shared_stream *ronly, shared_stream *wonly, int qlen)
 {
     auto p = new shared_stream::shared_data_t;
 
     p->flag_shared = 0;
     p->refcnt      = 2;
     p->wrefcnt     = 1;
-    p->stream.ptr  = new ringq<T>(bufsize);
+    p->stream.ptr  = new ringq<T>(qlen);
+    p->readstrm    = ronly;
+
+    ronly->flag        = shared_stream::READ;
+    ronly->shared_data = p;
+
+    wonly->flag        = shared_stream::WRITE;
+    wonly->shared_data = p;
+}
+
+template <typename T>
+void
+make_streamN(shared_stream *ronly, shared_stream *wonly, int qlen, int vecsize)
+{
+    auto p = new shared_stream::shared_data_t;
+
+    p->flag_shared = 0;
+    p->refcnt      = 2;
+    p->wrefcnt     = 1;
+    p->stream.ptr  = new ringq<T>(qlen, vecsize);
     p->readstrm    = ronly;
 
     ronly->flag        = shared_stream::READ;
@@ -48,16 +67,21 @@ deref_stream(shared_stream *ptr)
 extern "C" {
 
 void
-make_ptr_stream(shared_stream *ronly, shared_stream *wonly, int bufsize)
+make_bytes_stream(shared_stream *ronly, shared_stream *wonly, int qlen, int vecsize)
 {
-    make_stream<void*>(ronly, wonly, bufsize);
+    make_streamN<char>(ronly, wonly, qlen, vecsize);
+}
+
+void
+make_ptr_stream(shared_stream *ronly, shared_stream *wonly, int qlen)
+{
+    make_stream<void*>(ronly, wonly, qlen);
 }
 
 // before shared_stream is transfered to another thread,
 // SHARED_MT flag must be set true
 void
-make_fd_stream(shared_stream *ronly, shared_stream *wonly, int fd,
-               bool is_socket, int bufsize)
+make_fd_stream(shared_stream *ronly, shared_stream *wonly, int fd, bool is_socket)
 {
     auto p = new shared_stream::shared_data_t;
 

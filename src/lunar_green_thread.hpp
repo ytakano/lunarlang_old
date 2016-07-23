@@ -202,9 +202,11 @@ extern "C" {
     STRM_RESULT pop_threadq_green_thread_u8(uint8_t *ptr);
     STRM_RESULT pop_threadq_green_thread_i8(int8_t *ptr);
     STRM_RESULT pop_threadq_green_thread_bool(bool *ptr);
-    STRM_RESULT pop_ptr(void *p, void **data);
-    STRM_RESULT push_ptr(void *p, void *data);
-    void        push_eof(void *p);
+    STRM_RESULT push_stream_ptr(void *p, void *data);
+    STRM_RESULT push_stream_bytes(void *p, char *data);
+    STRM_RESULT pop_stream_ptr(void *p, void **data);
+    STRM_RESULT pop_stream_bytes(void *p, char *data);
+    void        push_stream_eof(void *p);
 
     struct fdevent_green_thread {
 #ifdef KQUEUE
@@ -249,7 +251,9 @@ public:
 #endif // KQUEUE
 
     template<typename T> STRM_RESULT pop_stream(shared_stream *p, T &ret);
+    template<typename T> STRM_RESULT pop_streamN(shared_stream *p, T *ret);
     template<typename T> STRM_RESULT push_stream(shared_stream *p, T data);
+    template<typename T> STRM_RESULT push_streamN(shared_stream *p, T *data);
     template<typename T> void        push_eof_stream(shared_stream *p);
 
     struct ev_key {

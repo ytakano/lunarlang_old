@@ -36,8 +36,9 @@ struct shared_stream {
 };
 
 extern "C" {
-    void make_ptr_stream(shared_stream *ronly, shared_stream *wonly, int bufsize = 64);
-    void make_fd_stream(shared_stream *ronly, shared_stream *wonly, int fd, bool is_socket, int bufsize = 64);
+    void make_bytes_stream(shared_stream *ronly, shared_stream *wonly, int qlen, int vecsize);
+    void make_ptr_stream(shared_stream *ronly, shared_stream *wonly, int qlen);
+    void make_fd_stream(shared_stream *ronly, shared_stream *wonly, int fd, bool is_socket);
     void incref_stream(shared_stream *wonly);
     void deref_ptr_stream(shared_stream *ptr);
     void deref_fd_stream(shared_stream *ptr);
