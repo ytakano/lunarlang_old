@@ -105,11 +105,11 @@ get_green_thread(uint64_t thid)
 }
 
 bool
-init_green_thread(uint64_t thid)
+init_green_thread(uint64_t thid, int qlen, int vecsize)
 {
     bool result;
     if (lunar_gt == nullptr) {
-        lunar_gt = new green_thread;
+        lunar_gt = new green_thread(qlen, vecsize);
         rtm_transaction tr(lock_thread2gt);
         if (thread2gt.find(thid) != thread2gt.end()) {
             result = false;
@@ -173,7 +173,7 @@ select_green_thread(epoll_event *eev, int num_eev,
 #endif // KQUEUE
 
 STRM_RESULT
-push_threadq_green_thread(uint64_t id, alltype p)
+push_threadq_green_thread(uint64_t id, char *p)
 {
     green_thread *fb;
 
@@ -194,264 +194,15 @@ push_threadq_green_thread(uint64_t id, alltype p)
     return ret;
 }
 
-STRM_RESULT
-push_threadq_green_thread_ptr(uint64_t id, void *ptr)
-{
-    alltype p = { ptr };
-    return push_threadq_green_thread(id, p);
-}
-
-STRM_RESULT
-push_threadq_green_thread_u64(uint64_t id, uint64_t num)
-{
-    alltype p;
-    p.u64 = num;
-    return push_threadq_green_thread(id, p);
-}
-
-STRM_RESULT
-push_threadq_green_thread_i64(uint64_t id, int64_t num)
-{
-    alltype p;
-    p.i64 = num;
-    return push_threadq_green_thread(id, p);
-}
-
-STRM_RESULT
-push_threadq_green_thread_u32(uint64_t id, uint32_t num)
-{
-    alltype p;
-    p.u32 = num;
-    return push_threadq_green_thread(id, p);
-}
-
-STRM_RESULT
-push_threadq_green_thread_i32(uint64_t id, int32_t num)
-{
-    alltype p;
-    p.i32 = num;
-    return push_threadq_green_thread(id, p);
-}
-
-STRM_RESULT
-push_threadq_green_thread_u16(uint64_t id, uint16_t num)
-{
-    alltype p;
-    p.u16 = num;
-    return push_threadq_green_thread(id, p);
-}
-
-STRM_RESULT
-push_threadq_green_thread_i16(uint64_t id, int16_t num)
-{
-    alltype p;
-    p.i16 = num;
-    return push_threadq_green_thread(id, p);
-}
-
-STRM_RESULT
-push_threadq_green_thread_u8(uint64_t id, uint8_t num)
-{
-    alltype p;
-    p.u8 = num;
-    return push_threadq_green_thread(id, p);
-}
-
-STRM_RESULT
-push_threadq_green_thread_i8(uint64_t id, int8_t num)
-{
-    alltype p;
-    p.i8 = num;
-    return push_threadq_green_thread(id, p);
-}
-
-STRM_RESULT
-push_threadq_green_thread_bool(uint64_t id, bool val)
-{
-    alltype p;
-    p.bin = val;
-    return push_threadq_green_thread(id, p);
-}
-
-STRM_RESULT
-push_threadq_fast_unsafe_green_thread(void *fb, alltype p)
+STRM_RESULT push_threadq_fast_unsafe_green_thread(void *fb, char *p)
 {
     return ((green_thread*)fb)->push_threadq(p);
 }
 
 STRM_RESULT
-push_threadq_fast_unsafe_green_thread_ptr(void *fb, void *p)
-{
-    alltype t = { p };
-    return ((green_thread*)fb)->push_threadq(t);
-}
-
-STRM_RESULT
-push_threadq_fast_unsafe_green_thread_u64(void *fb, uint64_t num)
-{
-    alltype p;
-    p.u64 = num;
-    return ((green_thread*)fb)->push_threadq(p);
-}
-
-STRM_RESULT
-push_threadq_fast_unsafe_green_thread_i64(void *fb, int64_t num)
-{
-    alltype p;
-    p.i64 = num;
-    return ((green_thread*)fb)->push_threadq(p);
-}
-
-STRM_RESULT
-push_threadq_fast_unsafe_green_thread_u32(void *fb, uint32_t num)
-{
-    alltype p;
-    p.u32 = num;
-    return ((green_thread*)fb)->push_threadq(p);
-}
-
-STRM_RESULT
-push_threadq_fast_unsafe_green_thread_i32(void *fb, int32_t num)
-{
-    alltype p;
-    p.i32 = num;
-    return ((green_thread*)fb)->push_threadq(p);
-}
-
-STRM_RESULT
-push_threadq_fast_unsafe_green_thread_u16(void *fb, uint16_t num)
-{
-    alltype p;
-    p.u16 = num;
-    return ((green_thread*)fb)->push_threadq(p);
-}
-
-STRM_RESULT
-push_threadq_fast_unsafe_green_thread_i16(void *fb, int16_t num)
-{
-    alltype p;
-    p.i16 = num;
-    return ((green_thread*)fb)->push_threadq(p);
-}
-
-STRM_RESULT
-push_threadq_fast_unsafe_green_thread_u8(void *fb, uint8_t num)
-{
-    alltype p;
-    p.u8 = num;
-    return ((green_thread*)fb)->push_threadq(p);
-}
-
-STRM_RESULT
-push_threadq_fast_unsafe_green_thread_i8(void *fb, int8_t num)
-{
-    alltype p;
-    p.i8 = num;
-    return ((green_thread*)fb)->push_threadq(p);
-}
-
-STRM_RESULT
-push_threadq_fast_unsafe_green_thread_bool(void *fb, bool val)
-{
-    alltype p;
-    p.bin = val;
-    return ((green_thread*)fb)->push_threadq(p);
-}
-
-STRM_RESULT
-pop_threadq_green_thread(alltype *p)
+pop_threadq_green_thread(char *p)
 {
     return lunar_gt->pop_threadq(p);
-}
-
-STRM_RESULT
-pop_threadq_green_thread_ptr(void **ptr)
-{
-    alltype p;
-    auto ret = lunar_gt->pop_threadq(&p);
-    *ptr = p.ptr;
-    return ret;
-}
-
-STRM_RESULT
-pop_threadq_green_thread_u64(uint64_t *ptr)
-{
-    alltype p;
-    auto ret = lunar_gt->pop_threadq(&p);
-    *ptr = p.u64;
-    return ret;
-}
-
-STRM_RESULT
-pop_threadq_green_thread_i64(int64_t *ptr)
-{
-    alltype p;
-    auto ret = lunar_gt->pop_threadq(&p);
-    *ptr = p.i64;
-    return ret;
-}
-
-STRM_RESULT
-pop_threadq_green_thread_u32(uint32_t *ptr)
-{
-    alltype p;
-    auto ret = lunar_gt->pop_threadq(&p);
-    *ptr = p.u32;
-    return ret;
-}
-
-STRM_RESULT
-pop_threadq_green_thread_i32(int32_t *ptr)
-{
-    alltype p;
-    auto ret = lunar_gt->pop_threadq(&p);
-    *ptr = p.i32;
-    return ret;
-}
-
-STRM_RESULT
-pop_threadq_green_thread_u16(uint16_t *ptr)
-{
-    alltype p;
-    auto ret = lunar_gt->pop_threadq(&p);
-    *ptr = p.u16;
-    return ret;
-}
-
-STRM_RESULT
-pop_threadq_green_thread_i16(int16_t *ptr)
-{
-    alltype p;
-    auto ret = lunar_gt->pop_threadq(&p);
-    *ptr = p.i16;
-    return ret;
-}
-
-STRM_RESULT
-pop_threadq_green_thread_u8(uint8_t *ptr)
-{
-    alltype p;
-    auto ret = lunar_gt->pop_threadq(&p);
-    *ptr = p.u8;
-    return ret;
-}
-
-STRM_RESULT
-pop_threadq_green_thread_i8(int8_t *ptr)
-{
-    alltype p;
-    auto ret = lunar_gt->pop_threadq(&p);
-    *ptr = p.i8;
-    return ret;
-}
-
-STRM_RESULT
-pop_threadq_green_thread_bool(bool *ptr)
-{
-    alltype p;
-    auto ret = lunar_gt->pop_threadq(&p);
-    *ptr = p.bin;
-    return ret;
 }
 
 STRM_RESULT
@@ -595,11 +346,11 @@ green_thread::push_eof_stream(shared_stream *p)
     }
 }
 
-green_thread::green_thread(int qsize)
+green_thread::green_thread(int qsize, int vecsize)
     : m_count(0),
       m_running(nullptr),
       m_wait_thq(nullptr),
-      m_threadq(qsize)
+      m_threadq(new threadq(qsize, vecsize))
 {
 #ifdef KQUEUE
     for (;;) {
@@ -731,19 +482,19 @@ green_thread::select_fd(bool is_block)
         }
 
         // invoke the green_thread waiting the thread queue
-        if (m_wait_thq && m_threadq.get_wait_type() == threadq::QWAIT_PIPE &&
-            kev[i].ident == (uintptr_t)m_threadq.get_read_fd() && kev[i].filter == EVFILT_READ) {
+        if (m_wait_thq && m_threadq->get_wait_type() == threadq::QWAIT_PIPE &&
+            kev[i].ident == (uintptr_t)m_threadq->get_read_fd() && kev[i].filter == EVFILT_READ) {
 
             if (! (m_wait_thq->m_state & context::SUSPENDING)) {
                 m_wait_thq->m_state |= context::SUSPENDING;
                 m_suspend.push_back(m_wait_thq);
             }
 
-            m_threadq.set_wait_type(threadq::QWAIT_NONE);
+            m_threadq->set_wait_type(threadq::QWAIT_NONE);
             m_wait_thq = nullptr;
 
             assert(! (kev[i].flags & EV_EOF));
-            m_threadq.pop_pipe(kev[i].data);
+            m_threadq->pop_pipe(kev[i].data);
 
             continue;
         }
@@ -843,18 +594,18 @@ green_thread::select_fd(bool is_block)
 
     for (int i = 0; i < ret; i++) {
         // invoke the green_thread waiting the thread queue
-        if (m_wait_thq && m_threadq.get_wait_type() == threadq::QWAIT_PIPE &&
-            eev[i].data.fd == m_threadq.get_read_fd() && (eev[i].events & EPOLLIN)) {
+        if (m_wait_thq && m_threadq->get_wait_type() == threadq::QWAIT_PIPE &&
+            eev[i].data.fd == m_threadq->get_read_fd() && (eev[i].events & EPOLLIN)) {
 
             if (! (m_wait_thq->m_state & context::SUSPENDING)) {
                 m_wait_thq->m_state |= context::SUSPENDING;
                 m_suspend.push_back(m_wait_thq);
             }
 
-            m_threadq.set_wait_type(threadq::QWAIT_NONE);
+            m_threadq->set_wait_type(threadq::QWAIT_NONE);
             m_wait_thq = nullptr;
 
-            m_threadq.pop_pipe(1);
+            m_threadq->pop_pipe(1);
 
             continue;
         }
@@ -1004,7 +755,7 @@ green_thread::schedule()
         if (! m_timeout.empty())
             resume_timeout();
 
-        if (m_wait_thq && m_threadq.m_qwait_type == threadq::QWAIT_NONE && m_threadq.get_len() > 0) {
+        if (m_wait_thq && m_threadq->m_qwait_type == threadq::QWAIT_NONE && m_threadq->get_len() > 0) {
             if (! (m_wait_thq->m_state & context::SUSPENDING)) {
                 m_wait_thq->m_state |= context::SUSPENDING;
                 m_suspend.push_back(m_wait_thq);
@@ -1154,19 +905,19 @@ green_thread::schedule()
 
                 if (state & context::WAITING_THQ) {
 
-                    spin_lock_acquire_unsafe lock(m_threadq.m_qlock);
-                    if (m_threadq.m_qwait_type == threadq::QWAIT_PIPE) {
-                        m_threadq.m_qwait_type = threadq::QWAIT_NONE;
+                    spin_lock_acquire_unsafe lock(m_threadq->m_qlock);
+                    if (m_threadq->m_qwait_type == threadq::QWAIT_PIPE) {
+                        m_threadq->m_qwait_type = threadq::QWAIT_NONE;
                         lock.unlock();
 
-                        if (m_threadq.m_qlen > 0) {
+                        if (m_threadq->m_qlen > 0) {
                             m_running->m_is_ev_thq = true;
                             uint8_t buf[32];
-                            while (read(m_threadq.m_qpipe[0], buf, sizeof(buf)) > 0);
+                            while (read(m_threadq->m_qpipe[0], buf, sizeof(buf)) > 0);
                         }
 #ifdef KQUEUE
                         struct kevent kev;
-                        EV_SET(&kev, m_threadq.m_qpipe[0], EVFILT_READ, EV_DELETE, 0, 0, nullptr);
+                        EV_SET(&kev, m_threadq->m_qpipe[0], EVFILT_READ, EV_DELETE, 0, 0, nullptr);
                         for (;;) {
                             if (kevent(m_kq, &kev, 1, nullptr, 0, nullptr) == -1) {
                                 if (errno == EINTR) continue;
@@ -1178,7 +929,7 @@ green_thread::schedule()
                         }
 #elif (defined EPOLL)
                         for (;;) {
-                            if (epoll_ctl(m_epoll, EPOLL_CTL_DEL, m_threadq.m_qpipe[0], nullptr) < -1) {
+                            if (epoll_ctl(m_epoll, EPOLL_CTL_DEL, m_threadq->m_qpipe[0], nullptr) < -1) {
                                 if (errno == EINTR) continue;
                                 PRINTERR("failed epoll_ctl!: %s", strerror(errno));
                                 exit(-1);
@@ -1209,8 +960,8 @@ green_thread::schedule()
         }
 
         if (m_wait_thq) {
-            spin_lock_acquire_unsafe lock(m_threadq.m_qlock);
-            if (m_threadq.m_qlen > 0) {
+            spin_lock_acquire_unsafe lock(m_threadq->m_qlock);
+            if (m_threadq->m_qlen > 0) {
                 lock.unlock();
 
                 if (! (m_wait_thq->m_state & context::SUSPENDING)) {
@@ -1222,17 +973,17 @@ green_thread::schedule()
                 m_wait_thq = nullptr;
                 continue;
             } else {
-                m_threadq.m_is_qnotified = false;
+                m_threadq->m_is_qnotified = false;
                 if (m_wait_fd.empty() && m_timeout.empty()) {
-                    m_threadq.m_qwait_type = threadq::QWAIT_COND;
+                    m_threadq->m_qwait_type = threadq::QWAIT_COND;
                     lock.unlock();
                     // wait the notification via condition wait
                     {
-                        std::unique_lock<std::mutex> mlock(m_threadq.m_qmutex);
-                        if (m_threadq.m_qlen == 0)
-                            m_threadq.m_qcond.wait(mlock);
+                        std::unique_lock<std::mutex> mlock(m_threadq->m_qmutex);
+                        if (m_threadq->m_qlen == 0)
+                            m_threadq->m_qcond.wait(mlock);
 
-                        m_threadq.m_qwait_type = threadq::QWAIT_NONE;
+                        m_threadq->m_qwait_type = threadq::QWAIT_NONE;
                     }
 
                     if (! (m_wait_thq->m_state & context::SUSPENDING)) {
@@ -1245,12 +996,12 @@ green_thread::schedule()
                     continue;
                 } else {
                     // wait the notificication via pipe
-                    m_threadq.m_qwait_type = threadq::QWAIT_PIPE;
+                    m_threadq->m_qwait_type = threadq::QWAIT_PIPE;
                     lock.unlock();
 
 #ifdef KQUEUE
                     struct kevent kev;
-                    EV_SET(&kev, m_threadq.m_qpipe[0], EVFILT_READ, EV_ADD | EV_ENABLE | EV_ONESHOT, 0, 0, NULL);
+                    EV_SET(&kev, m_threadq->m_qpipe[0], EVFILT_READ, EV_ADD | EV_ENABLE | EV_ONESHOT, 0, 0, NULL);
                     for (;;) {
                         if (kevent(m_kq, &kev, 1, nullptr, 0, nullptr) == -1) {
                             if (errno == EINTR) continue;
@@ -1262,10 +1013,10 @@ green_thread::schedule()
                     }
 #elif (defined EPOLL)
                     epoll_event eev;
-                    eev.data.fd = m_threadq.m_qpipe[0];
+                    eev.data.fd = m_threadq->m_qpipe[0];
                     eev.events  = EPOLLIN;
                     for (;;) {
-                        if (epoll_ctl(m_epoll, EPOLL_CTL_ADD, m_threadq.m_qpipe[0], &eev) < -1) {
+                        if (epoll_ctl(m_epoll, EPOLL_CTL_ADD, m_threadq->m_qpipe[0], &eev) < -1) {
                             if (errno == EINTR) continue;
                             PRINTERR("failed epoll_ctl!: %s", strerror(errno));
                             exit(-1);
@@ -1409,14 +1160,14 @@ green_thread::remove_stopped()
     m_stop.clear();
 }
 
-green_thread::threadq::threadq(int qsize)
+green_thread::threadq::threadq(int qsize, int vecsize)
     : m_qlen(0),
       m_refcnt(0),
       m_is_qnotified(true),
       m_qwait_type(threadq::QWAIT_NONE),
       m_max_qlen(qsize),
-      m_q(new alltype[qsize]),
-      m_qend(m_q + qsize),
+      m_q(new char[qsize * vecsize]),
+      m_qend(m_q + qsize * vecsize),
       m_qhead(m_q),
       m_qtail(m_q)
 {

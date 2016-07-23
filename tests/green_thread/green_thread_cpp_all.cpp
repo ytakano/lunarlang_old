@@ -55,11 +55,11 @@ func1(void *arg)
         }
 
         if (lunar::is_ready_threadq_green_thread()) {
-            lunar::alltype data;
-            auto ret = lunar::pop_threadq_green_thread(&data);
+            int num[2];
+            auto ret = lunar::pop_threadq_green_thread((char*)num);
             assert(ret == lunar::STRM_SUCCESS);
 
-            printf("recv thread queue!\n> ");
+            printf("recv thread queue! num[0] = %d, num[1] = %d\n> ", num[0], num[1]);
             fflush(stdout);
         }
 
@@ -94,17 +94,19 @@ func2(void *arg)
     while(n != 2); // barrier
 
     auto fb = lunar::get_green_thread(1);
-    lunar::alltype t = { nullptr };
+    int num[2] = {0, 1};
     for (;;) {
         lunar::select_green_thread(nullptr, 0, nullptr, 0, false, 13000);
-        lunar::push_threadq_fast_unsafe_green_thread(fb, t);
+        lunar::push_threadq_fast_unsafe_green_thread(fb, (char*)num);
+        num[0] += 2;
+        num[1] += 2;
     }
 }
 
 void
 thread2()
 {
-    lunar::init_green_thread(2);
+    lunar::init_green_thread(2, 1, 1);
     lunar::spawn_green_thread(func2);
     lunar::run_green_thread();
 }
@@ -112,7 +114,7 @@ thread2()
 void
 thread1()
 {
-    lunar::init_green_thread(1);
+    lunar::init_green_thread(1, 1, sizeof(int) * 2);
     lunar::spawn_green_thread(func1);
     lunar::run_green_thread();
 }

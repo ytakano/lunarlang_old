@@ -30,19 +30,6 @@ enum STRM_RESULT {
     STRM_NO_VACANCY   = -3,
 };
 
-union alltype {
-    void*    ptr;
-    uint64_t u64;
-     int64_t i64;
-    uint32_t u32;
-     int32_t i32;
-    uint16_t u16;
-     int16_t i16;
-    uint8_t   u8;
-     int8_t   i8;
-     bool     bin;
-};
-
 }
 
 #define PRINTERR(M, ...) fprintf(stderr, "ERROR (%s:%d): " M "\n", __FILE__, __LINE__, ##__VA_ARGS__)

@@ -151,7 +151,7 @@ class green_thread;
 
 extern "C" {
     uint64_t get_clock();
-    bool init_green_thread(uint64_t thid); // thid is user defined thread ID
+    bool init_green_thread(uint64_t thid, int qlen, int vecsize); // thid is user defined thread ID
     void schedule_green_thread();
     void spawn_green_thread(void (*func)(void*), void *arg = nullptr, int stack_size = 4096 * 50);
     void run_green_thread();
@@ -169,39 +169,9 @@ extern "C" {
                       bool is_threadq, int64_t timeout);
 #endif // KQUEUE
 
-    STRM_RESULT push_threadq_green_thread(uint64_t id, alltype p);
-    STRM_RESULT push_threadq_green_thread_ptr(uint64_t id, void *ptr);
-    STRM_RESULT push_threadq_green_thread_u64(uint64_t id, uint64_t num);
-    STRM_RESULT push_threadq_green_thread_i64(uint64_t id, int64_t num);
-    STRM_RESULT push_threadq_green_thread_u32(uint64_t id, uint32_t num);
-    STRM_RESULT push_threadq_green_thread_i32(uint64_t id, int32_t num);
-    STRM_RESULT push_threadq_green_thread_u16(uint64_t id, uint16_t num);
-    STRM_RESULT push_threadq_green_thread_i16(uint64_t id, int16_t num);
-    STRM_RESULT push_threadq_green_thread_u8(uint64_t id, uint8_t num);
-    STRM_RESULT push_threadq_green_thread_i8(uint64_t id, int8_t num);
-    STRM_RESULT push_threadq_green_thread_bool(uint64_t id, bool val);
-    STRM_RESULT push_threadq_fast_unsafe_green_thread(void *fb, alltype p);
-    STRM_RESULT push_threadq_fast_unsafe_green_thread_ptr(void *fb, void *p);
-    STRM_RESULT push_threadq_fast_unsafe_green_thread_u64(void *fb, uint64_t num);
-    STRM_RESULT push_threadq_fast_unsafe_green_thread_i64(void *fb, int64_t num);
-    STRM_RESULT push_threadq_fast_unsafe_green_thread_u32(void *fb, uint32_t num);
-    STRM_RESULT push_threadq_fast_unsafe_green_thread_i32(void *fb, int32_t num);
-    STRM_RESULT push_threadq_fast_unsafe_green_thread_u16(void *fb, uint16_t num);
-    STRM_RESULT push_threadq_fast_unsafe_green_thread_i16(void *fb, int16_t num);
-    STRM_RESULT push_threadq_fast_unsafe_green_thread_u8(void *fb, uint8_t num);
-    STRM_RESULT push_threadq_fast_unsafe_green_thread_i8(void *fb, int8_t num);
-    STRM_RESULT push_threadq_fast_unsafe_green_thread_bool(void *fb, bool val);
-    STRM_RESULT pop_threadq_green_thread(alltype *p);
-    STRM_RESULT pop_threadq_green_thread_ptr(void **ptr);
-    STRM_RESULT pop_threadq_green_thread_u64(uint64_t *ptr);
-    STRM_RESULT pop_threadq_green_thread_i64(int64_t *ptr);
-    STRM_RESULT pop_threadq_green_thread_u32(uint32_t *ptr);
-    STRM_RESULT pop_threadq_green_thread_i32(int32_t *ptr);
-    STRM_RESULT pop_threadq_green_thread_u16(uint16_t *ptr);
-    STRM_RESULT pop_threadq_green_thread_i16(int16_t *ptr);
-    STRM_RESULT pop_threadq_green_thread_u8(uint8_t *ptr);
-    STRM_RESULT pop_threadq_green_thread_i8(int8_t *ptr);
-    STRM_RESULT pop_threadq_green_thread_bool(bool *ptr);
+    STRM_RESULT push_threadq_green_thread(uint64_t id, char *p);
+    STRM_RESULT push_threadq_fast_unsafe_green_thread(void *fb, char *p);
+    STRM_RESULT pop_threadq_green_thread(char *p);
     STRM_RESULT push_stream_ptr(void *p, void *data);
     STRM_RESULT push_stream_bytes(void *p, char *data);
     STRM_RESULT pop_stream_ptr(void *p, void **data);
@@ -229,16 +199,16 @@ extern "C" {
 
 class green_thread {
 public:
-    green_thread(int qsize = 4096);
+    green_thread(int qsize, int vecsize);
     virtual ~green_thread();
 
     void schedule();
     int  spawn(void (*func)(void*), void *arg = nullptr, int stack_size = 4096 * 50);
     void run();
-    void inc_refcnt_threadq() { m_threadq.inc_refcnt(); }
-    void dec_refcnt_threadq() { m_threadq.dec_refcnt(); }
-    STRM_RESULT push_threadq(alltype p) { return m_threadq.push(p); }
-    STRM_RESULT pop_threadq(alltype *p) { return m_threadq.pop(p); }
+    void inc_refcnt_threadq() { m_threadq->inc_refcnt(); }
+    void dec_refcnt_threadq() { m_threadq->dec_refcnt(); }
+    STRM_RESULT push_threadq(char *p) { return m_threadq->push(p); }
+    STRM_RESULT pop_threadq(char *p) { return m_threadq->pop(p); }
 
 #ifdef KQUEUE
     void select_stream(struct kevent *kev, int num_kev,
@@ -378,10 +348,10 @@ private:
             QWAIT_NONE,
         };
 
-        threadq(int qsize);
+        threadq(int qsize, int vecsize);
         virtual ~threadq();
 
-        inline STRM_RESULT push(alltype p) {
+        inline STRM_RESULT push(char *p) {
             if (m_qlen == m_max_qlen)
                 return STRM_NO_VACANCY;
 
@@ -390,9 +360,11 @@ private:
             if (m_qlen == m_max_qlen)
                 return STRM_NO_VACANCY;
 
-            *m_qtail = p;
+            for (int i = 0; i < m_vecsize; i++)
+                m_qtail[i] = p[i];
+
             m_qlen++;
-            m_qtail++;
+            m_qtail += m_vecsize;
 
             if (m_qtail == m_qend) {
                 m_qtail = m_q;
@@ -421,21 +393,22 @@ private:
             return STRM_SUCCESS;
         }
 
-        inline STRM_RESULT pop(alltype *p) {
+        inline STRM_RESULT pop(char *p) {
             int n = 0;
             while (m_qlen == 0) {
                 if (n++ > 1000)
                     return STRM_NO_MORE_DATA;
             }
 
-            *p = *m_qhead;
+            for (int i; i < m_vecsize; i++)
+                p[i] = m_qhead[i];
 
             {
                 spin_lock_acquire lock(m_qlock);
                 m_qlen--;
             }
 
-            m_qhead++;
+            m_qhead += m_vecsize;
 
             if (m_qhead == m_qend) {
                 m_qhead = m_q;
@@ -478,12 +451,13 @@ private:
         volatile int  m_refcnt;
         volatile bool m_is_qnotified;
         volatile qwait_type m_qwait_type;
-        int      m_max_qlen;
-        alltype *m_q;
-        alltype *m_qend;
-        alltype *m_qhead;
-        alltype *m_qtail;
-        int      m_qpipe[2];
+        int   m_max_qlen;
+        int   m_vecsize;
+        char *m_q;
+        char *m_qend;
+        char *m_qhead;
+        char *m_qtail;
+        int   m_qpipe[2];
         spin_lock  m_qlock;
         std::mutex m_qmutex;
         std::condition_variable m_qcond;
@@ -491,7 +465,7 @@ private:
         friend void green_thread::schedule();
     };
 
-    threadq m_threadq;
+    std::unique_ptr<threadq> m_threadq;
 
 #ifdef KQUEUE
     int m_kq;

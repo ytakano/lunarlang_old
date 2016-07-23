@@ -12,8 +12,8 @@ func1(void *arg)
     while(n != 3); // barrier
 
     for (;;) {
-        lunar::alltype data;
-        if (lunar::pop_threadq_green_thread(&data) == lunar::STRM_NO_MORE_DATA) {
+        int num;
+        if (lunar::pop_threadq_green_thread((char*)&num) == lunar::STRM_NO_MORE_DATA) {
             lunar::select_green_thread(nullptr, 0, nullptr, 0, true, 0);
             continue;
         }
@@ -27,10 +27,10 @@ func2(void *arg)
 {
     __sync_fetch_and_add(&n, 1);
     while(n != 3); // barrier
-    
-    lunar::alltype t = { nullptr };
+
+    int num = 0;
     auto fb = lunar::get_green_thread(1);
-    for (;;) lunar::push_threadq_fast_unsafe_green_thread(fb, t);
+    for (;;) lunar::push_threadq_fast_unsafe_green_thread(fb, (char*)&num);
 }
 
 void
@@ -53,7 +53,7 @@ thread3()
 void
 thread2()
 {
-    lunar::init_green_thread(2);
+    lunar::init_green_thread(2, 1, 1);
     lunar::spawn_green_thread(func2);
     lunar::run_green_thread();
 }
@@ -61,7 +61,7 @@ thread2()
 void
 thread1()
 {
-    lunar::init_green_thread(1);
+    lunar::init_green_thread(1, 1024, sizeof(int));
     lunar::spawn_green_thread(func1);
     lunar::run_green_thread();
 }
@@ -72,7 +72,7 @@ main(int argc, char *argv[])
     std::thread th1(thread1);
     std::thread th2(thread2);
     std::thread th3(thread3);
-    
+
     th1.join();
     th2.join();
     th3.join();

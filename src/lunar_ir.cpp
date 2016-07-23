@@ -2893,7 +2893,7 @@ run_parse(void *ptr)
 void
 lunar_ir::run(int idx)
 {
-    init_green_thread(idx);
+    init_green_thread(idx, 1, 1);
     spawn_green_thread(run_parse, this);
     run_green_thread();
 }
