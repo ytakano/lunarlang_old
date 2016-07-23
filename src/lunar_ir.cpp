@@ -1,5 +1,4 @@
 #include "lunar_ir.hpp"
-#include "MCJITHelper.hpp"
 
 #include <functional>
 
@@ -14,7 +13,7 @@ std::unordered_map<std::u32string, LANG_SCALAR> scalar_set;
 std::unordered_map<char32_t, char32_t> esc_set;
 std::unordered_map<char32_t, char32_t> hex_set;
 
-lunar_ir::lunar_ir()
+lunar_ir::lunar_ir() : m_llvmctx(llvm::getGlobalContext()), m_llvmjit(new MCJITHelper(m_llvmctx))
 {
     idh_set.insert(U'0');
     idh_set.insert(U'1');

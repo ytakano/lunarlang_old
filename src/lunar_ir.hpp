@@ -5,6 +5,7 @@
 #include "lunar_string.hpp"
 #include "lunar_parsec.hpp"
 #include "lunar_ir_tree.hpp"
+#include "MCJITHelper.hpp"
 
 #include <unordered_set>
 
@@ -130,6 +131,9 @@ private:
     std::unordered_map<std::string, std::unique_ptr<std::vector<std::string>>> m_lines;
     std::deque<std::string> m_fileq;
     std::mutex m_mutex;
+
+    llvm::LLVMContext &m_llvmctx;
+    std::unique_ptr<MCJITHelper> m_llvmjit;
 
     friend void run_parse(void *ir);
 };
