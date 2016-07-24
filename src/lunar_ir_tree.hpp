@@ -9,6 +9,8 @@
 #include <sstream>
 #include <memory>
 
+#include <llvm/IR/Value.h>
+
 /*
  * -----------------------------------------------------------------------------
  *
@@ -476,6 +478,7 @@ public:
     virtual ~lunar_ir_lit_char32() { }
 
     virtual void print(std::string &s, const std::string &from);
+    llvm::Value *codegen();
 
 private:
     char32_t m_char;
@@ -487,6 +490,7 @@ public:
     virtual ~lunar_ir_lit_char8() { }
 
     virtual void print(std::string &s, const std::string &from);
+    llvm::Value *codegen();
 
 private:
     char m_char;
@@ -498,6 +502,7 @@ public:
     virtual ~lunar_ir_lit_int() { }
 
     virtual void print(std::string &s, const std::string &from);
+    llvm::Value *codegen();
 
 private:
     int64_t m_num;
@@ -510,6 +515,7 @@ public:
     virtual ~lunar_ir_lit_uint() { }
 
     virtual void print(std::string &s, const std::string &from);
+    llvm::Value *codegen();
 
 private:
     uint64_t m_num;
@@ -522,6 +528,7 @@ public:
     virtual ~lunar_ir_lit_float() { }
 
     virtual void print(std::string &s, const std::string &from);
+    llvm::Value *codegen();
 
 private:
     double m_num;

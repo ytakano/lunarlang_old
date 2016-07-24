@@ -1,6 +1,9 @@
 #include "lunar_ir_tree.hpp"
 #include "lunar_string.hpp"
 
+#include <llvm/IR/LLVMContext.h>
+#include <llvm/IR/Constants.h>
+
 namespace lunar {
 
 void
@@ -893,6 +896,41 @@ lunar_ir_thread::print(std::string &s, const std::string &from)
     m_qsize->print(s, os.str());
     m_func->print(s, os.str());
     m_arg->print(s, os.str());
+}
+
+// code generator
+
+llvm::Value*
+lunar_ir_lit_char32::codegen()
+{
+    return llvm::ConstantInt::get(llvm::getGlobalContext(), llvm::APInt(32, m_char, true));
+}
+
+llvm::Value*
+lunar_ir_lit_char8::codegen()
+{
+    return llvm::ConstantInt::get(llvm::getGlobalContext(), llvm::APInt(8, m_char, true));
+}
+
+llvm::Value*
+lunar_ir_lit_int::codegen()
+{
+    return llvm::ConstantInt::get(llvm::getGlobalContext(), llvm::APInt(64, m_num, true));
+}
+
+llvm::Value*
+lunar_ir_lit_uint::codegen()
+{
+    return llvm::ConstantInt::get(llvm::getGlobalContext(), llvm::APInt(64, m_num, false));
+}
+
+llvm::Value*
+lunar_ir_lit_float::codegen()
+{
+    if (m_is_float)
+        return llvm::ConstantFP::get(llvm::getGlobalContext(), llvm::APFloat((float)m_num));
+
+    return llvm::ConstantFP::get(llvm::getGlobalContext(), llvm::APFloat(m_num));
 }
 
 }
