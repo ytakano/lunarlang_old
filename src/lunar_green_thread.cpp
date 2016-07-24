@@ -677,7 +677,11 @@ green_thread::spawn(void (*func)(void*), void *arg, int stack_size)
     }
 
     int pagesize = sysconf(_SC_PAGE_SIZE);
+    stack_size += pagesize;
     stack_size -= stack_size % pagesize;
+
+    if (stack_size < pagesize * 2)
+        stack_size = pagesize * 2;
 
     ctx->m_id    = m_count;
     ctx->m_state = context::READY;
