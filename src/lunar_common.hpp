@@ -7,7 +7,7 @@
 #include <memory>
 #include <llvm/ADT/STLExtras.h>
 
-namespace lunar{
+namespace lunar {
 
 struct point2u64 {
     uint64_t x, y;

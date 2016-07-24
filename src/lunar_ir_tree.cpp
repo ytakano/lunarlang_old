@@ -1,8 +1,10 @@
 #include "lunar_ir_tree.hpp"
 #include "lunar_string.hpp"
 
+#include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Constants.h>
+#include <llvm/IR/Instructions.h>
 
 namespace lunar {
 
@@ -899,6 +901,13 @@ lunar_ir_thread::print(std::string &s, const std::string &from)
 }
 
 // code generator
+
+static llvm::AllocaInst*
+llvm_alloca(llvm::Function *func, const std::u32string &name, llvm::Type* type)
+{
+    llvm::IRBuilder<> TmpB(&func->getEntryBlock(), func->getEntryBlock().begin());
+    return TmpB.CreateAlloca(type, 0, to_string(name).c_str());
+}
 
 llvm::Value*
 lunar_ir_lit_char32::codegen()
