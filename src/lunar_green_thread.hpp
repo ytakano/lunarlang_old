@@ -462,7 +462,7 @@ private:
         char *m_qhead;
         char *m_qtail;
         int   m_qpipe[2];
-        bool  m_is_closed;
+        volatile bool m_is_closed;
         spin_lock  m_qlock;
         std::mutex m_qmutex;
         std::condition_variable m_qcond;
