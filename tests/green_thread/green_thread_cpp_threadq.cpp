@@ -29,8 +29,8 @@ func2(void *arg)
     while(n != 3); // barrier
 
     int num = 0;
-    auto fb = lunar::get_green_thread(1);
-    for (;;) lunar::push_threadq_fast_unsafe_green_thread(fb, (char*)&num);
+    auto thq = lunar::get_threadq_green_thread(1);
+    for (;;) lunar::push_threadq_green_thread(thq, (char*)&num);
 }
 
 void

@@ -7,9 +7,9 @@ namespace lunar {
 
 extern "C" {
 
-void *make_shared_type(size_t size);
-void incref_shared_type(void *p);
-void deref_shared_type(void *p);
+void* make_shared_type(size_t size);
+void  incref_shared_type(void *p);
+void  deref_shared_type(void *p);
 
 }
 

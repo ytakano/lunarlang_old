@@ -93,11 +93,11 @@ func2(void *arg)
     __sync_fetch_and_add(&n, 1);
     while(n != 2); // barrier
 
-    auto fb = lunar::get_green_thread(1);
+    auto thq = lunar::get_threadq_green_thread(1);
     int num[2] = {0, 1};
     for (;;) {
         lunar::select_green_thread(nullptr, 0, nullptr, 0, false, 13000);
-        lunar::push_threadq_fast_unsafe_green_thread(fb, (char*)num);
+        lunar::push_threadq_green_thread(thq, (char*)num);
         num[0] += 2;
         num[1] += 2;
     }

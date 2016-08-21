@@ -5,6 +5,7 @@
 #include "lunar_spin_lock.hpp"
 #include "lunar_shared_stream.hpp"
 #include "lunar_ringq.hpp"
+#include "lunar_shared_type.hpp"
 
 #include <unistd.h>
 #include <setjmp.h>
@@ -169,8 +170,8 @@ extern "C" {
                       bool is_threadq, int64_t timeout);
 #endif // KQUEUE
 
-    STRM_RESULT push_threadq_green_thread(uint64_t id, char *p);
-    STRM_RESULT push_threadq_fast_unsafe_green_thread(void *fb, char *p);
+    void*       get_threadq_green_thread(uint64_t thid);
+    STRM_RESULT push_threadq_green_thread(void *thq, char *p);
     STRM_RESULT pop_threadq_green_thread(char *p);
     STRM_RESULT push_stream_ptr(void *p, void *data);
     STRM_RESULT push_stream_bytes(void *p, char *data);
@@ -205,10 +206,14 @@ public:
     void schedule();
     int  spawn(void (*func)(void*), void *arg = nullptr, int stack_size = 4096 * 50);
     void run();
-    void inc_refcnt_threadq() { m_threadq->inc_refcnt(); }
-    void dec_refcnt_threadq() { m_threadq->dec_refcnt(); }
     STRM_RESULT push_threadq(char *p) { return m_threadq->push(p); }
     STRM_RESULT pop_threadq(char *p) { return m_threadq->pop(p); }
+
+    void* get_threadq()
+    {
+        incref_shared_type(m_threadq);
+        return m_threadq;
+    }
 
 #ifdef KQUEUE
     void select_stream(struct kevent *kev, int num_kev,
@@ -354,6 +359,8 @@ private:
         inline STRM_RESULT push(char *p) {
             if (m_qlen == m_max_qlen)
                 return STRM_NO_VACANCY;
+            else if (m_is_closed)
+                return STRM_CLOSED;
 
             spin_lock_acquire_unsafe lock(m_qlock);
 
@@ -421,8 +428,6 @@ private:
         int get_read_fd() { return m_qpipe[0]; }
         qwait_type get_wait_type() { return m_qwait_type; }
         void set_wait_type(qwait_type t) { m_qwait_type = t; }
-        void inc_refcnt() { __sync_fetch_and_add(&m_refcnt, 1); }
-        void dec_refcnt() { __sync_fetch_and_sub(&m_refcnt, 1); }
 
         void pop_pipe(ssize_t len) {
             char buf[16];
@@ -448,7 +453,6 @@ private:
 
     private:
         volatile int  m_qlen;
-        volatile int  m_refcnt;
         volatile bool m_is_qnotified;
         volatile qwait_type m_qwait_type;
         int   m_max_qlen;
@@ -458,6 +462,7 @@ private:
         char *m_qhead;
         char *m_qtail;
         int   m_qpipe[2];
+        bool  m_is_closed;
         spin_lock  m_qlock;
         std::mutex m_qmutex;
         std::condition_variable m_qcond;
@@ -465,17 +470,18 @@ private:
         friend void green_thread::schedule();
     };
 
-    std::unique_ptr<threadq> m_threadq;
+    threadq *m_threadq;
 
 #ifdef KQUEUE
     int m_kq;
 #elif (defined EPOLL)
     int m_epoll;
 #endif // KQUEUE
-
     void select_fd(bool is_block);
     void resume_timeout();
     void remove_stopped();
+
+    friend STRM_RESULT push_threadq_green_thread(void *thq, char *p);
 };
 
 }

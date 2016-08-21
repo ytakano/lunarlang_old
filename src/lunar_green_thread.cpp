@@ -104,6 +104,19 @@ get_green_thread(uint64_t thid)
     }
 }
 
+void*
+get_threadq_green_thread(uint64_t thid)
+{
+    {
+        rtm_transaction tr(lock_thread2gt);
+        auto it = thread2gt.find(thid);
+        if (it == thread2gt.end())
+            return nullptr;
+        else
+            return it->second->get_threadq();
+    }
+}
+
 bool
 init_green_thread(uint64_t thid, int qlen, int vecsize)
 {
@@ -173,30 +186,9 @@ select_green_thread(epoll_event *eev, int num_eev,
 #endif // KQUEUE
 
 STRM_RESULT
-push_threadq_green_thread(uint64_t id, char *p)
+push_threadq_green_thread(void *thq, char *p)
 {
-    green_thread *fb;
-
-    {
-        rtm_transaction tr(lock_thread2gt);
-        auto it = thread2gt.find(id);
-        if (it == thread2gt.end()) {
-            return STRM_CLOSED;
-        } else {
-            fb = it->second;
-            fb->inc_refcnt_threadq();
-        }
-    }
-
-    auto ret = fb->push_threadq(p);
-    fb->dec_refcnt_threadq();
-
-    return ret;
-}
-
-STRM_RESULT push_threadq_fast_unsafe_green_thread(void *fb, char *p)
-{
-    return ((green_thread*)fb)->push_threadq(p);
+    return ((green_thread::threadq*)thq)->push(p);
 }
 
 STRM_RESULT
@@ -350,7 +342,7 @@ green_thread::green_thread(int qsize, int vecsize)
     : m_count(0),
       m_running(nullptr),
       m_wait_thq(nullptr),
-      m_threadq(new threadq(qsize, vecsize))
+      m_threadq(new (make_shared_type(sizeof(*m_threadq))) threadq(qsize, vecsize))
 {
 #ifdef KQUEUE
     for (;;) {
@@ -379,6 +371,8 @@ green_thread::green_thread(int qsize, int vecsize)
 
 green_thread::~green_thread()
 {
+    deref_shared_type(m_threadq);
+
 #ifdef KQUEUE
     for (;;) {
         if (close(m_kq) == -1) {
@@ -1166,14 +1160,14 @@ green_thread::remove_stopped()
 
 green_thread::threadq::threadq(int qsize, int vecsize)
     : m_qlen(0),
-      m_refcnt(0),
       m_is_qnotified(true),
       m_qwait_type(threadq::QWAIT_NONE),
       m_max_qlen(qsize),
       m_q(new char[qsize * vecsize]),
       m_qend(m_q + qsize * vecsize),
       m_qhead(m_q),
-      m_qtail(m_q)
+      m_qtail(m_q),
+      m_is_closed(false)
 {
     if (pipe(m_qpipe) == -1) {
         PRINTERR("could not create pipe!: %s", strerror(errno));
@@ -1186,8 +1180,6 @@ green_thread::threadq::threadq(int qsize, int vecsize)
 
 green_thread::threadq::~threadq()
 {
-    while (m_refcnt);
-
     delete[] m_q;
 
     for (;;) {
