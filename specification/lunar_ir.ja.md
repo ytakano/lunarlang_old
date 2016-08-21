@@ -488,6 +488,14 @@ type 式は真偽値を返す式であり、多相型変数の型を動的に検
 セマンティクス：
 - ( mksignalstream シグナル番号 )
 
+### スレッドストリーム取得式
+
+構文：
+- GETTHREADQ := ( getthreadq EXPRIDENTLIT )
+
+セマンティクス：
+- ( getthreadq スレッドID )
+
 ### push式
 
 構文：
