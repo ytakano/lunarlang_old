@@ -202,33 +202,33 @@ do {                                                                    \
         spaces += ' ';                                                  \
     fprintf(stderr, "%s:%d\n%s:%llu:%llu: error: %s\n%s\n%s^\n",        \
             __FILE__, __LINE__, module->get_filename().c_str(),         \
-            msg.line, msg.col,                                          \
+            (unsigned long long)msg.line, (unsigned long long)msg.col,  \
             (str), get_line(module->get_filename(), msg.line).c_str(),  \
             spaces.c_str());                                            \
 } while (0)
 
-#define print_parse_err_linecol(str, module, ps, line, col)         \
-do {                                                                \
-    std::string spaces;                                             \
-    for (uint64_t i = 1; i < col; i++)                              \
-        spaces += ' ';                                              \
-    fprintf(stderr, "%s:%d\n%s:%llu:%llu: error: %s\n%s\n%s^\n",    \
-            __FILE__, __LINE__, module->get_filename().c_str(),     \
-            (line), (col), (str),                                   \
-            get_line(module->get_filename(), line).c_str(),         \
-            spaces.c_str());                                        \
+#define print_parse_err_linecol(str, module, ps, line, col)                 \
+do {                                                                        \
+    std::string spaces;                                                     \
+    for (uint64_t i = 1; i < col; i++)                                      \
+        spaces += ' ';                                                      \
+    fprintf(stderr, "%s:%d\n%s:%llu:%llu: error: %s\n%s\n%s^\n",            \
+            __FILE__, __LINE__, module->get_filename().c_str(),             \
+            (unsigned long long)(line), (unsigned long long)(col), (str),   \
+            get_line(module->get_filename(), line).c_str(),                 \
+            spaces.c_str());                                                \
 } while (0)
 
-#define print_parse_warn_linecol(str, module, ps, line, col)        \
-do {                                                                \
-    std::string spaces;                                             \
-    for (uint64_t i = 1; i < col; i++)                              \
-        spaces += ' ';                                              \
-    fprintf(stderr, "%s:%d\n%s:%llu:%llu: warning: %s\n%s\n%s^\n",  \
-            __FILE__, __LINE__, module->get_filename().c_str(),     \
-            (line), (col), (str),                                   \
-            get_line(module->get_filename(), line).c_str(),         \
-            spaces.c_str());                                        \
+#define print_parse_warn_linecol(str, module, ps, line, col)                \
+do {                                                                        \
+    std::string spaces;                                                     \
+    for (uint64_t i = 1; i < col; i++)                                      \
+        spaces += ' ';                                                      \
+    fprintf(stderr, "%s:%d\n%s:%llu:%llu: warning: %s\n%s\n%s^\n",          \
+            __FILE__, __LINE__, module->get_filename().c_str(),             \
+            (unsigned long long)(line), (unsigned long long)(col), (str),   \
+            get_line(module->get_filename(), line).c_str(),                 \
+            spaces.c_str());                                                \
 } while (0)
 
 const std::string&

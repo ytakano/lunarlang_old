@@ -407,7 +407,7 @@ private:
                     return STRM_NO_MORE_DATA;
             }
 
-            for (int i; i < m_vecsize; i++)
+            for (int i = 0; i < m_vecsize; i++)
                 p[i] = m_qhead[i];
 
             {
