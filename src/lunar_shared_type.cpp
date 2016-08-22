@@ -1,5 +1,7 @@
 #include "lunar_shared_type.hpp"
 
+#include <stdint.h>
+
 namespace lunar {
 
 extern "C" {
