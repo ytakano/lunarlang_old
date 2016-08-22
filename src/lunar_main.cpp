@@ -4,6 +4,7 @@
 #include "lunar_shared_stream.hpp"
 
 #include "lunar_ir.hpp"
+#include "lunar_hash.hpp"
 
 #include <fstream>
 #include <iostream>
@@ -24,6 +25,23 @@ main(int argc, char *argv[])
     ir.compile("tests/ir/test06.lunar.ir");
 
     ir.print();
+
+    int n = 0;
+    lunar::hash_set<int> hs;
+    /*
+    for (int i = 0; i < 32; i++) {
+        hs.insert(i);
+        n += i;
+    }*/
+    hs.insert(31);
+
+    int m = 0;
+    for (auto it_hs = hs.begin(); it_hs != hs.end(); ++it_hs) {
+        m += *it_hs;
+        printf("%d\n", *it_hs);
+    }
+
+    printf("n = %d, m = %d\n", n, m);
 
     return 0;
 }

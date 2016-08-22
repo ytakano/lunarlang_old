@@ -2,7 +2,6 @@
 #include "lunar_ringq.hpp"
 
 #include <unistd.h>
-#include <stdint.h>
 
 #include <sys/socket.h>
 

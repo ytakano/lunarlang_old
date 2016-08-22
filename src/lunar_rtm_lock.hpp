@@ -70,7 +70,7 @@ public:
             int i;
 
             for (i = 0; i < RTM_MAX_RETRY; i++) {
-                status = _xbegin();
+                status = _xbegin_rtm();
                 if (status == _XBEGIN_STARTED) {
                     if (! lock.m_lock) {
                         return;
@@ -109,7 +109,7 @@ public:
 #ifdef DEBUG_RTM
             m_rtm_lock.m_nrtm++;
 #endif // DEBUG_RTM
-            _xend();
+            _xend_rtm();
         }
 #else
         __sync_lock_release(&m_rtm_lock.m_lock);
