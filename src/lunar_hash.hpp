@@ -44,8 +44,7 @@ public:
                 }
 
                 if (m_ptr == m_ptr_end) {
-                    m_ptr--;
-                    m_it = m_ptr->end();
+                    m_it = m_ptr->begin();
                 }
             }
 
@@ -69,9 +68,10 @@ public:
 
     private:
         iterator(std::list<T> *ptr, std::list<T> *ptr_end, typename std::list<T>::iterator it)
-            : m_ptr(ptr), m_it(it), m_is_end(false) { }
+            : m_ptr(ptr), m_ptr_end(ptr_end), m_it(it), m_is_end(false) { }
 
         std::list<T> *m_ptr;
+        std::list<T> *m_ptr_end;
         typename std::list<T>::iterator m_it;
         bool m_is_end;
 
@@ -88,7 +88,7 @@ public:
             }
         }
 
-        return iterator();
+        return end();
     }
 
     iterator begin()
@@ -98,7 +98,7 @@ public:
                 return iterator(&m_bucket[i], &m_bucket[m_num_bucket], m_bucket[i].begin());
         }
 
-        return iterator();
+        return end();
     }
 
     iterator end()
@@ -108,10 +108,8 @@ public:
 
     std::pair<iterator, bool> insert(const T &val)
     {
-        if (m_size > (m_num_bucket >> 1)) {
-            if (! increase_bucket())
-                return std::pair<iterator, bool>(end(), false);
-        }
+        if (m_size > (m_num_bucket >> 1))
+            increase_bucket();
 
         typename std::list<T>::iterator it;
         auto idx = get_idx(val);
@@ -127,16 +125,22 @@ public:
             it = --(m_bucket[idx].end());
         }
 
+        m_size++;
+
         return std::pair<iterator, bool>(iterator(&m_bucket[idx], &m_bucket[m_num_bucket], it), false);
     }
 
     uint64_t erase(const T &val)
     {
+        if (m_size < (m_num_bucket >> 3))
+            decrease_bucket();
+
         auto idx = get_idx(val);
 
         for (auto it = m_bucket[idx].begin(); it != m_bucket[idx].end(); ++it) {
             if (*it == val) {
                 m_bucket[idx].erase(it);
+                m_size--;
                 return 1;
             }
         }
@@ -164,8 +168,6 @@ private:
             h >>= m_mask_bits;
         } while (h != 0);
 
-        printf("val = %d, idx = %d, num_bucket = %d\n", val, idx, m_num_bucket);
-
         return idx;
     }
 
@@ -183,9 +185,9 @@ private:
         m_mask_bits  = 63 - _lzcnt_u64(m_num_bucket);
 
         for (uint64_t i = 0; i < old_num_bucket; i++) {
-            for (auto ptr: old_bucket[i]) {
-                auto idx = get_idx(ptr);
-                m_bucket[idx].push_back(ptr);
+            for (auto val: old_bucket[i]) {
+                auto idx = get_idx(val);
+                m_bucket[idx].push_back(val);
             }
         }
 
@@ -206,9 +208,9 @@ private:
         m_mask_bits  = 63 - _lzcnt_u64(m_num_bucket);
 
         for (uint64_t i = 0; i < old_num_bucket; i++) {
-            for (auto ptr: old_bucket[i]) {
-                auto idx = get_idx(ptr);
-                m_bucket[idx].push_back(ptr);
+            for (auto val: old_bucket[i]) {
+                auto idx = get_idx(val);
+                m_bucket[idx].push_back(val);
             }
         }
 

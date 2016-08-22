@@ -28,20 +28,30 @@ main(int argc, char *argv[])
 
     int n = 0;
     lunar::hash_set<int> hs;
-    /*
-    for (int i = 0; i < 32; i++) {
+    lunar::hash_set<int>::iterator it_hs;
+
+    for (int i = 0; i < 1000; i++) {
         hs.insert(i);
         n += i;
-    }*/
-    hs.insert(31);
+    }
 
     int m = 0;
-    for (auto it_hs = hs.begin(); it_hs != hs.end(); ++it_hs) {
+    for (it_hs = hs.begin(); it_hs != hs.end(); ++it_hs) {
         m += *it_hs;
         printf("%d\n", *it_hs);
     }
+    printf("n = %d, m = %d\n", n, m);
+
+    for (int i = 0; i < 1000; i++) {
+        hs.erase(i);
+        n -= i;
+    }
 
     printf("n = %d, m = %d\n", n, m);
+
+    for (auto &val: hs) {
+        printf("val = %d\n", val);
+    }
 
     return 0;
 }
