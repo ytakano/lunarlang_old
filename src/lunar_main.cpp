@@ -53,5 +53,7 @@ main(int argc, char *argv[])
         printf("val = %d\n", val);
     }
 
+    lunar::hash_map<int, int> hm;
+
     return 0;
 }

@@ -221,6 +221,43 @@ private:
     }
 };
 
+template<typename K, typename V, typename F = std::hash<K>>
+class hash_map
+{
+    class hpair {
+    public:
+        bool operator== (const hpair &rhs)
+        {
+            return first == rhs.first;
+        }
+
+        K first;
+        V second;
+    };
+
+    class hash_func {
+    public:
+        uint32_t operator() (const hpair &lhs)
+        {
+            return F()(lhs.first);
+        }
+    };
+
+public:
+    class iterator : public std::iterator<std::forward_iterator_tag, std::pair<K, V>>
+    {
+    public:
+
+    private:
+        typename hash_set<hpair, hash_func>::iterator m_it;
+    };
+
+private:
+
+    hash_set<hpair, hash_func> m_set;
+
+};
+
 }
 
 #endif // LUNAR_HASH_HPP
