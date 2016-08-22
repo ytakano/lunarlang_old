@@ -15,12 +15,12 @@ template<typename T, typename F = std::hash<T>>
 class hash_set
 {
 public:
-    hash_set() : m_min_bucket(32),
-                 m_max_bucket(1 << 63),
+    hash_set() : m_min_bucket(64),
+                 m_max_bucket((uint64_t)1 << 56),
                  m_num_bucket(m_min_bucket),
                  m_bucket(new std::list<T>[m_num_bucket + 1]),
                  m_mask(m_num_bucket - 1),
-                 m_mask_bits(63 - _lzcnt_u64(m_num_bucket)),
+                 m_mask_bits(_tzcnt_u64(m_num_bucket)),
                  m_size(0) { }
     virtual ~hash_set()
     {
@@ -113,21 +113,19 @@ public:
 
         typename std::list<T>::iterator it;
         auto idx = get_idx(val);
-        for (it = m_bucket[idx].begin(); it != m_bucket[idx].end(); ++it) {
+        auto end = m_bucket[idx].end();
+        for (it = m_bucket[idx].begin(); it != end; ++it) {
             if (*it == val) {
                 *it = val;
-                break;
+                return std::pair<iterator, bool>(iterator(&m_bucket[idx], &m_bucket[m_num_bucket], it), true);
             }
         }
 
-        if (it == m_bucket[idx].end()) {
-            m_bucket[idx].push_back(val);
-            it = --(m_bucket[idx].end());
-        }
-
+        m_bucket[idx].push_back(val);
+        it = --end;
         m_size++;
 
-        return std::pair<iterator, bool>(iterator(&m_bucket[idx], &m_bucket[m_num_bucket], it), false);
+        return std::pair<iterator, bool>(iterator(&m_bucket[idx], &m_bucket[m_num_bucket], it), true);
     }
 
     uint64_t erase(const T &val)
@@ -173,23 +171,26 @@ private:
 
     bool increase_bucket()
     {
-        if (m_num_bucket == m_max_bucket)
+        if (m_num_bucket >= m_max_bucket) {
             return false;
+        }
 
         auto old_num_bucket = m_num_bucket;
         auto old_bucket     = m_bucket;
 
-        m_num_bucket = m_num_bucket << 1;
+        m_num_bucket = m_num_bucket << 2;
         m_bucket     = new std::list<T>[m_num_bucket + 1];
         m_mask       = m_num_bucket - 1;
-        m_mask_bits  = 63 - _lzcnt_u64(m_num_bucket);
+        m_mask_bits  = _tzcnt_u64(m_num_bucket);
 
         for (uint64_t i = 0; i < old_num_bucket; i++) {
-            for (auto val: old_bucket[i]) {
+            for (auto &val: old_bucket[i]) {
                 auto idx = get_idx(val);
                 m_bucket[idx].push_back(val);
             }
         }
+
+        delete[] old_bucket;
 
         return true;
     }
@@ -205,14 +206,16 @@ private:
         m_num_bucket = m_num_bucket >> 1;
         m_bucket     = new std::list<T>[m_num_bucket + 1];
         m_mask       = m_num_bucket - 1;
-        m_mask_bits  = 63 - _lzcnt_u64(m_num_bucket);
+        m_mask_bits  = _tzcnt_u64(m_num_bucket);
 
         for (uint64_t i = 0; i < old_num_bucket; i++) {
-            for (auto val: old_bucket[i]) {
+            for (auto &val: old_bucket[i]) {
                 auto idx = get_idx(val);
                 m_bucket[idx].push_back(val);
             }
         }
+
+        delete[] old_bucket;
 
         return true;
     }
