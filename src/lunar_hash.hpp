@@ -31,6 +31,7 @@ public:
     {
     public:
         iterator() : m_ptr(nullptr) { }
+        virtual ~iterator() { }
 
         const iterator& operator++ ()
         {
@@ -54,6 +55,11 @@ public:
         const T& operator* () const
         {
             return *m_it;
+        }
+
+        const T* operator-> () const
+        {
+            return &(*m_it);
         }
 
         bool operator== (const iterator &lhs) const
@@ -146,6 +152,9 @@ public:
         return 0;
     }
 
+    uint64_t size() { return m_size; }
+    bool empty() { return m_size == 0; }
+
 private:
     const uint64_t m_min_bucket;
     const uint64_t m_max_bucket;
@@ -224,15 +233,15 @@ private:
 template<typename K, typename V, typename F = std::hash<K>>
 class hash_map
 {
-    class hpair {
+    class hpair : public std::pair<K, V> {
     public:
+        hpair(std::pair<K, V> p) : std::pair<K, V>(p) { }
+        hpair() { }
+
         bool operator== (const hpair &rhs)
         {
-            return first == rhs.first;
+            return this->first == rhs.first;
         }
-
-        K first;
-        V second;
     };
 
     class hash_func {
@@ -247,13 +256,85 @@ public:
     class iterator : public std::iterator<std::forward_iterator_tag, std::pair<K, V>>
     {
     public:
+        iterator() { }
+        virtual ~iterator() { }
+
+        const iterator& operator++ ()
+        {
+            ++m_it;
+            return *this;
+        }
+
+        std::pair<const K, V>& operator* () const
+        {
+            return (std::pair<K, V>)*m_it;
+        }
+
+        std::pair<const K, V>* operator-> () const
+        {
+            return (std::pair<const K, V>*)&(*m_it);
+        }
+
+        bool operator== (const iterator &lhs) const
+        {
+            return m_it == lhs.m_it;
+        }
+
+        bool operator!= (const iterator &lhs) const
+        {
+            return ! (*this == lhs);
+        }
 
     private:
+        iterator(typename hash_set<hpair, hash_func>::iterator it) : m_it(it) { }
         typename hash_set<hpair, hash_func>::iterator m_it;
+
+        friend class hash_map;
     };
 
-private:
+    std::pair<iterator, bool> insert(const std::pair<K, V> &val)
+    {
+        auto ret = m_set.insert(hpair({val.first, val.second}));
+        return std::pair<iterator, bool>(iterator(ret.first), true);
+    }
 
+    iterator find(const K &key)
+    {
+        hpair p;
+        p.first = key;
+        auto it = m_set.find(p);
+
+        return iterator(it);
+    }
+
+    iterator begin()
+    {
+        return iterator(m_set.begin());
+    }
+
+    iterator end()
+    {
+        return iterator(m_set.end());
+    }
+
+    V& operator[] (const K &key)
+    {
+        auto it = find(key);
+        if (it == m_set.end()) {
+            hpair p;
+            p.first = key;
+
+            auto ret = m_set.insert(p);
+            return const_cast<V&>(ret.first->second);
+        }
+
+        return it->second;
+    }
+
+    uint64_t size() { return m_set.size(); }
+    bool empty() { return m_set.empty(); }
+
+private:
     hash_set<hpair, hash_func> m_set;
 
 };

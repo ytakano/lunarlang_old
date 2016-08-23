@@ -54,6 +54,15 @@ main(int argc, char *argv[])
     }
 
     lunar::hash_map<int, int> hm;
+    lunar::hash_map<int, int>::iterator it_hm;
+
+    hm.insert({10, 20});
+    hm[100] = 200;
+
+    it_hm = hm.find(10);
+    printf("val = %d\n", it_hm->second);
+    printf("val = %d\n", hm[100]);
+
 
     return 0;
 }
