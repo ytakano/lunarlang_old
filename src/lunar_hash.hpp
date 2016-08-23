@@ -8,9 +8,16 @@
 #include <functional>
 #include <iostream>
 
-#include <x86intrin.h>
-
 namespace lunar {
+
+#define TZCNTQ(DST, SRC)        \
+    do {                        \
+        asm (                   \
+            "tzcntq %0, %1;"    \
+            : "=r" (DST)        \
+            : "r" (SRC)         \
+            );                  \
+    } while (0)
 
 template<typename T, typename F = std::hash<T>>
 class hash_set
@@ -21,8 +28,11 @@ public:
                  m_num_bucket(m_min_bucket),
                  m_bucket(new std::list<T>[m_num_bucket + 1]),
                  m_mask(m_num_bucket - 1),
-                 m_mask_bits(63- _lzcnt_u64(m_num_bucket)),
-                 m_size(0) { }
+                 m_size(0)
+    {
+        TZCNTQ(m_mask_bits, m_num_bucket);
+    }
+
     virtual ~hash_set()
     {
         delete[] m_bucket;
@@ -203,7 +213,8 @@ private:
         m_num_bucket = m_num_bucket << 2;
         m_bucket     = new std::list<T>[m_num_bucket + 1];
         m_mask       = m_num_bucket - 1;
-        m_mask_bits  = 63 - _lzcnt_u64(m_num_bucket);
+
+        TZCNTQ(m_mask_bits, m_num_bucket);
 
         for (uint64_t i = 0; i < old_num_bucket; i++) {
             for (auto &val: old_bucket[i]) {
@@ -228,7 +239,8 @@ private:
         m_num_bucket = m_num_bucket >> 1;
         m_bucket     = new std::list<T>[m_num_bucket + 1];
         m_mask       = m_num_bucket - 1;
-        m_mask_bits  = 63 - _lzcnt_u64(m_num_bucket);
+
+        TZCNTQ(m_mask_bits, m_num_bucket);
 
         for (uint64_t i = 0; i < old_num_bucket; i++) {
             for (auto &val: old_bucket[i]) {
