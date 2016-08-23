@@ -6,9 +6,9 @@
 #include "lunar_string.hpp"
 #include "lunar_ringq.hpp"
 #include "lunar_green_thread.hpp"
+#include "lunar_hash.hpp"
 
 #include <string>
-#include <unordered_set>
 #include <vector>
 
 namespace lunar {
@@ -28,7 +28,7 @@ public:
 
     class parser_space {
     public:
-        parser_space(const std::unordered_set<T> &spaces) : m_spaces(spaces) { }
+        parser_space(const hash_set<T> &spaces) : m_spaces(spaces) { }
 
         bool operator() (T c)
         {
@@ -40,7 +40,7 @@ public:
         }
 
     private:
-        const std::unordered_set<T> &m_spaces;
+        const hash_set<T> &m_spaces;
     };
 
     class parser_char {
@@ -410,7 +410,7 @@ public:
 
 private:
     shared_stream *m_shared_stream;
-    std::unordered_set<T> m_spaces;
+    hash_set<T> m_spaces;
     bytes_t  m_bytes;
     message  m_err;
     bool     m_is_result;

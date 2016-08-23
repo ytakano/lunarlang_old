@@ -83,7 +83,7 @@ public:
         friend class hash_set;
     };
 
-    iterator find(const T &val)
+    iterator find(const T &val) const
     {
         auto idx = get_idx(val);
 
@@ -176,11 +176,10 @@ private:
     uint64_t       m_mask;
     uint64_t       m_mask_bits;
     uint64_t       m_size;
-    F              m_hash_func;
 
-    uint64_t get_idx(const T& val)
+    uint64_t get_idx(const T& val) const
     {
-        uint64_t h   = m_hash_func(val);
+        uint64_t h   = F()(val);
         uint64_t idx = 0;
 
         do {
@@ -314,7 +313,7 @@ public:
         return std::pair<iterator, bool>(iterator(ret.first), true);
     }
 
-    iterator find(const K &key)
+    iterator find(const K &key) const
     {
         std::pair<K, V> p0({key, V()});
         hpair p(p0);
