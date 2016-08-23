@@ -114,7 +114,7 @@ public:
 
     std::pair<iterator, bool> insert(const T &val)
     {
-        if (m_size > (m_num_bucket >> 1))
+        if (m_size > m_num_bucket)
             increase_bucket();
 
         typename std::list<T>::iterator it;
@@ -305,6 +305,13 @@ public:
         auto it = m_set.find(p);
 
         return iterator(it);
+    }
+
+    uint64_t erase(const K &key)
+    {
+        hpair p;
+        p.first = key;
+        return m_set.erase(p);
     }
 
     iterator begin()

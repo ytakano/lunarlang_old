@@ -15,7 +15,7 @@ double diff_tm(timeval &tm0, timeval &tm1)
 }
 
 uint64_t
-bench_lunar_hash()
+bench_lunar_hash_set()
 {
     lunar::hash_set<uint64_t> hs;
     timeval  tm0, tm1;
@@ -49,6 +49,45 @@ bench_lunar_hash()
 
     gettimeofday(&tm1, nullptr);
     printf("lunar::hash_set: lookup:\t\t%lf[ops/s]\n", NUM / diff_tm(tm0, tm1));
+
+    return n;
+}
+
+uint64_t
+bench_lunar_hash_map()
+{
+    lunar::hash_map<uint64_t, uint64_t> hm;
+    timeval  tm0, tm1;
+    uint64_t n = 0;
+
+    gettimeofday(&tm0, nullptr);
+
+    for (int i = 0; i < NUM; i++) {
+        hm.insert({i, i});
+    }
+
+    gettimeofday(&tm1, nullptr);
+    printf("lunar::hash_map: insertion:\t\t%lf[ops/s]\n", NUM / diff_tm(tm0, tm1));
+    gettimeofday(&tm0, nullptr);
+
+    for (int i = 0; i < NUM; i++) {
+        hm.erase(i);
+        hm.insert({i, i});
+    }
+
+    gettimeofday(&tm1, nullptr);
+    printf("lunar::hash_map: insertion & deletion:\t%lf[ops/s]\n", NUM / diff_tm(tm0, tm1));
+
+
+    gettimeofday(&tm0, nullptr);
+
+    for (int i = 0; i < NUM; i++) {
+        if (hm.find(i) != hm.end())
+            n += i;
+    }
+
+    gettimeofday(&tm1, nullptr);
+    printf("lunar::hash_map: lookup:\t\t%lf[ops/s]\n", NUM / diff_tm(tm0, tm1));
 
     return n;
 }
@@ -96,7 +135,8 @@ bench_unordered()
 int
 main(int argc, char *argv[])
 {
-    printf("lunar::hash_set: n = %llu\n", bench_lunar_hash());
+    printf("lunar::hash_set: n = %llu\n", bench_lunar_hash_set());
+    printf("lunar::hash_map: n = %llu\n", bench_lunar_hash_map());
     printf("unordered_set:   n = %llu\n", bench_unordered());
 
     return 0;
