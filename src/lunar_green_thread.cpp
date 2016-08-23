@@ -12,7 +12,7 @@ __thread green_thread *lunar_gt = nullptr;
 __thread uint64_t thread_id;
 
 rtm_lock lock_thread2gt;
-hash_map<uint64_t, green_thread*> thread2gt;
+std::unordered_map<uint64_t, green_thread*> thread2gt;
 
 // stack layout:
 //    [empty]
@@ -1123,6 +1123,7 @@ green_thread::select_stream(epoll_event *eev, int num_eev,
         for (int i = 0; i < num_stream; i++) {
             void *s = ((shared_stream*)stream[i])->shared_data->stream.ptr;
             assert(((shared_stream*)stream[i])->flag & shared_stream::READ);
+            printf("s = %p\n", s);
             m_wait_stream[s] = m_running;
             m_running->m_stream.push_back(s);
         }

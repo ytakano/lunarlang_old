@@ -4,7 +4,8 @@
 
 #include <sys/time.h>
 
-#define NUM 40000000
+#define NTRIAL 1000000
+#define NUM 10
 
 double diff_tm(timeval &tm0, timeval &tm1)
 {
@@ -23,32 +24,39 @@ bench_lunar_hash_set()
 
     gettimeofday(&tm0, nullptr);
 
-    for (int i = 0; i < NUM; i++) {
-        hs.insert(i);
+    for (int j = 0; j < NTRIAL; j++) {
+        for (int i = 0; i < NUM; i++) {
+            hs.insert(i);
+        }
     }
 
     gettimeofday(&tm1, nullptr);
-    printf("lunar::hash_set: insertion:\t\t%lf[ops/s]\n", NUM / diff_tm(tm0, tm1));
+    printf("lunar::hash_set: insertion:\t\t%lf[ops/s]\n", NUM * NTRIAL / diff_tm(tm0, tm1));
     gettimeofday(&tm0, nullptr);
 
-    for (int i = 0; i < NUM; i++) {
-        hs.erase(i);
-        hs.insert(i);
+    for (int j = 0; j < NTRIAL; j++) {
+        for (int i = 0; i < NUM; i++) {
+            hs.erase(i);
+            hs.insert(i);
+        }
     }
 
     gettimeofday(&tm1, nullptr);
-    printf("lunar::hash_set: insertion & deletion:\t%lf[ops/s]\n", NUM / diff_tm(tm0, tm1));
+    printf("lunar::hash_set: insertion & deletion:\t%lf[ops/s]\n", NUM * NTRIAL / diff_tm(tm0, tm1));
 
 
     gettimeofday(&tm0, nullptr);
 
-    for (int i = 0; i < NUM; i++) {
-        if (hs.find(i) != hs.end())
-            n += i;
+
+    for (int j = 0; j < NTRIAL; j++) {
+        for (int i = 0; i < NUM; i++) {
+            if (hs.find(i) != hs.end())
+                n += i;
+        }
     }
 
     gettimeofday(&tm1, nullptr);
-    printf("lunar::hash_set: lookup:\t\t%lf[ops/s]\n", NUM / diff_tm(tm0, tm1));
+    printf("lunar::hash_set: lookup:\t\t%lf[ops/s]\n", NUM * NTRIAL / diff_tm(tm0, tm1));
 
     return n;
 }
@@ -62,32 +70,38 @@ bench_lunar_hash_map()
 
     gettimeofday(&tm0, nullptr);
 
-    for (int i = 0; i < NUM; i++) {
-        hm.insert({i, i});
+    for (int j = 0; j < NTRIAL; j++) {
+        for (int i = 0; i < NUM; i++) {
+            hm.insert({0, i});
+        }
     }
 
     gettimeofday(&tm1, nullptr);
-    printf("lunar::hash_map: insertion:\t\t%lf[ops/s]\n", NUM / diff_tm(tm0, tm1));
+    printf("lunar::hash_map: insertion:\t\t%lf[ops/s]\n", NUM * NTRIAL / diff_tm(tm0, tm1));
     gettimeofday(&tm0, nullptr);
 
-    for (int i = 0; i < NUM; i++) {
-        hm.erase(i);
-        hm.insert({i, i});
+    for (int j = 0; j < NTRIAL; j++) {
+        for (int i = 0; i < NUM; i++) {
+            hm.erase(i);
+            hm.insert({0, i});
+        }
     }
 
     gettimeofday(&tm1, nullptr);
-    printf("lunar::hash_map: insertion & deletion:\t%lf[ops/s]\n", NUM / diff_tm(tm0, tm1));
+    printf("lunar::hash_map: insertion & deletion:\t%lf[ops/s]\n", NUM * NTRIAL / diff_tm(tm0, tm1));
 
 
     gettimeofday(&tm0, nullptr);
 
-    for (int i = 0; i < NUM; i++) {
-        if (hm.find(i) != hm.end())
-            n += i;
+    for (int j = 0; j < NTRIAL; j++) {
+        for (int i = 0; i < NUM; i++) {
+            if (hm.find(0) != hm.end())
+                n += i;
+        }
     }
 
     gettimeofday(&tm1, nullptr);
-    printf("lunar::hash_map: lookup:\t\t%lf[ops/s]\n", NUM / diff_tm(tm0, tm1));
+    printf("lunar::hash_map: lookup:\t\t%lf[ops/s]\n", NUM * NTRIAL / diff_tm(tm0, tm1));
 
     return n;
 }
@@ -101,33 +115,38 @@ bench_unordered()
 
     gettimeofday(&tm0, nullptr);
 
-    for (int i = 0; i < NUM; i++) {
-        hs.insert(i);
+    for (int j = 0; j < NTRIAL; j++) {
+        for (int i = 0; i < NUM; i++) {
+            hs.insert(i);
+        }
     }
 
     gettimeofday(&tm1, nullptr);
-    printf("unordered_set: insertion:\t\t%lf[ops/s]\n", NUM / diff_tm(tm0, tm1));
+    printf("unordered_set: insertion:\t\t%lf[ops/s]\n", NUM * NTRIAL / diff_tm(tm0, tm1));
     gettimeofday(&tm0, nullptr);
 
-    for (int i = 0; i < NUM; i++) {
-        hs.erase(i);
-        hs.insert(i);
+    for (int j = 0; j < NTRIAL; j++) {
+        for (int i = 0; i < NUM; i++) {
+            hs.erase(i);
+            hs.insert(i);
+        }
     }
 
     gettimeofday(&tm1, nullptr);
-    printf("unordered_set: insertion & deletion:\t%lf[ops/s]\n", NUM / diff_tm(tm0, tm1));
-
+    printf("unordered_set: insertion & deletion:\t%lf[ops/s]\n", NUM * NTRIAL / diff_tm(tm0, tm1));
 
 
     gettimeofday(&tm0, nullptr);
 
-    for (int i = 0; i < NUM; i++) {
-        if (hs.find(i) != hs.end())
-            n += i;
+    for (int j = 0; j < NTRIAL; j++) {
+        for (int i = 0; i < NUM; i++) {
+            if (hs.find(i) != hs.end())
+                n += i;
+        }
     }
 
     gettimeofday(&tm1, nullptr);
-    printf("unordered_set: lookup:\t\t\t%lf[ops/s]\n", NUM / diff_tm(tm0, tm1));
+    printf("unordered_set: lookup:\t\t\t%lf[ops/s]\n", NUM * NTRIAL / diff_tm(tm0, tm1));
 
     return n;
 }

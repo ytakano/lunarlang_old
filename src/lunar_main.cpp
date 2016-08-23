@@ -26,6 +26,14 @@ main(int argc, char *argv[])
 
     ir.print();
 
+    lunar::hash_map<void*, int> hm;
+    hm[(void*)0x7fcce3408e70] = 1;
+    hm.erase((void*)0x7fcce3408e70);
+    hm[(void*)0x7fcce3408e70] = 20;
+    hm.erase((void*)0x7fcce3408e70);
+    hm[(void*)0x7fcce3408e70] = 30;
+    hm.erase((void*)0x7fcce3408e70);
+/*
     int n = 0;
     lunar::hash_set<int> hs;
     lunar::hash_set<int>::iterator it_hs;
@@ -58,11 +66,13 @@ main(int argc, char *argv[])
 
     hm.insert({10, 20});
     hm[100] = 200;
+    hm[100] = 300;
+    hm[100] = 400;
 
     it_hm = hm.find(10);
     printf("val = %d\n", it_hm->second);
     printf("val = %d\n", hm[100]);
-
+*/
 
     return 0;
 }
