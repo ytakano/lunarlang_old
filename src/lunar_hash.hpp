@@ -1,6 +1,8 @@
 #ifndef LUNAR_HASH_HPP
 #define LUNAR_HASH_HPP
 
+#include "lunar_common.hpp"
+
 #include <inttypes.h>
 
 #include <iterator>
@@ -9,15 +11,6 @@
 #include <iostream>
 
 namespace lunar {
-
-#define TZCNTQ(DST, SRC)        \
-    do {                        \
-        asm (                   \
-            "tzcntq %0, %1;"    \
-            : "=r" (DST)        \
-            : "r" (SRC)         \
-            );                  \
-    } while (0)
 
 template<typename T, typename F = std::hash<T>>
 class hash_set
@@ -30,7 +23,7 @@ public:
                  m_mask(m_num_bucket - 1),
                  m_size(0)
     {
-        TZCNTQ(m_mask_bits, m_num_bucket);
+        m_mask_bits =  __builtin_ctzll(m_num_bucket);
     }
 
     virtual ~hash_set()
@@ -213,8 +206,7 @@ private:
         m_num_bucket = m_num_bucket << 2;
         m_bucket     = new std::list<T>[m_num_bucket + 1];
         m_mask       = m_num_bucket - 1;
-
-        TZCNTQ(m_mask_bits, m_num_bucket);
+        m_mask_bits  =  __builtin_ctzll(m_num_bucket);
 
         for (uint64_t i = 0; i < old_num_bucket; i++) {
             for (auto &val: old_bucket[i]) {
@@ -239,8 +231,7 @@ private:
         m_num_bucket = m_num_bucket >> 1;
         m_bucket     = new std::list<T>[m_num_bucket + 1];
         m_mask       = m_num_bucket - 1;
-
-        TZCNTQ(m_mask_bits, m_num_bucket);
+        m_mask_bits  =  __builtin_ctzll(m_num_bucket);
 
         for (uint64_t i = 0; i < old_num_bucket; i++) {
             for (auto &val: old_bucket[i]) {
