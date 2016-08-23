@@ -12,7 +12,7 @@ __thread green_thread *lunar_gt = nullptr;
 __thread uint64_t thread_id;
 
 rtm_lock lock_thread2gt;
-std::unordered_map<uint64_t, green_thread*> thread2gt;
+hash_map<uint64_t, green_thread*> thread2gt;
 
 // stack layout:
 //    [empty]
@@ -1112,7 +1112,7 @@ green_thread::select_stream(epoll_event *eev, int num_eev,
                 }
             }
 
-            m_wait_fd[{eev[i].data.fd, eev[i].events}].insert(m_running);
+            m_wait_fd[{eev[i].data.fd, eev[i].events}]->insert(m_running);
             m_running->m_fd.push_back({eev[i].data.fd, eev[i].events});
         }
     }

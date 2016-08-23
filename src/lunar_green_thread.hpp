@@ -6,6 +6,7 @@
 #include "lunar_shared_stream.hpp"
 #include "lunar_ringq.hpp"
 #include "lunar_shared_type.hpp"
+#include "lunar_hash.hpp"
 
 #include <unistd.h>
 #include <setjmp.h>
@@ -13,8 +14,8 @@
 #include <string>
 #include <vector>
 #include <deque>
-#include <unordered_map>
 #include <unordered_set>
+#include <unordered_map>
 #include <thread>
 #include <mutex>
 #include <condition_variable>

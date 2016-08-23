@@ -34,7 +34,7 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 
 set(LIBS ${LLVM_AVAILABLE_LIBS})
-set(CMAKE_CXX_FLAGS "-Wno-gnu-zero-variadic-macro-arguments -fno-rtti ${LLVM_CXXFLAGS} -I../../src")
+set(CMAKE_CXX_FLAGS "-Wno-gnu-zero-variadic-macro-arguments -fno-rtti ${LLVM_CXXFLAGS} -mlzcnt -I../../src")
 set(CMAKE_CXX_FLAGS_DEBUG "-g -O0")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 set(CMAKE_EXE_LINKER_FLAGS ${LLVM_LDFLAGS})

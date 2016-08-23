@@ -20,7 +20,7 @@ public:
                  m_num_bucket(m_min_bucket),
                  m_bucket(new std::list<T>[m_num_bucket + 1]),
                  m_mask(m_num_bucket - 1),
-                 m_mask_bits(_tzcnt_u64(m_num_bucket)),
+                 m_mask_bits(63- _lzcnt_u64(m_num_bucket)),
                  m_size(0) { }
     virtual ~hash_set()
     {
@@ -74,12 +74,11 @@ public:
 
     private:
         iterator(std::list<T> *ptr, std::list<T> *ptr_end, typename std::list<T>::iterator it)
-            : m_ptr(ptr), m_ptr_end(ptr_end), m_it(it), m_is_end(false) { }
+            : m_ptr(ptr), m_ptr_end(ptr_end), m_it(it) { }
 
         std::list<T> *m_ptr;
         std::list<T> *m_ptr_end;
         typename std::list<T>::iterator m_it;
-        bool m_is_end;
 
         friend class hash_set;
     };
@@ -97,7 +96,12 @@ public:
         return end();
     }
 
-    iterator begin()
+    void erase(iterator &it)
+    {
+        it.m_ptr->erase(it.m_it);
+    }
+
+    iterator begin() const
     {
         for (uint64_t i = 0; i < m_num_bucket; i++) {
             if (! m_bucket[i].empty())
@@ -107,7 +111,7 @@ public:
         return end();
     }
 
-    iterator end()
+    iterator end() const
     {
         return iterator(&m_bucket[m_num_bucket], &m_bucket[m_num_bucket], m_bucket[m_num_bucket].begin());
     }
@@ -152,6 +156,15 @@ public:
         return 0;
     }
 
+    hash_set& operator= (const hash_set &rhs)
+    {
+        for (auto &item: rhs) {
+            insert(item);
+        }
+
+        return *this;
+    }
+
     uint64_t size() { return m_size; }
     bool empty() { return m_size == 0; }
 
@@ -190,7 +203,7 @@ private:
         m_num_bucket = m_num_bucket << 2;
         m_bucket     = new std::list<T>[m_num_bucket + 1];
         m_mask       = m_num_bucket - 1;
-        m_mask_bits  = _tzcnt_u64(m_num_bucket);
+        m_mask_bits  = 63 - _lzcnt_u64(m_num_bucket);
 
         for (uint64_t i = 0; i < old_num_bucket; i++) {
             for (auto &val: old_bucket[i]) {
@@ -215,7 +228,7 @@ private:
         m_num_bucket = m_num_bucket >> 1;
         m_bucket     = new std::list<T>[m_num_bucket + 1];
         m_mask       = m_num_bucket - 1;
-        m_mask_bits  = _tzcnt_u64(m_num_bucket);
+        m_mask_bits  = 63 - _lzcnt_u64(m_num_bucket);
 
         for (uint64_t i = 0; i < old_num_bucket; i++) {
             for (auto &val: old_bucket[i]) {
@@ -233,15 +246,18 @@ private:
 template<typename K, typename V, typename F = std::hash<K>>
 class hash_map
 {
-    class hpair : public std::pair<K, V> {
+    class hpair {
     public:
-        hpair(std::pair<K, V> p) : std::pair<K, V>(p) { }
+        hpair(std::pair<K, V> &p) : first(p.first), second(p.second) { }
         hpair() { }
 
         bool operator== (const hpair &rhs)
         {
             return this->first == rhs.first;
         }
+
+        K first;
+        V second;
     };
 
     class hash_func {
@@ -294,17 +310,15 @@ public:
 
     std::pair<iterator, bool> insert(const std::pair<K, V> &val)
     {
-        auto ret = m_set.insert(hpair({val.first, val.second}));
+        auto ret = m_set.insert(*(hpair*)&val);
         return std::pair<iterator, bool>(iterator(ret.first), true);
     }
 
     iterator find(const K &key)
     {
-        hpair p;
-        p.first = key;
-        auto it = m_set.find(p);
-
-        return iterator(it);
+        std::pair<K, V> p0({key, V()});
+        hpair p(p0);
+        return m_set.find(p);
     }
 
     uint64_t erase(const K &key)
@@ -314,12 +328,17 @@ public:
         return m_set.erase(p);
     }
 
-    iterator begin()
+    void erase(iterator &it)
+    {
+        m_set.erase(it.m_it);
+    }
+
+    iterator begin() const
     {
         return iterator(m_set.begin());
     }
 
-    iterator end()
+    iterator end() const
     {
         return iterator(m_set.end());
     }
@@ -328,8 +347,8 @@ public:
     {
         auto it = find(key);
         if (it == m_set.end()) {
-            hpair p;
-            p.first = key;
+            std::pair<K, V> p0({key, V()});
+            hpair p(p0);
 
             auto ret = m_set.insert(p);
             return const_cast<V&>(ret.first->second);
