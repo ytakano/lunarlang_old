@@ -334,11 +334,11 @@ private:
         >
     > timeout_t;
 
-    jmp_buf   m_jmp_buf;
-    int64_t   m_count;
-    context*  m_running;
-    context*  m_wait_thq;
-    timeout_t m_timeout;
+    sigjmp_buf m_jmp_buf;
+    int64_t    m_count;
+    context*   m_running;
+    context*   m_wait_thq;
+    timeout_t  m_timeout;
     std::deque<context*> m_suspend;
     std::deque<context*> m_stop;
     std::unordered_map<int64_t, std::unique_ptr<context>> m_id2context;
