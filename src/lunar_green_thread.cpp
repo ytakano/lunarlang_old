@@ -471,7 +471,7 @@ green_thread::select_fd(bool is_block)
 
     for (int i = 0; i < ret; i++) {
         if (kev[i].flags & EV_ERROR) { // report any error
-            fprintf(stderr, "error on kevent: %s\n", strerror(kev[i].data));
+            PRINTERR("error on kevent: %s\n", strerror(kev[i].data));
             continue;
         }
 
@@ -1123,7 +1123,6 @@ green_thread::select_stream(epoll_event *eev, int num_eev,
         for (int i = 0; i < num_stream; i++) {
             void *s = ((shared_stream*)stream[i])->shared_data->stream.ptr;
             assert(((shared_stream*)stream[i])->flag & shared_stream::READ);
-            printf("s = %p\n", s);
             m_wait_stream[s] = m_running;
             m_running->m_stream.push_back(s);
         }

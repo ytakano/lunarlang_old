@@ -4,8 +4,8 @@
 
 #include <sys/time.h>
 
-#define NTRIAL 1000000
-#define NUM 10
+#define NTRIAL 1
+#define NUM 10000000
 
 double diff_tm(timeval &tm0, timeval &tm1)
 {
@@ -72,7 +72,7 @@ bench_lunar_hash_map()
 
     for (int j = 0; j < NTRIAL; j++) {
         for (int i = 0; i < NUM; i++) {
-            hm.insert({0, i});
+            hm.insert({i, i});
         }
     }
 
@@ -83,7 +83,7 @@ bench_lunar_hash_map()
     for (int j = 0; j < NTRIAL; j++) {
         for (int i = 0; i < NUM; i++) {
             hm.erase(i);
-            hm.insert({0, i});
+            hm.insert({i, i});
         }
     }
 
@@ -95,7 +95,7 @@ bench_lunar_hash_map()
 
     for (int j = 0; j < NTRIAL; j++) {
         for (int i = 0; i < NUM; i++) {
-            if (hm.find(0) != hm.end())
+            if (hm.find(i) != hm.end())
                 n += i;
         }
     }

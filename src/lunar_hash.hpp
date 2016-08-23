@@ -99,6 +99,7 @@ public:
 
     void erase(iterator &it)
     {
+        m_size--;
         it.m_ptr->erase(it.m_it);
     }
 
@@ -132,12 +133,10 @@ public:
             }
         }
 
-        printf("insert: %p, idx = %llu\n", val.first, idx);
         m_bucket[idx].push_back(val);
-        it = --end;
         m_size++;
 
-        return std::pair<iterator, bool>(iterator(&m_bucket[idx], &m_bucket[m_num_bucket], it), true);
+        return std::pair<iterator, bool>(iterator(&m_bucket[idx], &m_bucket[m_num_bucket], --m_bucket[idx].end()), true);
     }
 
     uint64_t erase(const T &val)
@@ -146,11 +145,9 @@ public:
             decrease_bucket();
 
         auto idx = get_idx(val);
-        printf("erase: %p, idx = %llu\n", val.first, idx);
 
         for (auto it = m_bucket[idx].begin(); it != m_bucket[idx].end(); ++it) {
             if (*it == val) {
-                printf("erase2\n");
                 m_bucket[idx].erase(it);
                 m_size--;
                 return 1;
@@ -199,8 +196,6 @@ private:
         if (m_num_bucket >= m_max_bucket) {
             return false;
         }
-
-        printf("increase: bucket = %llu, size = %llu\n", m_num_bucket, m_size);
 
         auto old_num_bucket = m_num_bucket;
         auto old_bucket     = m_bucket;
@@ -354,8 +349,6 @@ public:
         if (it == end()) {
             std::pair<K, V> p0({key, V()});
             hpair p(p0);
-
-            printf("first = %p\n", p.first);
 
             auto ret = m_set.insert(p);
             return const_cast<V&>(ret.first->second);
