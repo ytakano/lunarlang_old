@@ -342,8 +342,8 @@ private:
     std::deque<context*> m_suspend;
     std::deque<context*> m_stop;
     std::unordered_map<int64_t, std::unique_ptr<context>> m_id2context;
-    hash_map<ev_key, hash_set<context*>, ev_key_hasher> m_wait_fd;
-    hash_map<void*, context*> m_wait_stream;
+    std::unordered_map<ev_key, std::unordered_set<context*>, ev_key_hasher> m_wait_fd;
+    std::unordered_map<void*, context*> m_wait_stream;
 
     // for circular buffer
     class threadq {
