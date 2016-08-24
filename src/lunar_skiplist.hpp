@@ -76,7 +76,7 @@ inline uint8_t skiplist<K, V, MAX_LEVEL>::random_level()
     uint64_t lvl = 1;
 
     asm (
-        "lzcntq %0, %1;"
+        "lzcntq %1, %0;"
         : "=r" (max_level)
         : "r" (m_size)
         );

@@ -1,6 +1,7 @@
 /* ref: https://github.com/bbu/userland-slab-allocator */
 
 #include "slab.hpp"
+#include "lunar_common.hpp"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -11,24 +12,10 @@
 #include <math.h>
 #include <assert.h>
 
-#define SLAB_DUMP_COLOURED
-
-#ifdef SLAB_DUMP_COLOURED
-# define GRAY(s)   "\033[1;30m" s "\033[0m"
-# define RED(s)    "\033[0;31m" s "\033[0m"
-# define GREEN(s)  "\033[0;32m" s "\033[0m"
-# define YELLOW(s) "\033[1;33m" s "\033[0m"
-#else
-# define GRAY(s)   s
-# define RED(s)    s
-# define GREEN(s)  s
-# define YELLOW(s) s
-#endif
-
 #define SLOTS_ALL_ZERO ((uint64_t) 0)
 #define SLOTS_FIRST ((uint64_t) 1)
-#define FIRST_FREE_SLOT(s) ((size_t) __builtin_ctzll(s))
-#define FREE_SLOTS(s) ((size_t) __builtin_popcountll(s))
+#define FIRST_FREE_SLOT(s) ((size_t) lunar::tzcntq(s))
+#define FREE_SLOTS(s) ((size_t) lunar::popcntq(s))
 #define ONE_USED_SLOT(slots, empty_slotmask)      \
     (                                             \
         (                                         \
@@ -220,7 +207,7 @@ void *slab_alloc(struct slab_chain *const sch)
             const char *c;
             struct slab_header *const s;
         } curr = {
-            .c = (const char *) sch->partial + sch->slabsize
+            (const char *) sch->partial + sch->slabsize
         };
 
         __builtin_prefetch(sch->partial, 1);
@@ -439,176 +426,3 @@ void slab_destroy(const struct slab_chain *const sch)
         }
     }
 }
-
-static void slab_dump(FILE *const out, const struct slab_chain *const sch)
-{
-    assert(out != NULL);
-    assert(sch != NULL);
-    assert(slab_is_valid(sch));
-
-    const struct slab_header *const heads[] =
-        {sch->partial, sch->empty, sch->full};
-
-    const char *labels[] = {"part", "empt", "full"};
-
-    for (size_t i = 0; i < 3; ++i) {
-        const struct slab_header *slab = heads[i];
-
-        fprintf(out,
-            YELLOW("%6s ") GRAY("|%2d%13s|%2d%13s|%2d%13s|%2d%13s") "\n",
-            labels[i], 64, "", 48, "", 32, "", 16, "");
-
-        unsigned long long total = 0, row;
-
-        for (row = 1; slab != NULL; slab = slab->next, ++row) {
-            const unsigned used = sch->itemcount - FREE_SLOTS(slab->slots);
-            fprintf(out, GRAY("%6llu "), row);
-
-            for (int k = 63; k >= 0; --k) {
-                fprintf(out, slab->slots & (SLOTS_FIRST << k) ? GREEN("1") :
-                    ((size_t) k >= sch->itemcount ? GRAY("0") : RED("0")));
-            }
-
-            fprintf(out, RED(" %8u") "\n", used);
-            total += used;
-        }
-
-        fprintf(out,
-            GREEN("%6s ") GRAY("^%15s^%15s^%15s^%15s") YELLOW(" %8llu") "\n\n",
-            "", "", "", "", "", total);
-    }
-}
-
-static void slab_stats(FILE *const out, const struct slab_chain *const sch)
-{
-    assert(out != NULL);
-    assert(sch != NULL);
-    assert(slab_is_valid(sch));
-
-    long long unsigned
-        total_nr_slabs = 0,
-        total_used_slots = 0,
-        total_free_slots = 0;
-
-    float occupancy;
-
-    const struct slab_header *const heads[] =
-        {sch->partial, sch->empty, sch->full};
-
-    const char *labels[] = {"Partial", "Empty", "Full"};
-
-    fprintf(out, "%8s %17s %17s %17s %17s\n", "",
-        "Slabs", "Used", "Free", "Occupancy");
-
-    for (size_t i = 0; i < 3; ++i) {
-        long long unsigned nr_slabs = 0, used_slots = 0, free_slots = 0;
-        const struct slab_header *slab;
-
-        for (slab = heads[i]; slab != NULL; slab = slab->next) {
-            nr_slabs++;
-            used_slots += sch->itemcount - FREE_SLOTS(slab->slots);
-            free_slots += FREE_SLOTS(slab->slots);
-        }
-
-        occupancy = used_slots + free_slots ?
-            100 * (float) used_slots / (used_slots + free_slots) : 0.0;
-
-        fprintf(out, "%8s %17llu %17llu %17llu %16.2f%%\n",
-            labels[i], nr_slabs, used_slots, free_slots, occupancy);
-
-        total_nr_slabs += nr_slabs;
-        total_used_slots += used_slots;
-        total_free_slots += free_slots;
-    }
-
-    occupancy = total_used_slots + total_free_slots ?
-        100 * (float) total_used_slots / (total_used_slots + total_free_slots) :
-        0.0;
-
-    fprintf(out, "%8s %17llu %17llu %17llu %16.2f%%\n", "Total",
-        total_nr_slabs, total_used_slots, total_free_slots, occupancy);
-}
-
-static void slab_props(FILE *const out, const struct slab_chain *const sch)
-{
-    assert(out != NULL);
-    assert(sch != NULL);
-    assert(slab_is_valid(sch));
-
-    fprintf(out,
-        "%18s: %8zu\n"
-        "%18s: %8zu = %.2f * (%zu pagesize)\n"
-        "%18s: %8zu = (%zu offset) + (%zu itemcount) * (%zu itemsize)\n"
-        "%18s: %8zu = (%zu slabsize) - (%zu total)\n"
-        "%18s: %8zu = %zu * (%zu pagesize)\n"
-        "%18s: %8zu = (%zu alloc) / (%zu slabsize)\n",
-
-        "pagesize",
-            slab_pagesize,
-
-        "slabsize",
-            sch->slabsize, (float) sch->slabsize / slab_pagesize, slab_pagesize,
-
-        "total",
-            offsetof(struct slab_header, data) + sch->itemcount * sch->itemsize,
-            offsetof(struct slab_header, data), sch->itemcount, sch->itemsize,
-
-        "waste per slab",
-            sch->slabsize - offsetof(struct slab_header, data) -
-            sch->itemcount * sch->itemsize, sch->slabsize,
-            offsetof(struct slab_header, data) + sch->itemcount * sch->itemsize,
-
-        "pages per alloc",
-            sch->pages_per_alloc, sch->pages_per_alloc / slab_pagesize,
-            slab_pagesize,
-
-        "slabs per alloc",
-            sch->pages_per_alloc / sch->slabsize, sch->pages_per_alloc,
-            sch->slabsize
-    );
-}
-
-#if 0
-struct slab_chain s;
-double *allocs[16 * 60];
-
-#define SLAB_DUMP { \
-    puts("\033c"); \
-    slab_props(stdout, &s); \
-    puts(""); \
-    slab_stats(stdout, &s); \
-    puts(""); \
-    slab_dump(stdout, &s); \
-    fflush(stdout); \
-    usleep(100000); \
-}
-
-__attribute__((unused)) static void fn (const void *item)
-{
-    printf("func %.3f\n", *((double *) item));
-}
-
-int main(void)
-{
-    setvbuf(stdout, NULL, _IOFBF, 0xFFFF);
-
-    slab_pagesize = (size_t) sysconf(_SC_PAGESIZE);
-    slab_init(&s, sizeof(double));
-
-    for (size_t i = 0; i < sizeof(allocs) / sizeof(*allocs); i++) {
-        allocs[i] = (double *)slab_alloc(&s);
-        assert(allocs[i] != NULL);
-        *allocs[i] = i * 4;
-        SLAB_DUMP;
-    }
-
-    for (ssize_t i = sizeof(allocs) / sizeof(*allocs) - 1; i >= 0; i--) {
-        slab_free(&s, allocs[i]);
-        SLAB_DUMP;
-    }
-
-    slab_destroy(&s);
-
-    return 0;
-}
-#endif

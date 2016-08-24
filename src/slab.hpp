@@ -12,7 +12,7 @@ struct slab_header {
     uint64_t slots;
     uintptr_t refcount;
     struct slab_header *page;
-    uint8_t data[] __attribute__((aligned(sizeof(void *))));
+    uint8_t data[1] __attribute__((aligned(sizeof(void *))));
 };
 
 struct slab_chain {

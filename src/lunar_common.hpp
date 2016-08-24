@@ -7,6 +7,24 @@
 #include <memory>
 #include <llvm/ADT/STLExtras.h>
 
+#define TZCNTQ(DST, SRC)        \
+    do {                        \
+        asm (                   \
+            "tzcntq %1, %0;"    \
+            : "=r" (DST)        \
+            : "r" (SRC)         \
+            );                  \
+    } while (0)
+
+#define POPCNTQ(DST, SRC)       \
+    do {                        \
+        asm (                   \
+            "popcntq %1, %0;"   \
+            : "=r" (DST)        \
+            : "r" (SRC)         \
+            );                  \
+    } while (0)
+
 namespace lunar {
 
 struct point2u64 {
@@ -29,6 +47,22 @@ enum STRM_RESULT {
     STRM_CLOSED       = -2,
     STRM_NO_VACANCY   = -3,
 };
+
+inline uint64_t
+tzcntq(uint64_t num)
+{
+    uint64_t ret;
+    TZCNTQ(ret, num);
+    return ret;
+}
+
+inline uint64_t
+popcntq(uint64_t num)
+{
+    uint64_t ret;
+    POPCNTQ(ret, num);
+    return ret;
+}
 
 }
 
