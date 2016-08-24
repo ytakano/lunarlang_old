@@ -88,7 +88,6 @@ public:
         p->~T();
     }
 
-private:
     __thread static bool m_is_init;
     __thread static slab_chain m_slab;
 };
