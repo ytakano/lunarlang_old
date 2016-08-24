@@ -29,7 +29,7 @@
 #define LIKELY(exp) __builtin_expect(exp, 1)
 #define UNLIKELY(exp) __builtin_expect(exp, 0)
 
-size_t slab_pagesize;
+static size_t slab_pagesize = (size_t) sysconf(_SC_PAGESIZE);
 
 #ifndef NDEBUG
 static int slab_is_valid(const struct slab_chain *const sch)
@@ -133,6 +133,8 @@ void slab_init(struct slab_chain *const sch, const size_t itemsize)
     sch->partial = sch->empty = sch->full = NULL;
 
     assert(slab_is_valid(sch));
+
+    slab_alloc(sch);
 }
 
 void *slab_alloc(struct slab_chain *const sch)

@@ -34,7 +34,7 @@ endif()
 
 set(CMAKE_CXX_FLAGS "-Wno-gnu-zero-variadic-macro-arguments -fno-rtti ${LLVM_CXXFLAGS}")
 set(CMAKE_CXX_FLAGS_DEBUG "-g -O0")
-set(CMAKE_CXX_FLAGS_RELEASE "-O3")
+set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG")
 set(CMAKE_EXE_LINKER_FLAGS ${LLVM_LDFLAGS})
 
 # print status

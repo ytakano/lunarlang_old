@@ -5,8 +5,6 @@
 #include <stdint.h>
 #include <stddef.h>
 
-extern size_t slab_pagesize;
-
 struct slab_header {
     struct slab_header *prev, *next;
     uint64_t slots;

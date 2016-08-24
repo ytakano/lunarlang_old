@@ -6,6 +6,7 @@
 #include "lunar_shared_stream.hpp"
 #include "lunar_ringq.hpp"
 #include "lunar_shared_type.hpp"
+#include "lunar_slab_allocator.hpp"
 
 #include <unistd.h>
 #include <setjmp.h>
@@ -340,9 +341,19 @@ private:
     timeout_t  m_timeout;
     std::deque<context*> m_suspend;
     std::deque<context*> m_stop;
-    std::unordered_map<int64_t, std::unique_ptr<context>> m_id2context;
-    std::unordered_map<ev_key, std::unordered_set<context*>, ev_key_hasher> m_wait_fd;
-    std::unordered_map<void*, context*> m_wait_stream;
+    std::unordered_map<int64_t, std::unique_ptr<context>,
+                       std::hash<int64_t>,
+                       std::equal_to<int64_t>,
+                       lunar::slab_allocator<std::pair<const int64_t, std::unique_ptr<context>>>> m_id2context;
+    std::unordered_map<ev_key,
+                       std::unordered_set<context*>,
+                       ev_key_hasher, std::equal_to<ev_key>,
+                       lunar::slab_allocator<std::pair<const ev_key, std::unordered_set<context*>>>> m_wait_fd;
+    std::unordered_map<void*,
+                       context*,
+                       std::hash<void*>,
+                       std::equal_to<void*>,
+                       lunar::slab_allocator<std::pair<void * const, context*>>> m_wait_stream;
 
     // for circular buffer
     class threadq {

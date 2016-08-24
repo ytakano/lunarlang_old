@@ -32,7 +32,7 @@ bench_lunar_hash_set()
     }
 
     gettimeofday(&tm1, nullptr);
-    printf("lunar::hash_set: insertion:\t\t%lf[ops/s]\n", NUM * NTRIAL / diff_tm(tm0, tm1));
+    printf("lunar::hash_set: insertion:\t\t\t%lf[ops/s]\n", NUM * NTRIAL / diff_tm(tm0, tm1));
     gettimeofday(&tm0, nullptr);
 
     for (int j = 0; j < NTRIAL; j++) {
@@ -43,7 +43,7 @@ bench_lunar_hash_set()
     }
 
     gettimeofday(&tm1, nullptr);
-    printf("lunar::hash_set: insertion & deletion:\t%lf[ops/s]\n", NUM * NTRIAL / diff_tm(tm0, tm1));
+    printf("lunar::hash_set: insertion & deletion:\t\t%lf[ops/s]\n", NUM * NTRIAL / diff_tm(tm0, tm1));
 
 
     gettimeofday(&tm0, nullptr);
@@ -57,7 +57,7 @@ bench_lunar_hash_set()
     }
 
     gettimeofday(&tm1, nullptr);
-    printf("lunar::hash_set: lookup:\t\t%lf[ops/s]\n", NUM * NTRIAL / diff_tm(tm0, tm1));
+    printf("lunar::hash_set: lookup:\t\t\t%lf[ops/s]\n", NUM * NTRIAL / diff_tm(tm0, tm1));
 
     return n;
 }
@@ -78,7 +78,7 @@ bench_lunar_hash_map()
     }
 
     gettimeofday(&tm1, nullptr);
-    printf("lunar::hash_map: insertion:\t\t%lf[ops/s]\n", NUM * NTRIAL / diff_tm(tm0, tm1));
+    printf("lunar::hash_map: insertion:\t\t\t%lf[ops/s]\n", NUM * NTRIAL / diff_tm(tm0, tm1));
     gettimeofday(&tm0, nullptr);
 
     for (int j = 0; j < NTRIAL; j++) {
@@ -89,7 +89,7 @@ bench_lunar_hash_map()
     }
 
     gettimeofday(&tm1, nullptr);
-    printf("lunar::hash_map: insertion & deletion:\t%lf[ops/s]\n", NUM * NTRIAL / diff_tm(tm0, tm1));
+    printf("lunar::hash_map: insertion & deletion:\t\t%lf[ops/s]\n", NUM * NTRIAL / diff_tm(tm0, tm1));
 
 
     gettimeofday(&tm0, nullptr);
@@ -102,7 +102,7 @@ bench_lunar_hash_map()
     }
 
     gettimeofday(&tm1, nullptr);
-    printf("lunar::hash_map: lookup:\t\t%lf[ops/s]\n", NUM * NTRIAL / diff_tm(tm0, tm1));
+    printf("lunar::hash_map: lookup:\t\t\t%lf[ops/s]\n", NUM * NTRIAL / diff_tm(tm0, tm1));
 
     return n;
 }
@@ -123,7 +123,7 @@ bench_unordered()
     }
 
     gettimeofday(&tm1, nullptr);
-    printf("unordered_set: insertion:\t\t%lf[ops/s]\n", NUM * NTRIAL / diff_tm(tm0, tm1));
+    printf("unordered_set: insertion:\t\t\t%lf[ops/s]\n", NUM * NTRIAL / diff_tm(tm0, tm1));
     gettimeofday(&tm0, nullptr);
 
     for (int j = 0; j < NTRIAL; j++) {
@@ -134,7 +134,7 @@ bench_unordered()
     }
 
     gettimeofday(&tm1, nullptr);
-    printf("unordered_set: insertion & deletion:\t%lf[ops/s]\n", NUM * NTRIAL / diff_tm(tm0, tm1));
+    printf("unordered_set: insertion & deletion:\t\t%lf[ops/s]\n", NUM * NTRIAL / diff_tm(tm0, tm1));
 
 
     gettimeofday(&tm0, nullptr);
@@ -147,7 +147,52 @@ bench_unordered()
     }
 
     gettimeofday(&tm1, nullptr);
-    printf("unordered_set: lookup:\t\t\t%lf[ops/s]\n", NUM * NTRIAL / diff_tm(tm0, tm1));
+    printf("unordered_set: lookup:\t\t\t\t%lf[ops/s]\n", NUM * NTRIAL / diff_tm(tm0, tm1));
+
+    return n;
+}
+
+uint64_t
+bench_unordered_slab()
+{
+    std::unordered_set<uint64_t, std::hash<uint64_t>, std::equal_to<uint64_t>, lunar::slab_allocator<uint64_t>> hs;
+    timeval  tm0, tm1;
+    uint64_t n = 0;
+
+    gettimeofday(&tm0, nullptr);
+
+    for (int j = 0; j < NTRIAL; j++) {
+        for (int i = 0; i < NUM; i++) {
+            hs.insert(i);
+        }
+    }
+
+    gettimeofday(&tm1, nullptr);
+    printf("unordered_set<slab>: insertion:\t\t\t%lf[ops/s]\n", NUM * NTRIAL / diff_tm(tm0, tm1));
+    gettimeofday(&tm0, nullptr);
+
+    for (int j = 0; j < NTRIAL; j++) {
+        for (int i = 0; i < NUM; i++) {
+            hs.erase(i);
+            hs.insert(i);
+        }
+    }
+
+    gettimeofday(&tm1, nullptr);
+    printf("unordered_set<slab>: insertion & deletion:\t%lf[ops/s]\n", NUM * NTRIAL / diff_tm(tm0, tm1));
+
+
+    gettimeofday(&tm0, nullptr);
+
+    for (int j = 0; j < NTRIAL; j++) {
+        for (int i = 0; i < NUM; i++) {
+            if (hs.find(i) != hs.end())
+                n += i;
+        }
+    }
+
+    gettimeofday(&tm1, nullptr);
+    printf("unordered_set<slab>: lookup:\t\t\t%lf[ops/s]\n", NUM * NTRIAL / diff_tm(tm0, tm1));
 
     return n;
 }
@@ -158,6 +203,7 @@ main(int argc, char *argv[])
     printf("lunar::hash_set:     n = %llu\n", bench_lunar_hash_set());
     printf("lunar::hash_map:     n = %llu\n", bench_lunar_hash_map());
     printf("unordered_set:       n = %llu\n", bench_unordered());
+    printf("unordered_set<slab>: n = %llu\n", bench_unordered_slab());
 
     return 0;
 }

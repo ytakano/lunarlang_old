@@ -13,8 +13,6 @@
 int
 main(int argc, char *argv[])
 {
-    slab_pagesize = (size_t) sysconf(_SC_PAGESIZE);
-
     lunar::lunar_ir ir;
 
     std::ifstream ifs("tests/ir/test06.lunar.ir");
