@@ -22,10 +22,28 @@ public:
     typedef const T&  const_reference;
 
     template <class U> struct rebind { typedef slab_allocator<U> other; };
-    slab_allocator() throw() { slab_init(&m_slab, sizeof(T)); }
-    slab_allocator(const slab_allocator&) throw() { slab_init(&m_slab, sizeof(T)); }
+    slab_allocator() throw()
+    {
+        if (! slab_allocator<T>::m_is_init) {
+            slab_init(&m_slab, sizeof(T));
+            slab_allocator<T>::m_is_init = true;
+        }
+    }
+    slab_allocator(const slab_allocator&) throw()
+    {
+        if (! slab_allocator<T>::m_is_init) {
+            slab_init(&m_slab, sizeof(T));
+            slab_allocator<T>::m_is_init = true;
+        }
+    }
 
-    template <class U> slab_allocator(const slab_allocator<U>&) throw(){ slab_init(&m_slab, sizeof(T)); }
+    template <class U> slab_allocator(const slab_allocator<U>&) throw()
+    {
+        if (! slab_allocator<U>::m_is_init) {
+            slab_init(&slab_allocator<U>::m_slab, sizeof(U));
+            slab_allocator<U>::m_is_init = true;
+        }
+    }
 
     ~slab_allocator() throw() { slab_destroy(&m_slab); }
 
@@ -71,8 +89,12 @@ public:
     }
 
 private:
-    slab_chain m_slab;
+    __thread static bool m_is_init;
+    __thread static slab_chain m_slab;
 };
+
+template <typename T> __thread bool slab_allocator<T>::m_is_init = false;
+template <typename T> __thread slab_chain slab_allocator<T>::m_slab;
 
 }
 
