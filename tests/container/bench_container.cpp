@@ -1,4 +1,5 @@
 #include "../../src/lunar_hash.hpp"
+#include "../../src/lunar_slab_allocator.hpp"
 
 #include <unordered_set>
 
@@ -154,9 +155,9 @@ bench_unordered()
 int
 main(int argc, char *argv[])
 {
-    printf("lunar::hash_set: n = %llu\n", bench_lunar_hash_set());
-    printf("lunar::hash_map: n = %llu\n", bench_lunar_hash_map());
-    printf("unordered_set:   n = %llu\n", bench_unordered());
+    printf("lunar::hash_set:     n = %llu\n", bench_lunar_hash_set());
+    printf("lunar::hash_map:     n = %llu\n", bench_lunar_hash_map());
+    printf("unordered_set:       n = %llu\n", bench_unordered());
 
     return 0;
 }

@@ -2,6 +2,7 @@
 #include "lunar_parsec.hpp"
 #include "lunar_green_thread.hpp"
 #include "lunar_shared_stream.hpp"
+#include "lunar_slab_allocator.hpp"
 
 #include "lunar_ir.hpp"
 #include "lunar_hash.hpp"
@@ -12,6 +13,8 @@
 int
 main(int argc, char *argv[])
 {
+    slab_pagesize = (size_t) sysconf(_SC_PAGESIZE);
+
     lunar::lunar_ir ir;
 
     std::ifstream ifs("tests/ir/test06.lunar.ir");
@@ -33,6 +36,20 @@ main(int argc, char *argv[])
     hm.erase((void*)0x7fcce3408e70);
     hm[(void*)0x7fcce3408e70] = 30;
     hm.erase((void*)0x7fcce3408e70);
+
+
+    std::unordered_map<int, int, std::hash<int>, std::equal_to<int>, lunar::slab_allocator<std::pair<const int, int>>> um;
+    //std::unordered_map<int, int, std::hash<int>, std::equal_to<int>> um;
+
+
+    for (int i = 0; i < 100000; i++)
+        um[i] = i;
+
+    uint64_t n = 0;
+    for (int i = 0; i < 100000; i++)
+        n += um[i];
+
+    printf("n = %llu\n", n);
 /*
     int n = 0;
     lunar::hash_set<int> hs;
