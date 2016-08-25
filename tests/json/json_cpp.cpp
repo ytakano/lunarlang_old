@@ -630,8 +630,8 @@ read_stdin(void *arg)
 
         lunar::make_ptr_stream(rs, ws, 1);
 
-        lunar::push_ptr(ws, str);
-        lunar::push_eof(ws);
+        lunar::push_stream_ptr(ws, str);
+        lunar::push_stream_eof(ws);
 
         parser_json(rs);
 
@@ -668,7 +668,7 @@ main(int argc, char **argv)
 
 //    std::cout << lines.size() << std::endl;
 
-    lunar::init_green_thread(0);
+    lunar::init_green_thread(0, 0, 0);
 
     lunar::spawn_green_thread(read_stdin, nullptr);
     lunar::run_green_thread();
