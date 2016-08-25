@@ -1,8 +1,8 @@
-#ifndef LUNAR_SLAB_ALLOCATOR
-#define LUNAR_SLAB_ALLOCATOR
+#ifndef LUNAR_SLAB_ALLOCATOR_MT
+#define LUNAR_SLAB_ALLOCATOR_MT
 
 /*
- * CAUTION! THIS ALLOCATOR IS MT-UNSAFE!
+ * This allocator is MT-safe.
  */
 
 #include <new>
@@ -11,11 +11,12 @@
 #include <stdlib.h>
 
 #include "slab.hpp"
+#include "lunar_rtm_lock.hpp"
 
 namespace lunar {
 
 template <typename T>
-class slab_allocator {
+class slab_allocator_mt {
 public:
     typedef T         value_type;
     typedef size_t    size_type;
@@ -25,31 +26,37 @@ public:
     typedef T&        reference;
     typedef const T&  const_reference;
 
-    template <typename U> struct rebind { typedef slab_allocator<U> other; };
-    slab_allocator() throw()
+    template <typename U> struct rebind { typedef slab_allocator_mt<U> other; };
+    slab_allocator_mt() throw()
     {
-        if (slab_allocator<T>::m_refcnt == 0)
+        rtm_transaction lock(rtm_lock);
+
+        if (slab_allocator_mt<T>::m_refcnt == 0)
             slab_init(&m_slab, sizeof(T));
 
-        slab_allocator<T>::m_refcnt++;
+        slab_allocator_mt<T>::m_refcnt++;
     }
-    slab_allocator(const slab_allocator&) throw()
+    slab_allocator_mt(const slab_allocator_mt&) throw()
     {
-        if (slab_allocator<T>::m_refcnt == 0)
+        rtm_transaction lock(rtm_lock);
+
+        if (slab_allocator_mt<T>::m_refcnt == 0)
             slab_init(&m_slab, sizeof(T));
 
-        slab_allocator<T>::m_refcnt++;
+        slab_allocator_mt<T>::m_refcnt++;
     }
 
-    template <typename U> slab_allocator(const slab_allocator<U>&) throw()
+    template <typename U> slab_allocator_mt(const slab_allocator_mt<U>&) throw()
     {
-        if (slab_allocator<U>::m_refcnt == 0)
-            slab_init(&slab_allocator<U>::m_slab, sizeof(U));
+        rtm_transaction lock(slab_allocator_mt<U>::rtm_lock);
 
-        slab_allocator<U>::m_refcnt++;
+        if (slab_allocator_mt<U>::m_refcnt == 0)
+            slab_init(&slab_allocator_mt<U>::m_slab, sizeof(U));
+
+        slab_allocator_mt<U>::m_refcnt++;
     }
 
-    ~slab_allocator() throw() {
+    ~slab_allocator_mt() throw() {
         m_refcnt--;
 
         if (m_refcnt == 0)
@@ -97,13 +104,15 @@ public:
         p->~T();
     }
 
-    static __thread uint64_t   m_refcnt;
-    static __thread slab_chain m_slab;
+    static rtm_lock   m_rtm_lock;
+    static uint64_t   m_refcnt;
+    static slab_chain m_slab;
 };
 
-template <typename T> __thread uint64_t   slab_allocator<T>::m_refcnt = 0;
-template <typename T> __thread slab_chain slab_allocator<T>::m_slab;
+template <typename T> rtm_lock   slab_allocator_mt<T>::m_rtm_lock;
+template <typename T> uint64_t   slab_allocator_mt<T>::m_refcnt = 0;
+template <typename T> slab_chain slab_allocator_mt<T>::m_slab;
 
 }
 
-#endif // LUNAR_SLAB_ALLOCATOR
+#endif // LUNAR_SLAB_ALLOCATOR_MT
