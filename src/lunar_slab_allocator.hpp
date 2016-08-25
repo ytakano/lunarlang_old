@@ -24,28 +24,33 @@ public:
     template <class U> struct rebind { typedef slab_allocator<U> other; };
     slab_allocator() throw()
     {
-        if (! slab_allocator<T>::m_is_init) {
+        if (slab_allocator<T>::m_refcnt == 0)
             slab_init(&m_slab, sizeof(T));
-            slab_allocator<T>::m_is_init = true;
-        }
+
+        slab_allocator<T>::m_refcnt++;
     }
     slab_allocator(const slab_allocator&) throw()
     {
-        if (! slab_allocator<T>::m_is_init) {
+        if (slab_allocator<T>::m_refcnt == 0)
             slab_init(&m_slab, sizeof(T));
-            slab_allocator<T>::m_is_init = true;
-        }
+
+        slab_allocator<T>::m_refcnt++;
     }
 
     template <class U> slab_allocator(const slab_allocator<U>&) throw()
     {
-        if (! slab_allocator<U>::m_is_init) {
+        if (slab_allocator<U>::m_refcnt == 0)
             slab_init(&slab_allocator<U>::m_slab, sizeof(U));
-            slab_allocator<U>::m_is_init = true;
-        }
+
+        slab_allocator<U>::m_refcnt++;
     }
 
-    ~slab_allocator() throw() { slab_destroy(&m_slab); }
+    ~slab_allocator() throw() {
+        m_refcnt--;
+
+        if (m_refcnt == 0)
+            slab_destroy(&m_slab);
+    }
 
     pointer address(reference x) const { return &x; }
     const_pointer address(const_reference x) const { return &x; }
@@ -88,11 +93,11 @@ public:
         p->~T();
     }
 
-    __thread static bool m_is_init;
+    __thread static uint64_t   m_refcnt;
     __thread static slab_chain m_slab;
 };
 
-template <typename T> __thread bool slab_allocator<T>::m_is_init = false;
+template <typename T> __thread uint64_t   slab_allocator<T>::m_refcnt = 0;
 template <typename T> __thread slab_chain slab_allocator<T>::m_slab;
 
 }
