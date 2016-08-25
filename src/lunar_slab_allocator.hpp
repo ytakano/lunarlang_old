@@ -93,8 +93,8 @@ public:
         p->~T();
     }
 
-    __thread static uint64_t   m_refcnt;
-    __thread static slab_chain m_slab;
+    static __thread uint64_t   m_refcnt;
+    static __thread slab_chain m_slab;
 };
 
 template <typename T> __thread uint64_t   slab_allocator<T>::m_refcnt = 0;
