@@ -893,7 +893,9 @@ green_thread::schedule()
                 }
 
                 for (auto strm: m_running->m_stream) {
-                    m_wait_stream.erase(strm);
+                    auto it = m_wait_stream.find(strm);
+                    if (it != m_wait_stream.end())
+                        m_wait_stream.erase(it);
                 }
 
                 m_running->m_stream.clear();
@@ -1078,7 +1080,14 @@ green_thread::select_stream(epoll_event *eev, int num_eev,
         }
 
         for (int i = 0; i < num_kev; i++) {
-            m_wait_fd[{kev[i].ident, kev[i].filter}].insert(m_running);
+            auto it = m_wait_fd.find({kev[i].ident, kev[i].filter});
+            if (it == m_wait_fd.end()) {
+                m_wait_fd.insert({{kev[i].ident, kev[i].filter}, std::unordered_set<context*>()});
+                m_wait_fd.find({kev[i].ident, kev[i].filter})->second.insert(m_running);
+            } else {
+                it->second.insert(m_running);
+            }
+
             m_running->m_fd.push_back({kev[i].ident, kev[i].filter});
         }
     }
@@ -1112,7 +1121,13 @@ green_thread::select_stream(epoll_event *eev, int num_eev,
                 }
             }
 
-            m_wait_fd[{eev[i].data.fd, eev[i].events}].insert(m_running);
+            auto it = m_wait_fd.find({eev[i].data.fd, eev[i].events});
+            if (it == m_wait_fd.end()) {
+                m_wait_fd.insert({{eev[i].data.fd, eev[i].events}, std::unordered_set<context*>()});
+                m_wait_fd.find({kev[i].ident, kev[i].filter})->second.insert(m_running);
+            } else {
+                it->second.insert(m_running);
+            }
             m_running->m_fd.push_back({eev[i].data.fd, eev[i].events});
         }
     }
@@ -1123,7 +1138,7 @@ green_thread::select_stream(epoll_event *eev, int num_eev,
         for (int i = 0; i < num_stream; i++) {
             void *s = ((shared_stream*)stream[i])->shared_data->stream.ptr;
             assert(((shared_stream*)stream[i])->flag & shared_stream::READ);
-            m_wait_stream[s] = m_running;
+            m_wait_stream.insert({s, m_running});
             m_running->m_stream.push_back(s);
         }
     }
