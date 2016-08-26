@@ -8,9 +8,9 @@
 #include "lunar_shared_type.hpp"
 #include "lunar_slab_allocator.hpp"
 
-#ifndef __APPLE__
+#ifdef __linux__
 #include "hopscotch.hpp"
-#endif // __APPLE__
+#endif // __linux__
 
 #include <unistd.h>
 #include <setjmp.h>
@@ -350,17 +350,7 @@ private:
                        std::equal_to<int64_t>,
                        lunar::slab_allocator<std::pair<const int64_t, std::unique_ptr<context>>>> m_id2context;
 
-#ifdef __APPLE__
-    std::unordered_map<ev_key,
-                       std::unordered_set<context*>,
-                       ev_key_hasher, std::equal_to<ev_key>,
-                       lunar::slab_allocator<std::pair<const ev_key, std::unordered_set<context*>>>> m_wait_fd;
-    std::unordered_map<void*,
-                       context*,
-                       std::hash<void*>,
-                       std::equal_to<void*>,
-                       lunar::slab_allocator<std::pair<void * const, context*>>> m_wait_stream;
-#else
+#ifdef __linux__
     nanahan::Map<ev_key,
                  std::unordered_set<context*>,
                  ev_key_hasher, std::equal_to<ev_key>,
@@ -370,7 +360,17 @@ private:
                  std::hash<void*>,
                  std::equal_to<void*>,
                  lunar::slab_allocator<std::pair<void * const, context*>>> m_wait_stream;
-#endif // __APPLE__
+#else
+    std::unordered_map<ev_key,
+                       std::unordered_set<context*>,
+                       ev_key_hasher, std::equal_to<ev_key>,
+                       lunar::slab_allocator<std::pair<const ev_key, std::unordered_set<context*>>>> m_wait_fd;
+    std::unordered_map<void*,
+                       context*,
+                       std::hash<void*>,
+                       std::equal_to<void*>,
+                       lunar::slab_allocator<std::pair<void * const, context*>>> m_wait_stream;
+#endif // __linux__
 
     // for circular buffer
     class threadq {
