@@ -1124,7 +1124,7 @@ green_thread::select_stream(epoll_event *eev, int num_eev,
             auto it = m_wait_fd.find({eev[i].data.fd, eev[i].events});
             if (it == m_wait_fd.end()) {
                 m_wait_fd.insert({{eev[i].data.fd, eev[i].events}, std::unordered_set<context*>()});
-                m_wait_fd.find({kev[i].ident, kev[i].filter})->second.insert(m_running);
+                m_wait_fd.find({eev[i].data.fd, eev[i].events})->second.insert(m_running);
             } else {
                 it->second.insert(m_running);
             }
