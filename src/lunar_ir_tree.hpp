@@ -1,6 +1,8 @@
 #ifndef LUNAR_IR_TREE
 #define LUNAR_IR_TREE
 
+#include "MCJITHelper.hpp"
+
 #include <stdint.h>
 
 #include <string>
@@ -249,6 +251,7 @@ public:
     virtual ~lunar_ir_type() { }
 
     void print_ownership(std::string &s, const std::string &from);
+    virtual llvm::Type* codegen();
 
 protected:
     LANG_BASIC_TYPE m_type;
@@ -844,12 +847,16 @@ public:
         m_stexprs.push_back(std::move(stexpr));
     }
 
+    void mkfunc(MCJITHelper *jit);
+    llvm::Function* codegen();
+
 private:
     std::vector<std::unique_ptr<lunar_ir_type>> m_ret;
     std::vector<std::unique_ptr<lunar_ir_var>>  m_args;
     std::unordered_map<std::u32string, lunar_ir_var*> m_argmap;
     std::unique_ptr<lunar_ir_identifier> m_id;
     std::vector<std::unique_ptr<lunar_ir_stexpr>> m_stexprs;
+    llvm::Function *m_function;
 };
 
 class lunar_ir_lambda : public lunar_ir_expr {

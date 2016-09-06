@@ -5,6 +5,7 @@
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Constants.h>
 #include <llvm/IR/Instructions.h>
+#include <llvm/IR/Module.h>
 
 namespace lunar {
 
@@ -940,6 +941,28 @@ lunar_ir_lit_float::codegen()
         return llvm::ConstantFP::get(llvm::getGlobalContext(), llvm::APFloat((float)m_num));
 
     return llvm::ConstantFP::get(llvm::getGlobalContext(), llvm::APFloat(m_num));
+}
+
+llvm::Type*
+lunar_ir_type::codegen()
+{
+  llvm::Type *int8Type = llvm::IntegerType::getInt8Ty(llvm::getGlobalContext());
+  return llvm::PointerType::getUnqual(int8Type);
+}
+
+void
+lunar_ir_defun::mkfunc(MCJITHelper *jit)
+{
+    std::vector<llvm::Type*> args;
+
+    // std::vector<llvm::Type*> Doubles(Args.size(), llvm::Type::getDoubleTy(llvm::getGlobalContext()));
+    // llvm::FunctionType *FT = llvm::FunctionType::get(llvm::Type::getDoubleTy(llvm::getGlobalContext()), Doubles, false);
+}
+
+llvm::Function*
+lunar_ir_defun::codegen()
+{
+    return nullptr;
 }
 
 }
