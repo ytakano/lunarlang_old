@@ -1,7 +1,7 @@
 /* ref: https://github.com/bbu/userland-slab-allocator */
 
 #include "slab.hpp"
-#include "lunar_common.hpp"
+#include "lunar_asm.hpp"
 
 #include <stdio.h>
 #include <stdlib.h>

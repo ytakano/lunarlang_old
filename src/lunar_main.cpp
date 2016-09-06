@@ -5,7 +5,6 @@
 #include "lunar_slab_allocator.hpp"
 
 #include "lunar_ir.hpp"
-#include "lunar_hash.hpp"
 
 #include <fstream>
 #include <iostream>
@@ -26,15 +25,6 @@ main(int argc, char *argv[])
     ir.compile("tests/ir/test06.lunar.ir");
 
     ir.print();
-
-    lunar::hash_map<void*, int> hm;
-    hm[(void*)0x7fcce3408e70] = 1;
-    hm.erase((void*)0x7fcce3408e70);
-    hm[(void*)0x7fcce3408e70] = 20;
-    hm.erase((void*)0x7fcce3408e70);
-    hm[(void*)0x7fcce3408e70] = 30;
-    hm.erase((void*)0x7fcce3408e70);
-
 
     std::unordered_map<int, int, std::hash<int>, std::equal_to<int>, lunar::slab_allocator<std::pair<const int, int>>> um;
     //std::unordered_map<int, int, std::hash<int>, std::equal_to<int>> um;

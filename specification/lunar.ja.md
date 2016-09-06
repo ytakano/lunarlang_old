@@ -7,37 +7,37 @@ bool foo() {
     f = 100 // 型推論
     shared u32 v = make shared u32
     somefunc = lambda u32 () { }
-    
+
     *v = 200
     v = 200 // error
-    
+
     if flag == true {
     }
-    
+
     for n in d {
     }
-    
+
     s32 = 0
     while s < 100 {
     }
-    
+
     select {
     ch1:
         continue
     ch2:
         continue
     }
-    
+
     case var {
     var < 100:
-    
+
     typeof s32:
-    
+
     }
-    
+
     spawn(func2, arg, stacksize)
     thread(func2, arg, stacksize)
-    
+
     return true
 }
 ```
@@ -79,7 +79,7 @@ do parser {
 
     if () {
     }
-    
+
     return true
 } fail {
 }
