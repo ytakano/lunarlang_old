@@ -10,7 +10,7 @@
 
 #if defined(__x86_64__) || defined(__i686__)
     #include <xmmintrin.h>
-    #define _MM_PAUSE _mm_pause
+    #define _MM_PAUSE _mm_pause()
 #else
     #define _MM_PAUSE
 #endif // __x86_64__ || __i686__
@@ -83,7 +83,7 @@ public:
                     ! (status & _XABORT_NESTED)) {
 
                     while (lock.m_lock)
-                        _MM_PAUSE(); // busy-wait
+                        _MM_PAUSE; // busy-wait
                 } else if (!(status & _XABORT_RETRY)) {
                     break;
                 }
@@ -93,7 +93,7 @@ public:
 
         while (__sync_lock_test_and_set(&lock.m_lock, 1)) {
             while (lock.m_lock)
-                _MM_PAUSE(); // busy-wait
+                _MM_PAUSE; // busy-wait
         }
     }
 

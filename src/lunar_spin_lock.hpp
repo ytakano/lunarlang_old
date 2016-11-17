@@ -25,7 +25,7 @@ public:
     {
         while (__sync_lock_test_and_set(&lock.m_lock, 1)) {
             while (lock.m_lock)
-                _MM_PAUSE(); // busy-wait
+                _MM_PAUSE; // busy-wait
         }
     }
 
@@ -44,7 +44,7 @@ public:
     {
         while (__sync_lock_test_and_set(&lock.m_lock, 1)) {
             while (lock.m_lock)
-                _MM_PAUSE(); // busy-wait
+                _MM_PAUSE; // busy-wait
         }
     }
 

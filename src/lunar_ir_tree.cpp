@@ -946,14 +946,26 @@ lunar_ir_lit_float::codegen()
 llvm::Type*
 lunar_ir_type::codegen()
 {
-  llvm::Type *int8Type = llvm::IntegerType::getInt8Ty(llvm::getGlobalContext());
-  return llvm::PointerType::getUnqual(int8Type);
+    // Note that LLVM does not permit pointers to void (void*) nor
+    // does it permit pointers to labels (label*). Use i8* instead.
+    llvm::Type *int8Type = llvm::IntegerType::getInt8Ty(llvm::getGlobalContext());
+    return llvm::PointerType::getUnqual(int8Type);
+}
+
+llvm::Type*
+lunar_ir_var::get_type()
+{
+    return m_type->codegen();
 }
 
 void
 lunar_ir_defun::mkfunc(MCJITHelper *jit)
 {
     std::vector<llvm::Type*> args;
+
+    for (auto &arg: m_args)
+        args.push_back(arg->get_type());
+
 
     // std::vector<llvm::Type*> Doubles(Args.size(), llvm::Type::getDoubleTy(llvm::getGlobalContext()));
     // llvm::FunctionType *FT = llvm::FunctionType::get(llvm::Type::getDoubleTy(llvm::getGlobalContext()), Doubles, false);

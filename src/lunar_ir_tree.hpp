@@ -819,6 +819,8 @@ public:
 
     virtual void print(std::string &s, const std::string &from);
 
+    llvm::Type* get_type();
+
 private:
     std::unique_ptr<lunar_ir_type>       m_type;
     std::unique_ptr<lunar_ir_identifier> m_id;
