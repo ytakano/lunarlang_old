@@ -26,17 +26,25 @@ namespace lunar {
 inline uint64_t
 tzcntq(uint64_t num)
 {
+#ifdef __x86_64__
     uint64_t ret;
     TZCNTQ(ret, num);
     return ret;
+#else
+    return __builtin_ctzll(num);
+#endif // __x86_64__
 }
 
 inline uint64_t
 popcntq(uint64_t num)
 {
+#ifdef __x86_64__
     uint64_t ret;
     POPCNTQ(ret, num);
     return ret;
+#else
+    return __builtin_popcountll(num);
+#endif // __x86_64__
 }
 
 }
