@@ -57,6 +57,8 @@ public:
     }
 
     ~slab_allocator_mt() throw() {
+        rtm_transaction lock(rtm_lock);
+
         m_refcnt--;
 
         if (m_refcnt == 0)
@@ -68,6 +70,7 @@ public:
 
     pointer allocate(size_type s, void const * = 0) {
         if (s == 1) {
+            rtm_transaction lock(rtm_lock);
             return (pointer)slab_alloc(&m_slab);
         } else if (s >= 1) {
             pointer temp = (pointer)malloc(sizeof(void*) + s * sizeof(T));
@@ -86,10 +89,12 @@ public:
     void deallocate(pointer p, size_type) {
         void **vp = (void**)((char*)p - sizeof(void*));
 
-        if (*vp == (void*)~(uint64_t)0)
+        if (*vp == (void*)~(uint64_t)0) {
             free(vp);
-        else
+        } else {
+            rtm_transaction lock(rtm_lock);
             slab_free(&m_slab, p);
+        }
     }
 
     size_type max_size() const throw() {
