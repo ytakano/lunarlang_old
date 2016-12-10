@@ -127,7 +127,6 @@ class slub_stack {
                     slub->m_freelist_tail = m_prev;
 
                 slub->m_vacancy -= 64;
-                slub->m_total   -= 64;
                 delete this;
             }
         }
@@ -151,7 +150,7 @@ class slub_stack {
     };
 
 public:
-    slub_stack() : m_vacancy(64), m_total(64), m_full(nullptr)
+    slub_stack() : m_vacancy(64), m_full(nullptr)
     {
         m_pagesize = sysconf(_SC_PAGE_SIZE);
         m_freelist_head = m_freelist_tail = new slab(m_pagesize, m_pagesize * 1024);
@@ -177,7 +176,6 @@ public:
             return m_freelist_head->allocate(this);
         } else {
             m_freelist_head = m_freelist_tail = new slab(m_pagesize, m_pagesize * 1024);
-            m_total   += 64;
             m_vacancy += 63;
             return m_freelist_head->allocate(this);
         }
@@ -192,7 +190,6 @@ public:
 
     void print_state()
     {
-        printf("total: %llu\n", m_total);
         printf("vacancy: %llu\n", m_vacancy);
         printf("free list:\n");
         int i;
@@ -213,7 +210,6 @@ public:
 private:
     int       m_pagesize;
     uint64_t  m_vacancy;
-    uint64_t  m_total;
     slab     *m_freelist_head;
     slab     *m_freelist_tail;
     slab     *m_full;
