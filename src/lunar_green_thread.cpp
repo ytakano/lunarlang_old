@@ -831,7 +831,8 @@ green_thread::schedule()
 
                     delete[] kev;
 #elif (defined EPOLL)
-                    std::vector<int> fds;
+                    int fds[m_running->m_fd.size()];
+                    int fdnum = 0;
 
                     for (auto &ev: m_running->m_fd) {
                         auto it = m_wait_fd.find(ev);
@@ -843,10 +844,12 @@ green_thread::schedule()
                         if (it->second.empty())
                             m_wait_fd.erase(it);
 
-                        fds.push_back(ev.m_fd);
+                        fds[fdnum] = ev.m_fd;
+                        fdnum++;
                     }
 
-                    for (int fd: fds) {
+                    for (int i = 0; i < fdnum; i++) {
+                        int fd = fds[i];
                         auto it_in  = m_wait_fd.find({fd, EPOLLIN});
                         auto it_out = m_wait_fd.find({fd, EPOLLOUT});
 

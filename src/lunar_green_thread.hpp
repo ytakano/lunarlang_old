@@ -49,12 +49,12 @@
 #include <sys/epoll.h>
 #endif // KQUEUE
 
-#define	TIMESPECCMP(tvp, uvp, cmp)                  \
-	(((tvp)->tv_sec == (uvp)->tv_sec) ?             \
-	    ((tvp)->tv_nsec cmp (uvp)->tv_nsec) :       \
-	    ((tvp)->tv_sec cmp (uvp)->tv_sec))
+#define TIMESPECCMP(tvp, uvp, cmp)                  \
+    (((tvp)->tv_sec == (uvp)->tv_sec) ?             \
+        ((tvp)->tv_nsec cmp (uvp)->tv_nsec) :       \
+        ((tvp)->tv_sec cmp (uvp)->tv_sec))
 
-#define	TIMESPECADD(vvp, uvp)                       \
+#define TIMESPECADD(vvp, uvp)                       \
     do {                                            \
         (vvp)->tv_sec += (uvp)->tv_sec;             \
         (vvp)->tv_nsec += (uvp)->tv_nsec;           \
@@ -64,7 +64,7 @@
         }                                           \
     } while (0)
 
-#define	TIMESPECSUB(vvp, uvp)                       \
+#define TIMESPECSUB(vvp, uvp)                       \
     do {                                            \
         (vvp)->tv_sec -= (uvp)->tv_sec;             \
         (vvp)->tv_nsec -= (uvp)->tv_nsec;           \
