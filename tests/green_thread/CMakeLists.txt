@@ -48,6 +48,7 @@ message(STATUS "LLVM linker flags: ${LLVM_LDFLAGS}")
 
 # build targets
 add_executable(green_thread_cpp green_thread_cpp.cpp)
+add_executable(green_thread_cpp_many green_thread_cpp_many.cpp)
 add_executable(green_thread_cpp_timer green_thread_cpp_timer.cpp)
 add_executable(green_thread_cpp_fd green_thread_cpp_fd.cpp)
 add_executable(green_thread_cpp_stream green_thread_cpp_stream.cpp)
@@ -63,6 +64,7 @@ else()
 endif()
 
 target_link_libraries(green_thread_cpp ${LIBS})
+target_link_libraries(green_thread_cpp_many ${LIBS})
 target_link_libraries(green_thread_cpp_timer ${LIBS})
 target_link_libraries(green_thread_cpp_fd ${LIBS})
 target_link_libraries(green_thread_cpp_stream ${LIBS})
