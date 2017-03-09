@@ -10,6 +10,7 @@
 #include <sys/mman.h>
 #include <errno.h>
 #include <string.h>
+#include <inttypes.h>
 
 namespace lunar {
 
@@ -191,7 +192,7 @@ public:
 
     void print_state()
     {
-        printf("vacancy: %llu\n", m_vacancy);
+        printf("vacancy: %" PRIu64 "\n", m_vacancy);
         printf("free list:\n");
         int i;
         slab *ptr;
