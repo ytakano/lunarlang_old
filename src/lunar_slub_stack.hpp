@@ -9,6 +9,7 @@
 #include <unistd.h>
 #include <sys/mman.h>
 #include <errno.h>
+#include <string.h>
 
 namespace lunar {
 
@@ -195,13 +196,13 @@ public:
         int i;
         slab *ptr;
         for (i = 0, ptr = m_freelist_head; ptr != nullptr; i++, ptr = ptr->m_next) {
-            printf("%d(%p): ", i, ptr);
+            printf("%d(%p): ", i, (void*)ptr);
             ptr->print_state();
         }
 
         printf("full list:\n");
         for (i = 0, ptr = m_full; ptr != nullptr; i++, ptr = ptr->m_next) {
-            printf("%d(%p): ", i, ptr);
+            printf("%d(%p): ", i, (void*)ptr);
             ptr->print_state();
         }
         printf("\n");

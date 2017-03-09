@@ -1154,7 +1154,6 @@ green_thread::select_stream(epoll_event *eev, int num_eev,
 void
 green_thread::remove_stopped()
 {
-    int pagesize = sysconf(_SC_PAGE_SIZE);
     for (auto ctx: m_stop) {
         m_slub_stack.deallocate(ctx->m_stack);
         m_id2context.erase(ctx->m_id);
