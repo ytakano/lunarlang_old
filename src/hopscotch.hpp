@@ -3,6 +3,9 @@
 #ifndef MAP_HPP
 #define MAP_HPP
 //#include <cstdint>
+
+#include "lunar_asm.hpp"
+
 #include <stdint.h>
 #include <cstddef>
 #include <map>
