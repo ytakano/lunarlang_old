@@ -7,7 +7,6 @@
 #include "lunar_ringq.hpp"
 #include "lunar_shared_type.hpp"
 #include "lunar_slab_allocator.hpp"
-#include "lunar_slub_stack.hpp"
 
 #ifdef __linux__
 #include "hopscotch.hpp"
@@ -49,12 +48,12 @@
 #elif (defined EPOLL)
 #include <sys/epoll.h>
 #endif // KQUEUE
-/*
+
 #define TIMESPECCMP(tvp, uvp, cmp)                  \
     (((tvp)->tv_sec == (uvp)->tv_sec) ?             \
         ((tvp)->tv_nsec cmp (uvp)->tv_nsec) :       \
         ((tvp)->tv_sec cmp (uvp)->tv_sec))
-*/
+
 #define TIMESPECADD(vvp, uvp)                       \
     do {                                            \
         (vvp)->tv_sec += (uvp)->tv_sec;             \
@@ -315,8 +314,9 @@ private:
         bool m_is_ev_thq;     // is the thread queue ready to read
         bool m_is_ev_timeout; // is timeout
 
-        int64_t   m_id; // m_id must not be less than or equal to 0
+        int64_t m_id; // m_id must not be less than or equal to 0
         uint64_t *m_stack;
+        int m_stack_size;
     };
 
     struct ctx_time {
@@ -508,8 +508,6 @@ private:
     void select_fd(bool is_block);
     void resume_timeout();
     void remove_stopped();
-
-    slub_stack m_slub_stack;
 
     friend STRM_RESULT push_threadq_green_thread(void *thq, char *p);
 };
