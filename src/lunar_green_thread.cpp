@@ -688,18 +688,12 @@ green_thread::spawn(void (*func)(void*), void *arg, int stack_size)
         PRINTERR("failed mmap!: %s", strerror(errno));
         exit(-1);
     }
-
-    ctx->m_stack = (uint64_t*)addr;
-    ctx->m_stack_size = stack_size / sizeof(uint64_t);
-
-    ctx->m_stack[-2] = (uint64_t)ctx.get(); // push context
-    ctx->m_stack[-3] = (uint64_t)arg;       // push argument
-    ctx->m_stack[-4] = (uint64_t)func;      // push func
 #else
     if (posix_memalign(&addr, pagesize, stack_size) != 0) {
         PRINTERR("failed posix_memalign!: %s", strerror(errno));
         exit(-1);
     }
+#endif // __linux__
 
     ctx->m_stack = (uint64_t*)addr;
     ctx->m_stack_size = stack_size / sizeof(uint64_t);
@@ -709,6 +703,7 @@ green_thread::spawn(void (*func)(void*), void *arg, int stack_size)
     ctx->m_stack[s - 3] = (uint64_t)arg;       // push argument
     ctx->m_stack[s - 4] = (uint64_t)func;      // push func
 
+#ifndef __linux__
     if (mprotect(&ctx->m_stack[0], pagesize, PROT_NONE) < 0) {
         PRINTERR("failed mprotect!: %s", strerror(errno));
         exit(-1);
@@ -793,11 +788,7 @@ green_thread::schedule()
             if (state & context::READY) {
                 if (ctx) {
                     if (sigsetjmp(ctx->m_jmp_buf, 0) == 0) {
-#ifdef __linux__
-                        auto p = &m_running->m_stack[-4];
-#else
                         auto p = &m_running->m_stack[m_running->m_stack_size - 4];
-#endif // __linux__
                         asm (
                             "movq %0, %%rsp;" // set stack pointer
                             "movq %0, %%rbp;" // set frame pointer
@@ -812,11 +803,7 @@ green_thread::schedule()
                         return;
                     }
                 } else {
-#ifdef __linux__
-                    auto p = &m_running->m_stack[-4];
-#else
                     auto p = &m_running->m_stack[m_running->m_stack_size - 4];
-#endif // __linux__
                     asm (
                         "movq %0, %%rsp;" // set stack pointer
                         "movq %0, %%rbp;" // set frame pointer
@@ -1194,7 +1181,10 @@ green_thread::remove_stopped()
     int pagesize = sysconf(_SC_PAGE_SIZE);
     for (auto ctx: m_stop) {
 #ifdef __linux__
-        munmap(ctx->m_stack, ctx->m_stack_size * sizeof(uint64_t));
+        if (munmap(ctx->m_stack, ctx->m_stack_size * sizeof(uint64_t))) {
+            PRINTERR("failed munmap!: %s", strerror(errno));
+            exit(-1);
+        }
 #else
         if (mprotect(&ctx->m_stack[0], pagesize, PROT_READ | PROT_WRITE) < 0) {
             PRINTERR("failed mprotect!: %s", strerror(errno));
