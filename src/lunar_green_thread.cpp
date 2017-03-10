@@ -682,18 +682,10 @@ green_thread::spawn(void (*func)(void*), void *arg, int stack_size)
 
     void *addr;
 
-#ifdef __linux__
-    addr = mmap(NULL, stack_size, PROT_READ | PROT_WRITE, MAP_GROWSDOWN | MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
-    if (addr == MAP_FAILED) {
-        PRINTERR("failed mmap!: %s", strerror(errno));
-        exit(-1);
-    }
-#else
     if (posix_memalign(&addr, pagesize, stack_size) != 0) {
         PRINTERR("failed posix_memalign!: %s", strerror(errno));
         exit(-1);
     }
-#endif // __linux__
 
     ctx->m_stack = (uint64_t*)addr;
     ctx->m_stack_size = stack_size / sizeof(uint64_t);
@@ -703,12 +695,11 @@ green_thread::spawn(void (*func)(void*), void *arg, int stack_size)
     ctx->m_stack[s - 3] = (uint64_t)arg;       // push argument
     ctx->m_stack[s - 4] = (uint64_t)func;      // push func
 
-#ifndef __linux__
+    // see /proc/sys/vm/max_map_count for Linux
     if (mprotect(&ctx->m_stack[0], pagesize, PROT_NONE) < 0) {
         PRINTERR("failed mprotect!: %s", strerror(errno));
         exit(-1);
     }
-#endif // __linux__
 
     m_suspend.push_back(ctx.get());
     m_id2context[m_count] = std::move(ctx);
@@ -1180,18 +1171,11 @@ green_thread::remove_stopped()
 {
     int pagesize = sysconf(_SC_PAGE_SIZE);
     for (auto ctx: m_stop) {
-#ifdef __linux__
-        if (munmap(ctx->m_stack, ctx->m_stack_size * sizeof(uint64_t))) {
-            PRINTERR("failed munmap!: %s", strerror(errno));
-            exit(-1);
-        }
-#else
         if (mprotect(&ctx->m_stack[0], pagesize, PROT_READ | PROT_WRITE) < 0) {
             PRINTERR("failed mprotect!: %s", strerror(errno));
             exit(-1);
         }
         free(ctx->m_stack);
-#endif // __linux__
         m_id2context.erase(ctx->m_id);
     }
 
