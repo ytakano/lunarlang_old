@@ -48,12 +48,12 @@
 #elif (defined EPOLL)
 #include <sys/epoll.h>
 #endif // KQUEUE
-
+/*
 #define TIMESPECCMP(tvp, uvp, cmp)                  \
     (((tvp)->tv_sec == (uvp)->tv_sec) ?             \
         ((tvp)->tv_nsec cmp (uvp)->tv_nsec) :       \
         ((tvp)->tv_sec cmp (uvp)->tv_sec))
-
+*/
 #define TIMESPECADD(vvp, uvp)                       \
     do {                                            \
         (vvp)->tv_sec += (uvp)->tv_sec;             \
