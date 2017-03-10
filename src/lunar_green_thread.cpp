@@ -1194,7 +1194,7 @@ green_thread::remove_stopped()
     int pagesize = sysconf(_SC_PAGE_SIZE);
     for (auto ctx: m_stop) {
 #ifdef __linux__
-        munmap(ctx->m_stack);
+        munmap(ctx->m_stack, ctx->m_stack_size * sizeof(uint64_t));
 #else
         if (mprotect(&ctx->m_stack[0], pagesize, PROT_READ | PROT_WRITE) < 0) {
             PRINTERR("failed mprotect!: %s", strerror(errno));
