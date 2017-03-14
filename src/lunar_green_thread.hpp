@@ -12,6 +12,10 @@
 #include "hopscotch.hpp"
 #endif // __linux__
 
+#ifndef __linux__
+#include "lunar_slub_stack.hpp"
+#endif // __linux__
+
 #include <unistd.h>
 #include <setjmp.h>
 
@@ -508,6 +512,10 @@ private:
     void select_fd(bool is_block);
     void resume_timeout();
     void remove_stopped();
+
+#ifndef __linux__
+    slub_stack m_slub_stack;
+#endif // __linux__
 
     friend STRM_RESULT push_threadq_green_thread(void *thq, char *p);
 };

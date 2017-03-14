@@ -682,6 +682,7 @@ green_thread::spawn(void (*func)(void*), void *arg, int stack_size)
 
     void *addr;
 
+#ifdef __linux__
     if (posix_memalign(&addr, pagesize, stack_size) != 0) {
         PRINTERR("failed posix_memalign!: %s", strerror(errno));
         exit(-1);
@@ -700,6 +701,13 @@ green_thread::spawn(void (*func)(void*), void *arg, int stack_size)
         PRINTERR("failed mprotect!: %s", strerror(errno));
         exit(-1);
     }
+#else
+    ctx->m_stack = (uint64_t*)m_slub_stack.allocate();
+
+    ctx->m_stack[-2] = (uint64_t)ctx.get(); // push context
+    ctx->m_stack[-3] = (uint64_t)arg;       // push argument
+    ctx->m_stack[-4] = (uint64_t)func;      // push func
+#endif // __linux__
 
     m_suspend.push_back(ctx.get());
     m_id2context[m_count] = std::move(ctx);
@@ -779,7 +787,11 @@ green_thread::schedule()
             if (state & context::READY) {
                 if (ctx) {
                     if (sigsetjmp(ctx->m_jmp_buf, 0) == 0) {
+#ifdef __linux__
                         auto p = &m_running->m_stack[m_running->m_stack_size - 4];
+#else
+                        auto p = &m_running->m_stack[-4];
+#endif // __linux__
                         asm (
                             "movq %0, %%rsp;" // set stack pointer
                             "movq %0, %%rbp;" // set frame pointer
@@ -794,7 +806,11 @@ green_thread::schedule()
                         return;
                     }
                 } else {
+#ifdef __linux__
                     auto p = &m_running->m_stack[m_running->m_stack_size - 4];
+#else
+                    auto p = &m_running->m_stack[-4];
+#endif // __linux__
                     asm (
                         "movq %0, %%rsp;" // set stack pointer
                         "movq %0, %%rbp;" // set frame pointer
@@ -1171,11 +1187,15 @@ green_thread::remove_stopped()
 {
     int pagesize = sysconf(_SC_PAGE_SIZE);
     for (auto ctx: m_stop) {
+#ifdef __linux__
         if (mprotect(&ctx->m_stack[0], pagesize, PROT_READ | PROT_WRITE) < 0) {
             PRINTERR("failed mprotect!: %s", strerror(errno));
             exit(-1);
         }
         free(ctx->m_stack);
+#else
+        m_slub_stack.deallocate(ctx->m_stack);
+#endif // __linux__
         m_id2context.erase(ctx->m_id);
     }
 
