@@ -149,9 +149,9 @@ schedule_green_thread()
 }
 
 void
-spawn_green_thread(void (*func)(void*), void *arg, int stack_size)
+spawn_green_thread(void (*func)(void*), void *arg)
 {
-    lunar_gt->spawn(func, arg, stack_size);
+    lunar_gt->spawn(func, arg, lunar_gt->m_pagesize * 1024);
 }
 
 void
@@ -342,7 +342,8 @@ green_thread::green_thread(int qsize, int vecsize)
     : m_count(0),
       m_running(nullptr),
       m_wait_thq(nullptr),
-      m_threadq(new (make_shared_type(sizeof(*m_threadq))) threadq(qsize, vecsize))
+      m_threadq(new (make_shared_type(sizeof(*m_threadq))) threadq(qsize, vecsize)),
+      m_pagesize(sysconf(_SC_PAGE_SIZE))
 {
 #ifdef KQUEUE
     for (;;) {
@@ -670,20 +671,19 @@ green_thread::spawn(void (*func)(void*), void *arg, int stack_size)
         }
     }
 
-    int pagesize = sysconf(_SC_PAGE_SIZE);
-    stack_size += pagesize;
-    stack_size -= stack_size % pagesize;
+    stack_size += m_pagesize;
+    stack_size -= stack_size % m_pagesize;
 
-    if (stack_size < pagesize * 2)
-        stack_size = pagesize * 2;
+    if (stack_size < m_pagesize * 2)
+        stack_size = m_pagesize * 2;
 
     ctx->m_id    = m_count;
     ctx->m_state = context::READY;
 
+#ifdef __linux__
     void *addr;
 
-#ifdef __linux__
-    if (posix_memalign(&addr, pagesize, stack_size) != 0) {
+    if (posix_memalign(&addr, m_pagesize, stack_size) != 0) {
         PRINTERR("failed posix_memalign!: %s", strerror(errno));
         exit(-1);
     }
@@ -697,7 +697,7 @@ green_thread::spawn(void (*func)(void*), void *arg, int stack_size)
     ctx->m_stack[s - 4] = (uint64_t)func;      // push func
 
     // see /proc/sys/vm/max_map_count for Linux
-    if (mprotect(&ctx->m_stack[0], pagesize, PROT_NONE) < 0) {
+    if (mprotect(&ctx->m_stack[0], m_pagesize, PROT_NONE) < 0) {
         PRINTERR("failed mprotect!: %s", strerror(errno));
         exit(-1);
     }
@@ -1185,10 +1185,9 @@ green_thread::select_stream(epoll_event *eev, int num_eev,
 void
 green_thread::remove_stopped()
 {
-    int pagesize = sysconf(_SC_PAGE_SIZE);
     for (auto ctx: m_stop) {
 #ifdef __linux__
-        if (mprotect(&ctx->m_stack[0], pagesize, PROT_READ | PROT_WRITE) < 0) {
+        if (mprotect(&ctx->m_stack[0], m_pagesize, PROT_READ | PROT_WRITE) < 0) {
             PRINTERR("failed mprotect!: %s", strerror(errno));
             exit(-1);
         }

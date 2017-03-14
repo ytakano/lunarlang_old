@@ -163,7 +163,7 @@ extern "C" {
     uint64_t get_clock();
     bool init_green_thread(uint64_t thid, int qlen, int vecsize); // thid is user defined thread ID
     void schedule_green_thread();
-    void spawn_green_thread(void (*func)(void*), void *arg = nullptr, int stack_size = 4096 * 50);
+    void spawn_green_thread(void (*func)(void*), void *arg = nullptr);
     void run_green_thread();
     uint64_t get_thread_id();
     void* get_green_thread(uint64_t thid);
@@ -516,6 +516,10 @@ private:
 #ifndef __linux__
     slub_stack m_slub_stack;
 #endif // __linux__
+
+    int m_pagesize;
+
+    friend void spawn_green_thread(void (*func)(void*), void *arg);
 
     friend STRM_RESULT push_threadq_green_thread(void *thq, char *p);
 };
