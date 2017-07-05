@@ -211,7 +211,7 @@ enum IR_TOP {
 
 class lunar_ir_base {
 public:
-    lunar_ir_base() : m_line(0), m_col(0) { }
+    lunar_ir_base(llvm::LLVMContext &llvmctx) : m_llvmctx(llvmctx), m_line(0), m_col(0) { }
     virtual ~lunar_ir_base() { }
 
     virtual void set_col(uint64_t col) { m_col = col; }
@@ -221,20 +221,23 @@ public:
 
     virtual void print(std::string &s, const std::string &from) { }
 
+protected:
+    llvm::LLVMContext &m_llvmctx;
+
 private:
     uint64_t m_line, m_col;
 };
 
 class lunar_ir_literal : public lunar_ir_base {
 public:
-    lunar_ir_literal() { }
+    lunar_ir_literal(llvm::LLVMContext &llvmctx) : lunar_ir_base(llvmctx) { }
     virtual ~lunar_ir_literal() { }
 };
 
 class lunar_ir_identifier : public lunar_ir_base
 {
 public:
-    lunar_ir_identifier(std::unique_ptr<std::u32string> id) : m_id(std::move(id)) { }
+    lunar_ir_identifier(llvm::LLVMContext &llvmctx, std::unique_ptr<std::u32string> id) : lunar_ir_base(llvmctx), m_id(std::move(id)) { }
     virtual ~lunar_ir_identifier() { }
 
     const std::u32string& get_id() { return *m_id; }
@@ -247,7 +250,7 @@ private:
 
 class lunar_ir_type : public lunar_ir_base {
 public:
-    lunar_ir_type(LANG_BASIC_TYPE type, LANG_OWNERSHIP owner_ship) : m_type(type), m_owner_ship(owner_ship) { }
+    lunar_ir_type(llvm::LLVMContext &llvmctx, LANG_BASIC_TYPE type, LANG_OWNERSHIP owner_ship) : lunar_ir_base(llvmctx), m_type(type), m_owner_ship(owner_ship) { }
     virtual ~lunar_ir_type() { }
 
     void print_ownership(std::string &s, const std::string &from);
@@ -260,7 +263,7 @@ protected:
 
 class lunar_ir_top : public lunar_ir_base {
 public:
-    lunar_ir_top(IR_TOP type) : m_type(type) { }
+    lunar_ir_top(llvm::LLVMContext &llvmctx, IR_TOP type) : lunar_ir_base(llvmctx), m_type(type) { }
     virtual ~lunar_ir_top() { }
 
 private:
@@ -276,8 +279,8 @@ public:
         EXPRID_ID,
     };
 
-    lunar_ir_exprid(EXPRID_TYPE type, std::unique_ptr<lunar_ir_identifier> id) : m_type(type), m_id(std::move(id)) { }
-    lunar_ir_exprid(EXPRID_TYPE type, std::unique_ptr<lunar_ir_expr> expr) : m_type(type), m_expr(std::move(expr)) { }
+    lunar_ir_exprid(llvm::LLVMContext &llvmctx, EXPRID_TYPE type, std::unique_ptr<lunar_ir_identifier> id) : lunar_ir_base(llvmctx), m_type(type), m_id(std::move(id)) { }
+    lunar_ir_exprid(llvm::LLVMContext &llvmctx, EXPRID_TYPE type, std::unique_ptr<lunar_ir_expr> expr) : lunar_ir_base(llvmctx), m_type(type), m_expr(std::move(expr)) { }
     virtual ~lunar_ir_exprid() { }
 
     virtual void print(std::string &s, const std::string &from);
@@ -299,9 +302,9 @@ public:
         EXPRIDLIT_LITERAL,
     };
 
-    lunar_ir_expridlit(EXPRIDLIT_TYPE type, std::unique_ptr<lunar_ir_identifier> id) : m_type(type), m_id(std::move(id)) { }
-    lunar_ir_expridlit(EXPRIDLIT_TYPE type, std::unique_ptr<lunar_ir_literal> literal) : m_type(type), m_literal(std::move(literal)) { }
-    lunar_ir_expridlit(EXPRIDLIT_TYPE type, std::unique_ptr<lunar_ir_expr> expr) : m_type(type), m_expr(std::move(expr)) { }
+    lunar_ir_expridlit(llvm::LLVMContext &llvmctx, EXPRIDLIT_TYPE type, std::unique_ptr<lunar_ir_identifier> id) : lunar_ir_base(llvmctx), m_type(type), m_id(std::move(id)) { }
+    lunar_ir_expridlit(llvm::LLVMContext &llvmctx, EXPRIDLIT_TYPE type, std::unique_ptr<lunar_ir_literal> literal) : lunar_ir_base(llvmctx), m_type(type), m_literal(std::move(literal)) { }
+    lunar_ir_expridlit(llvm::LLVMContext &llvmctx, EXPRIDLIT_TYPE type, std::unique_ptr<lunar_ir_expr> expr) : lunar_ir_base(llvmctx), m_type(type), m_expr(std::move(expr)) { }
     virtual ~lunar_ir_expridlit() { }
 
     virtual void print(std::string &s, const std::string &from);
@@ -318,8 +321,8 @@ private:
 
 class lunar_ir_expr : public lunar_ir_top {
 public:
-    lunar_ir_expr(std::unique_ptr<lunar_ir_exprid> func) : lunar_ir_top(IR_EXPR), m_func(std::move(func)) { }
-    lunar_ir_expr() : lunar_ir_top(IR_EXPR) { }
+    lunar_ir_expr(llvm::LLVMContext &llvmctx, std::unique_ptr<lunar_ir_exprid> func) : lunar_ir_top(llvmctx, IR_EXPR), m_func(std::move(func)) { }
+    lunar_ir_expr(llvm::LLVMContext &llvmctx) : lunar_ir_top(llvmctx, IR_EXPR) { }
     virtual ~lunar_ir_expr() { }
 
     void add_arg(std::unique_ptr<lunar_ir_expridlit> arg)
@@ -336,7 +339,7 @@ private:
 
 class lunar_ir_statement : public lunar_ir_top {
 public:
-    lunar_ir_statement() : lunar_ir_top(IR_STATEMENT) { }
+    lunar_ir_statement(llvm::LLVMContext &llvmctx) : lunar_ir_top(llvmctx, IR_STATEMENT) { }
     virtual ~lunar_ir_statement() { }
 };
 
@@ -365,7 +368,7 @@ private:
 
 class lunar_ir_def_struct : public lunar_ir_statement, public lunar_ir_member {
 public:
-    lunar_ir_def_struct(std::unique_ptr<lunar_ir_identifier> name) : m_name(std::move(name)) { }
+    lunar_ir_def_struct(llvm::LLVMContext &llvmctx, std::unique_ptr<lunar_ir_identifier> name) : lunar_ir_statement(llvmctx), m_name(std::move(name)) { }
     virtual ~lunar_ir_def_struct() { }
 
     virtual void print(std::string &s, const std::string &from);
@@ -376,7 +379,7 @@ private:
 
 class lunar_ir_def_cunion : public lunar_ir_statement, public lunar_ir_member {
 public:
-    lunar_ir_def_cunion(std::unique_ptr<lunar_ir_identifier> name) : m_name(std::move(name)) { }
+    lunar_ir_def_cunion(llvm::LLVMContext &llvmctx, std::unique_ptr<lunar_ir_identifier> name) : lunar_ir_statement(llvmctx), m_name(std::move(name)) { }
     virtual ~lunar_ir_def_cunion() { }
 
     virtual void print(std::string &s, const std::string &from);
@@ -387,7 +390,7 @@ private:
 
 class lunar_ir_def_union : public lunar_ir_statement, public lunar_ir_member {
 public:
-    lunar_ir_def_union(std::unique_ptr<lunar_ir_identifier> name) : m_name(std::move(name)) { }
+    lunar_ir_def_union(llvm::LLVMContext &llvmctx, std::unique_ptr<lunar_ir_identifier> name) : lunar_ir_statement(llvmctx), m_name(std::move(name)) { }
     virtual ~lunar_ir_def_union() { }
 
     virtual void print(std::string &s, const std::string &from);
@@ -398,8 +401,8 @@ private:
 
 class lunar_ir_stexpr : public lunar_ir_base {
 public:
-    lunar_ir_stexpr(std::unique_ptr<lunar_ir_expr> expr) : m_expr(std::move(expr)), m_is_expr(true) { }
-    lunar_ir_stexpr(std::unique_ptr<lunar_ir_statement> statement) : m_statement(std::move(statement)), m_is_expr(false) { }
+    lunar_ir_stexpr(llvm::LLVMContext &llvmctx, std::unique_ptr<lunar_ir_expr> expr) : lunar_ir_base(llvmctx), m_expr(std::move(expr)), m_is_expr(true) { }
+    lunar_ir_stexpr(llvm::LLVMContext &llvmctx, std::unique_ptr<lunar_ir_statement> statement) : lunar_ir_base(llvmctx), m_statement(std::move(statement)), m_is_expr(false) { }
     virtual ~lunar_ir_stexpr() { }
 
     virtual void print(std::string &s, const std::string &from);
@@ -432,8 +435,8 @@ private:
 
 class lunar_ir_type_id : public lunar_ir_type {
 public:
-    lunar_ir_type_id(LANG_OWNERSHIP owner_ship, std::unique_ptr<lunar_ir_identifier> id)
-        : lunar_ir_type(BT_ID, owner_ship), m_id(std::move(id)) { }
+    lunar_ir_type_id(llvm::LLVMContext &llvmctx, LANG_OWNERSHIP owner_ship, std::unique_ptr<lunar_ir_identifier> id)
+        : lunar_ir_type(llvmctx, BT_ID, owner_ship), m_id(std::move(id)) { }
     virtual ~lunar_ir_type_id() { }
 
     virtual void print(std::string &s, const std::string &from);
@@ -444,7 +447,7 @@ private:
 
 class lunar_ir_lit_atom : public lunar_ir_literal {
 public:
-    lunar_ir_lit_atom(const std::u32string &str) : m_str(str) { }
+    lunar_ir_lit_atom(llvm::LLVMContext &llvmctx, const std::u32string &str) : lunar_ir_literal(llvmctx), m_str(str) { }
     virtual ~lunar_ir_lit_atom() { }
 
     virtual void print(std::string &s, const std::string &from);
@@ -455,7 +458,7 @@ private:
 
 class lunar_ir_lit_str32 : public lunar_ir_literal {
 public:
-    lunar_ir_lit_str32(const std::u32string &str) : m_str(str) { }
+    lunar_ir_lit_str32(llvm::LLVMContext &llvmctx, const std::u32string &str) : lunar_ir_literal(llvmctx), m_str(str) { }
     virtual ~lunar_ir_lit_str32() { }
 
     virtual void print(std::string &s, const std::string &from);
@@ -466,7 +469,7 @@ private:
 
 class lunar_ir_lit_str8 : public lunar_ir_literal {
 public:
-    lunar_ir_lit_str8(const std::u32string &str) : m_str(str) { }
+    lunar_ir_lit_str8(llvm::LLVMContext &llvmctx, const std::u32string &str) : lunar_ir_literal(llvmctx), m_str(str) { }
     virtual ~lunar_ir_lit_str8() { }
 
     virtual void print(std::string &s, const std::string &from);
@@ -477,7 +480,7 @@ private:
 
 class lunar_ir_lit_char32 : public lunar_ir_literal {
 public:
-    lunar_ir_lit_char32(char32_t c) : m_char(c) { }
+    lunar_ir_lit_char32(llvm::LLVMContext &llvmctx, char32_t c) : lunar_ir_literal(llvmctx), m_char(c) { }
     virtual ~lunar_ir_lit_char32() { }
 
     virtual void print(std::string &s, const std::string &from);
@@ -489,7 +492,7 @@ private:
 
 class lunar_ir_lit_char8 : public lunar_ir_literal {
 public:
-    lunar_ir_lit_char8(char c) : m_char(c) { }
+    lunar_ir_lit_char8(llvm::LLVMContext &llvmctx, char c) : lunar_ir_literal(llvmctx), m_char(c) { }
     virtual ~lunar_ir_lit_char8() { }
 
     virtual void print(std::string &s, const std::string &from);
@@ -501,7 +504,7 @@ private:
 
 class lunar_ir_lit_int : public lunar_ir_literal {
 public:
-    lunar_ir_lit_int(int64_t num, const std::u32string &str) : m_num(num), m_str(str) { }
+    lunar_ir_lit_int(llvm::LLVMContext &llvmctx, int64_t num, const std::u32string &str) : lunar_ir_literal(llvmctx), m_num(num), m_str(str) { }
     virtual ~lunar_ir_lit_int() { }
 
     virtual void print(std::string &s, const std::string &from);
@@ -514,7 +517,7 @@ private:
 
 class lunar_ir_lit_uint : public lunar_ir_literal {
 public:
-    lunar_ir_lit_uint(uint64_t num, const std::u32string &str) : m_num(num), m_str(str) { }
+    lunar_ir_lit_uint(llvm::LLVMContext &llvmctx, uint64_t num, const std::u32string &str) : lunar_ir_literal(llvmctx), m_num(num), m_str(str) { }
     virtual ~lunar_ir_lit_uint() { }
 
     virtual void print(std::string &s, const std::string &from);
@@ -527,7 +530,7 @@ private:
 
 class lunar_ir_lit_float : public lunar_ir_literal {
 public:
-    lunar_ir_lit_float(double num, bool is_float) : m_num(num), m_is_float(is_float) { }
+    lunar_ir_lit_float(llvm::LLVMContext &llvmctx, double num, bool is_float) : lunar_ir_literal(llvmctx), m_num(num), m_is_float(is_float) { }
     virtual ~lunar_ir_lit_float() { }
 
     virtual void print(std::string &s, const std::string &from);
@@ -540,7 +543,7 @@ private:
 
 class lunar_ir_import : public lunar_ir_top {
 public:
-    lunar_ir_import() : lunar_ir_top(IR_IMPORT) { }
+    lunar_ir_import(llvm::LLVMContext &llvmctx) : lunar_ir_top(llvmctx, IR_IMPORT) { }
     virtual ~lunar_ir_import() { }
 
     virtual void print(std::string &s, const std::string &from);
@@ -556,8 +559,8 @@ private:
 
 class lunar_ir_scalar : public lunar_ir_type {
 public:
-    lunar_ir_scalar(LANG_OWNERSHIP owner_ship, LANG_SCALAR scalar)
-        : lunar_ir_type(BT_SCALAR, owner_ship), m_scalar(scalar) { }
+    lunar_ir_scalar(llvm::LLVMContext &llvmctx, LANG_OWNERSHIP owner_ship, LANG_SCALAR scalar)
+        : lunar_ir_type(llvmctx, BT_SCALAR, owner_ship), m_scalar(scalar) { }
 
     LANG_SCALAR get_type() { return m_scalar; }
 
@@ -569,8 +572,8 @@ private:
 
 class lunar_ir_array : public lunar_ir_type {
 public:
-    lunar_ir_array(LANG_OWNERSHIP owner_ship, std::unique_ptr<lunar_ir_type> type, std::unique_ptr<lunar_ir_lit_uint> size)
-        : lunar_ir_type(BT_ARRAY, owner_ship),
+    lunar_ir_array(llvm::LLVMContext &llvmctx, LANG_OWNERSHIP owner_ship, std::unique_ptr<lunar_ir_type> type, std::unique_ptr<lunar_ir_lit_uint> size)
+        : lunar_ir_type(llvmctx, BT_ARRAY, owner_ship),
           m_type(std::move(type)),
           m_size(std::move(size)) { }
     virtual ~lunar_ir_array() { }
@@ -584,8 +587,8 @@ private:
 
 class lunar_ir_list : public lunar_ir_type {
 public:
-    lunar_ir_list(LANG_OWNERSHIP owner_ship, std::unique_ptr<lunar_ir_type> type)
-        : lunar_ir_type(BT_LIST, owner_ship),
+    lunar_ir_list(llvm::LLVMContext &llvmctx, LANG_OWNERSHIP owner_ship, std::unique_ptr<lunar_ir_type> type)
+        : lunar_ir_type(llvmctx, BT_LIST, owner_ship),
           m_type(std::move(type)) { }
 
     virtual ~lunar_ir_list() { }
@@ -598,8 +601,8 @@ private:
 
 class lunar_ir_struct : public lunar_ir_type, public lunar_ir_member {
 public:
-    lunar_ir_struct(LANG_OWNERSHIP owner_ship, std::unique_ptr<lunar_ir_identifier> name)
-        : lunar_ir_type(BT_STRUCT, owner_ship), m_name(std::move(name)) { }
+    lunar_ir_struct(llvm::LLVMContext &llvmctx, LANG_OWNERSHIP owner_ship, std::unique_ptr<lunar_ir_identifier> name)
+        : lunar_ir_type(llvmctx, BT_STRUCT, owner_ship), m_name(std::move(name)) { }
     virtual ~lunar_ir_struct() { }
 
     virtual void print(std::string &s, const std::string &from);
@@ -610,8 +613,8 @@ private:
 
 class lunar_ir_cunion : public lunar_ir_type, public lunar_ir_member {
 public:
-    lunar_ir_cunion(LANG_OWNERSHIP owner_ship, std::unique_ptr<lunar_ir_identifier> name)
-        : lunar_ir_type(BT_CUNION, owner_ship), m_name(std::move(name)) { }
+    lunar_ir_cunion(llvm::LLVMContext &llvmctx, LANG_OWNERSHIP owner_ship, std::unique_ptr<lunar_ir_identifier> name)
+        : lunar_ir_type(llvmctx, BT_CUNION, owner_ship), m_name(std::move(name)) { }
     virtual ~lunar_ir_cunion() { }
 
     virtual void print(std::string &s, const std::string &from);
@@ -622,8 +625,8 @@ private:
 
 class lunar_ir_dict : public lunar_ir_type {
 public:
-    lunar_ir_dict(LANG_OWNERSHIP owner_ship, std::unique_ptr<lunar_ir_type> key, std::unique_ptr<lunar_ir_type> val)
-        : lunar_ir_type(BT_DICT, owner_ship), m_key(std::move(key)), m_val(std::move(val)) { }
+    lunar_ir_dict(llvm::LLVMContext &llvmctx, LANG_OWNERSHIP owner_ship, std::unique_ptr<lunar_ir_type> key, std::unique_ptr<lunar_ir_type> val)
+        : lunar_ir_type(llvmctx, BT_DICT, owner_ship), m_key(std::move(key)), m_val(std::move(val)) { }
     virtual ~lunar_ir_dict() { }
 
     virtual void print(std::string &s, const std::string &from);
@@ -635,8 +638,8 @@ private:
 
 class lunar_ir_set : public lunar_ir_type {
 public:
-    lunar_ir_set(LANG_OWNERSHIP owner_ship, std::unique_ptr<lunar_ir_type> type)
-        : lunar_ir_type(BT_SET, owner_ship), m_type(std::move(type)) { }
+    lunar_ir_set(llvm::LLVMContext &llvmctx, LANG_OWNERSHIP owner_ship, std::unique_ptr<lunar_ir_type> type)
+        : lunar_ir_type(llvmctx, BT_SET, owner_ship), m_type(std::move(type)) { }
     virtual ~lunar_ir_set() { }
 
     virtual void print(std::string &s, const std::string &from);
@@ -647,8 +650,8 @@ private:
 
 class lunar_ir_union : public lunar_ir_type, public lunar_ir_member {
 public:
-    lunar_ir_union(LANG_OWNERSHIP owner_ship, std::unique_ptr<lunar_ir_identifier> name)
-        : lunar_ir_type(BT_UNION, owner_ship), m_name(std::move(name)) { }
+    lunar_ir_union(llvm::LLVMContext &llvmctx, LANG_OWNERSHIP owner_ship, std::unique_ptr<lunar_ir_identifier> name)
+        : lunar_ir_type(llvmctx, BT_UNION, owner_ship), m_name(std::move(name)) { }
     virtual ~lunar_ir_union() { }
 
     virtual void print(std::string &s, const std::string &from);
@@ -659,7 +662,7 @@ private:
 
 class lunar_ir_func : public lunar_ir_type {
 public:
-    lunar_ir_func(LANG_OWNERSHIP owner_ship) : lunar_ir_type(BT_FUNCTYPE, owner_ship) { }
+    lunar_ir_func(llvm::LLVMContext &llvmctx, LANG_OWNERSHIP owner_ship) : lunar_ir_type(llvmctx, BT_FUNCTYPE, owner_ship) { }
     virtual ~lunar_ir_func() { }
 
     void add_ret(std::unique_ptr<lunar_ir_type> ret)
@@ -681,8 +684,8 @@ private:
 
 class lunar_ir_rstream : public lunar_ir_type {
 public:
-    lunar_ir_rstream(std::unique_ptr<lunar_ir_type> type)
-        : lunar_ir_type(BT_RSTREAM, OWN_UNIQUE), m_type(std::move(type)) { }
+    lunar_ir_rstream(llvm::LLVMContext &llvmctx, std::unique_ptr<lunar_ir_type> type)
+        : lunar_ir_type(llvmctx, BT_RSTREAM, OWN_UNIQUE), m_type(std::move(type)) { }
     virtual ~lunar_ir_rstream() { }
 
     virtual void print(std::string &s, const std::string &from);
@@ -693,8 +696,8 @@ private:
 
 class lunar_ir_wstream : public lunar_ir_type {
 public:
-    lunar_ir_wstream(std::unique_ptr<lunar_ir_type> type)
-        : lunar_ir_type(BT_WSTREAM, OWN_SHARED), m_type(std::move(type)) { }
+    lunar_ir_wstream(llvm::LLVMContext &llvmctx, std::unique_ptr<lunar_ir_type> type)
+        : lunar_ir_type(llvmctx, BT_WSTREAM, OWN_SHARED), m_type(std::move(type)) { }
     virtual ~lunar_ir_wstream() { }
 
     virtual void print(std::string &s, const std::string &from);
@@ -705,7 +708,7 @@ private:
 
 class lunar_ir_rsigstream : public lunar_ir_type {
 public:
-    lunar_ir_rsigstream() : lunar_ir_type(BT_RSIGSTREAM, OWN_UNIQUE) { }
+    lunar_ir_rsigstream(llvm::LLVMContext &llvmctx) : lunar_ir_type(llvmctx, BT_RSIGSTREAM, OWN_UNIQUE) { }
     virtual ~lunar_ir_rsigstream() { }
 
     virtual void print(std::string &s, const std::string &from);
@@ -713,7 +716,7 @@ public:
 
 class lunar_ir_rsockstream : public lunar_ir_type {
 public:
-    lunar_ir_rsockstream() : lunar_ir_type(BT_RSOCKSTREAM, OWN_UNIQUE) { }
+    lunar_ir_rsockstream(llvm::LLVMContext &llvmctx) : lunar_ir_type(llvmctx, BT_RSOCKSTREAM, OWN_UNIQUE) { }
     virtual ~lunar_ir_rsockstream() { }
 
     virtual void print(std::string &s, const std::string &from);
@@ -721,7 +724,7 @@ public:
 
 class lunar_ir_wsockstream : public lunar_ir_type {
 public:
-    lunar_ir_wsockstream() : lunar_ir_type(BT_WSOCKSTREAM, OWN_SHARED) { }
+    lunar_ir_wsockstream(llvm::LLVMContext &llvmctx) : lunar_ir_type(llvmctx, BT_WSOCKSTREAM, OWN_SHARED) { }
     virtual ~lunar_ir_wsockstream() { }
 
     virtual void print(std::string &s, const std::string &from);
@@ -729,7 +732,7 @@ public:
 
 class lunar_ir_rfilestream : public lunar_ir_type {
 public:
-    lunar_ir_rfilestream() : lunar_ir_type(BT_RFILESTREAM, OWN_UNIQUE) { }
+    lunar_ir_rfilestream(llvm::LLVMContext &llvmctx) : lunar_ir_type(llvmctx, BT_RFILESTREAM, OWN_UNIQUE) { }
     virtual ~lunar_ir_rfilestream() { }
 
     virtual void print(std::string &s, const std::string &from);
@@ -737,7 +740,7 @@ public:
 
 class lunar_ir_wfilestream : public lunar_ir_type {
 public:
-    lunar_ir_wfilestream() : lunar_ir_type(BT_WFILESTREAM, OWN_SHARED) { }
+    lunar_ir_wfilestream(llvm::LLVMContext &llvmctx) : lunar_ir_type(llvmctx, BT_WFILESTREAM, OWN_SHARED) { }
     virtual ~lunar_ir_wfilestream() { }
 
     virtual void print(std::string &s, const std::string &from);
@@ -745,8 +748,8 @@ public:
 
 class lunar_ir_rthreadstream : public lunar_ir_type {
 public:
-    lunar_ir_rthreadstream(std::unique_ptr<lunar_ir_type> type)
-        : lunar_ir_type(BT_RTHREADSTREAM, OWN_UNIQUE), m_type(std::move(type)) { }
+    lunar_ir_rthreadstream(llvm::LLVMContext &llvmctx, std::unique_ptr<lunar_ir_type> type)
+        : lunar_ir_type(llvmctx, BT_RTHREADSTREAM, OWN_UNIQUE), m_type(std::move(type)) { }
     virtual ~lunar_ir_rthreadstream() { }
 
     virtual void print(std::string &s, const std::string &from);
@@ -757,8 +760,8 @@ private:
 
 class lunar_ir_wthreadstream : public lunar_ir_type {
 public:
-    lunar_ir_wthreadstream(std::unique_ptr<lunar_ir_type> type)
-        : lunar_ir_type(BT_WTHREADSTREAM, OWN_SHARED), m_type(std::move(type)) { }
+    lunar_ir_wthreadstream(llvm::LLVMContext &llvmctx, std::unique_ptr<lunar_ir_type> type)
+        : lunar_ir_type(llvmctx, BT_WTHREADSTREAM, OWN_SHARED), m_type(std::move(type)) { }
     virtual ~lunar_ir_wthreadstream() { }
 
     virtual void print(std::string &s, const std::string &from);
@@ -769,7 +772,7 @@ private:
 
 class lunar_ir_string : public lunar_ir_type {
 public:
-    lunar_ir_string(LANG_OWNERSHIP owner_ship) : lunar_ir_type(BT_STRING, owner_ship) { }
+    lunar_ir_string(llvm::LLVMContext &llvmctx, LANG_OWNERSHIP owner_ship) : lunar_ir_type(llvmctx, BT_STRING, owner_ship) { }
     virtual ~lunar_ir_string() { }
 
     virtual void print(std::string &s, const std::string &from);
@@ -777,7 +780,7 @@ public:
 
 class lunar_ir_binary : public lunar_ir_type {
 public:
-    lunar_ir_binary(LANG_OWNERSHIP owner_ship) : lunar_ir_type(BT_BINARY, owner_ship) { }
+    lunar_ir_binary(llvm::LLVMContext &llvmctx, LANG_OWNERSHIP owner_ship) : lunar_ir_type(llvmctx, BT_BINARY, owner_ship) { }
     virtual ~lunar_ir_binary() { }
 
     virtual void print(std::string &s, const std::string &from);
@@ -785,8 +788,8 @@ public:
 
 class lunar_ir_ptr : public lunar_ir_type {
 public:
-    lunar_ir_ptr(LANG_OWNERSHIP owner_ship, std::unique_ptr<lunar_ir_type> type)
-        : lunar_ir_type(BT_PTR, owner_ship),
+    lunar_ir_ptr(llvm::LLVMContext &llvmctx, LANG_OWNERSHIP owner_ship, std::unique_ptr<lunar_ir_type> type)
+        : lunar_ir_type(llvmctx, BT_PTR, owner_ship),
           m_type(std::move(type)) { }
     virtual ~lunar_ir_ptr() { }
 
@@ -798,8 +801,8 @@ private:
 
 class lunar_ir_parsec : public lunar_ir_type {
 public:
-    lunar_ir_parsec(bool is_binary) // binary or string
-        : lunar_ir_type(BT_PARSEC, OWN_UNIQUE), m_is_binary(is_binary) { }
+    lunar_ir_parsec(llvm::LLVMContext &llvmctx, bool is_binary) // binary or string
+        : lunar_ir_type(llvmctx, BT_PARSEC, OWN_UNIQUE), m_is_binary(is_binary) { }
     virtual ~lunar_ir_parsec() { }
 
     bool is_binary() { return m_is_binary; }
@@ -812,8 +815,8 @@ private:
 
 class lunar_ir_var : public lunar_ir_base {
 public:
-    lunar_ir_var(std::unique_ptr<lunar_ir_type> type, std::unique_ptr<lunar_ir_identifier> id)
-        : m_type(std::move(type)), m_id(std::move(id)) { }
+    lunar_ir_var(llvm::LLVMContext &llvmctx, std::unique_ptr<lunar_ir_type> type, std::unique_ptr<lunar_ir_identifier> id)
+        : lunar_ir_base(llvmctx), m_type(std::move(type)), m_id(std::move(id)) { }
 
     const std::u32string& get_id() { return m_id->get_id(); }
 
@@ -828,7 +831,7 @@ private:
 
 class lunar_ir_defun : public lunar_ir_top {
 public:
-    lunar_ir_defun(std::unique_ptr<lunar_ir_identifier> id) : lunar_ir_top(IR_FUNC), m_id(std::move(id)) { }
+    lunar_ir_defun(llvm::LLVMContext &llvmctx, std::unique_ptr<lunar_ir_identifier> id) : lunar_ir_top(llvmctx, IR_FUNC), m_id(std::move(id)) { }
     virtual ~lunar_ir_defun() { }
 
     virtual void print(std::string &s, const std::string &from);
@@ -863,7 +866,7 @@ private:
 
 class lunar_ir_lambda : public lunar_ir_expr {
 public:
-    lunar_ir_lambda() { }
+    lunar_ir_lambda(llvm::LLVMContext &llvmctx) : lunar_ir_expr(llvmctx) { }
     virtual ~lunar_ir_lambda() { }
 
     virtual void print(std::string &s, const std::string &from);
@@ -893,7 +896,7 @@ private:
 
 class lunar_ir_def : public lunar_ir_base {
 public:
-    lunar_ir_def() { }
+    lunar_ir_def(llvm::LLVMContext &llvmctx) : lunar_ir_base(llvmctx) { }
     virtual ~lunar_ir_def() { };
 
     void add_var(std::unique_ptr<lunar_ir_var> var)
@@ -918,8 +921,7 @@ private:
 
 class lunar_ir_let : public lunar_ir_statement {
 public:
-
-    lunar_ir_let() { }
+    lunar_ir_let(llvm::LLVMContext &llvmctx) : lunar_ir_statement(llvmctx) { }
     virtual ~lunar_ir_let() { }
 
     void add_def(std::unique_ptr<lunar_ir_def> def)
@@ -942,7 +944,7 @@ private:
 class lunar_ir_global : public lunar_ir_top {
 public:
 
-    lunar_ir_global() : lunar_ir_top(IR_GLOBAL) { }
+    lunar_ir_global(llvm::LLVMContext &llvmctx) : lunar_ir_top(llvmctx, IR_GLOBAL) { }
     virtual ~lunar_ir_global() { }
 
     void add_def(std::unique_ptr<lunar_ir_def> def)
@@ -959,7 +961,7 @@ private:
 class lunar_ir_threadlocal : public lunar_ir_top {
 public:
 
-    lunar_ir_threadlocal() : lunar_ir_top(IR_THREADLOCAL) { }
+    lunar_ir_threadlocal(llvm::LLVMContext &llvmctx) : lunar_ir_top(llvmctx, IR_THREADLOCAL) { }
     virtual ~lunar_ir_threadlocal() { }
 
     void add_def(std::unique_ptr<lunar_ir_def> def)
@@ -977,7 +979,7 @@ class lunar_ir_cond : public lunar_ir_statement {
 public:
     class cond : public lunar_ir_base {
     public:
-        cond(std::unique_ptr<lunar_ir_expridlit> expridlit) : m_expridlit(std::move(expridlit)) { }
+        cond(llvm::LLVMContext &llvmctx, std::unique_ptr<lunar_ir_expridlit> expridlit) : lunar_ir_base(llvmctx), m_expridlit(std::move(expridlit)) { }
         virtual ~cond() { }
 
         virtual void print(std::string &s, const std::string &from);
@@ -992,7 +994,7 @@ public:
         std::vector<std::unique_ptr<lunar_ir_stexpr>> m_stexprs;
     };
 
-    lunar_ir_cond() { }
+    lunar_ir_cond(llvm::LLVMContext &llvmctx) : lunar_ir_statement(llvmctx) { }
     virtual ~lunar_ir_cond() { }
 
     virtual void print(std::string &s, const std::string &from);
@@ -1014,7 +1016,7 @@ private:
 
 class lunar_ir_while : public lunar_ir_statement {
 public:
-    lunar_ir_while(std::unique_ptr<lunar_ir_expridlit> cond) : m_cond(std::move(cond)) { }
+    lunar_ir_while(llvm::LLVMContext &llvmctx, std::unique_ptr<lunar_ir_expridlit> cond) : lunar_ir_statement(llvmctx), m_cond(std::move(cond)) { }
     virtual ~lunar_ir_while() { }
 
     void add_stexpr(std::unique_ptr<lunar_ir_stexpr> stexpr)
@@ -1033,7 +1035,7 @@ class lunar_ir_select : public lunar_ir_statement {
 public:
     class cond : public lunar_ir_base {
     public:
-        cond(std::unique_ptr<lunar_ir_exprid> exprid) : m_exprid(std::move(exprid)) { }
+        cond(llvm::LLVMContext &llvmctx, std::unique_ptr<lunar_ir_exprid> exprid) : lunar_ir_base(llvmctx), m_exprid(std::move(exprid)) { }
         virtual ~cond() { }
 
         virtual void print(std::string &s, const std::string &from);
@@ -1050,7 +1052,7 @@ public:
 
     class timeout : public lunar_ir_base {
     public:
-        timeout(std::unique_ptr<lunar_ir_expridlit> expridlit) : m_expridlit(std::move(expridlit)) { }
+        timeout(llvm::LLVMContext &llvmctx, std::unique_ptr<lunar_ir_expridlit> expridlit) : lunar_ir_base(llvmctx), m_expridlit(std::move(expridlit)) { }
         virtual ~timeout() { }
 
         virtual void print(std::string &s, const std::string &from);
@@ -1065,7 +1067,7 @@ public:
         std::vector<std::unique_ptr<lunar_ir_stexpr>> m_stexprs;
     };
 
-    lunar_ir_select() { }
+    lunar_ir_select(llvm::LLVMContext &llvmctx) : lunar_ir_statement(llvmctx) { }
     virtual ~lunar_ir_select() { }
 
     virtual void print(std::string &s, const std::string &from);
@@ -1087,7 +1089,7 @@ private:
 
 class lunar_ir_break : public lunar_ir_statement {
 public:
-    lunar_ir_break() { }
+    lunar_ir_break(llvm::LLVMContext &llvmctx) : lunar_ir_statement(llvmctx) { }
     virtual ~lunar_ir_break() { }
 
     virtual void print(std::string &s, const std::string &from);
@@ -1095,7 +1097,7 @@ public:
 
 class lunar_ir_block : public lunar_ir_statement {
 public:
-    lunar_ir_block() : m_is_block1(true) { }
+    lunar_ir_block(llvm::LLVMContext &llvmctx) : lunar_ir_statement(llvmctx), m_is_block1(true) { }
     virtual ~lunar_ir_block() { }
 
     void set_target(bool is_block1){ m_is_block1 = is_block1; }
@@ -1118,7 +1120,7 @@ private:
 
 class lunar_ir_leap : public lunar_ir_statement {
 public:
-    lunar_ir_leap() { }
+    lunar_ir_leap(llvm::LLVMContext &llvmctx) : lunar_ir_statement(llvmctx) { }
     virtual ~lunar_ir_leap() { }
 
     virtual void print(std::string &s, const std::string &from);
@@ -1126,7 +1128,7 @@ public:
 
 class lunar_ir_return : public lunar_ir_statement {
 public:
-    lunar_ir_return() { }
+    lunar_ir_return(llvm::LLVMContext &llvmctx) : lunar_ir_statement(llvmctx) { }
     virtual ~lunar_ir_return() { }
 
     void add_expridlit(std::unique_ptr<lunar_ir_expridlit> expridlit)
@@ -1142,7 +1144,7 @@ private:
 
 class lunar_ir_new : public lunar_ir_expr {
 public:
-    lunar_ir_new(std::unique_ptr<lunar_ir_type> type) : m_type(std::move(type)) { }
+    lunar_ir_new(llvm::LLVMContext &llvmctx, std::unique_ptr<lunar_ir_type> type) : lunar_ir_expr(llvmctx), m_type(std::move(type)) { }
     virtual ~lunar_ir_new() { }
 
     void set_initializer(std::unique_ptr<lunar_ir_expridlit> init)
@@ -1159,8 +1161,8 @@ private:
 
 class lunar_ir_mkstream : public lunar_ir_expr {
 public:
-    lunar_ir_mkstream(std::unique_ptr<lunar_ir_type> type, std::unique_ptr<lunar_ir_expridlit> size)
-        : m_type(std::move(type)), m_size(std::move(size)) { }
+    lunar_ir_mkstream(llvm::LLVMContext &llvmctx, std::unique_ptr<lunar_ir_type> type, std::unique_ptr<lunar_ir_expridlit> size)
+        : lunar_ir_expr(llvmctx), m_type(std::move(type)), m_size(std::move(size)) { }
     virtual ~lunar_ir_mkstream() { }
 
     virtual void print(std::string &s, const std::string &from);
@@ -1172,8 +1174,8 @@ private:
 
 class lunar_ir_typeof : public lunar_ir_expr {
 public:
-    lunar_ir_typeof(std::unique_ptr<lunar_ir_type> type, std::unique_ptr<lunar_ir_expridlit> size)
-        : m_type(std::move(type)), m_size(std::move(size)) { }
+    lunar_ir_typeof(llvm::LLVMContext &llvmctx, std::unique_ptr<lunar_ir_type> type, std::unique_ptr<lunar_ir_expridlit> size)
+        : lunar_ir_expr(llvmctx), m_type(std::move(type)), m_size(std::move(size)) { }
     virtual ~lunar_ir_typeof() { }
 
     virtual void print(std::string &s, const std::string &from);
@@ -1185,12 +1187,14 @@ private:
 
 class lunar_ir_thread : public lunar_ir_expr {
 public:
-    lunar_ir_thread(std::unique_ptr<lunar_ir_expridlit> id,
+    lunar_ir_thread(llvm::LLVMContext &llvmctx,
+                    std::unique_ptr<lunar_ir_expridlit> id,
                     std::unique_ptr<lunar_ir_type> type,
                     std::unique_ptr<lunar_ir_expridlit> qsize,
                     std::unique_ptr<lunar_ir_exprid> func,
                     std::unique_ptr<lunar_ir_expridlit> arg)
-        : m_id(std::move(id)),
+        : lunar_ir_expr(llvmctx),
+          m_id(std::move(id)),
           m_type(std::move(type)),
           m_qsize(std::move(qsize)),
           m_func(std::move(func)),

@@ -132,7 +132,7 @@ private:
     std::deque<std::string> m_fileq;
     std::mutex m_mutex;
 
-    llvm::LLVMContext &m_llvmctx;
+    llvm::LLVMContext m_llvmctx;
     std::unique_ptr<MCJITHelper> m_llvmjit;
 
     friend void run_parse(void *ir);

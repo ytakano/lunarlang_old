@@ -913,34 +913,34 @@ llvm_alloca(llvm::Function *func, const std::u32string &name, llvm::Type* type)
 llvm::Value*
 lunar_ir_lit_char32::codegen()
 {
-    return llvm::ConstantInt::get(llvm::getGlobalContext(), llvm::APInt(32, m_char, true));
+    return llvm::ConstantInt::get(m_llvmctx, llvm::APInt(32, m_char, true));
 }
 
 llvm::Value*
 lunar_ir_lit_char8::codegen()
 {
-    return llvm::ConstantInt::get(llvm::getGlobalContext(), llvm::APInt(8, m_char, true));
+    return llvm::ConstantInt::get(m_llvmctx, llvm::APInt(8, m_char, true));
 }
 
 llvm::Value*
 lunar_ir_lit_int::codegen()
 {
-    return llvm::ConstantInt::get(llvm::getGlobalContext(), llvm::APInt(64, m_num, true));
+    return llvm::ConstantInt::get(m_llvmctx, llvm::APInt(64, m_num, true));
 }
 
 llvm::Value*
 lunar_ir_lit_uint::codegen()
 {
-    return llvm::ConstantInt::get(llvm::getGlobalContext(), llvm::APInt(64, m_num, false));
+    return llvm::ConstantInt::get(m_llvmctx, llvm::APInt(64, m_num, false));
 }
 
 llvm::Value*
 lunar_ir_lit_float::codegen()
 {
     if (m_is_float)
-        return llvm::ConstantFP::get(llvm::getGlobalContext(), llvm::APFloat((float)m_num));
+        return llvm::ConstantFP::get(m_llvmctx, llvm::APFloat((float)m_num));
 
-    return llvm::ConstantFP::get(llvm::getGlobalContext(), llvm::APFloat(m_num));
+    return llvm::ConstantFP::get(m_llvmctx, llvm::APFloat(m_num));
 }
 
 llvm::Type*
@@ -948,7 +948,7 @@ lunar_ir_type::codegen()
 {
     // Note that LLVM does not permit pointers to void (void*) nor
     // does it permit pointers to labels (label*). Use i8* instead.
-    llvm::Type *int8Type = llvm::IntegerType::getInt8Ty(llvm::getGlobalContext());
+    llvm::Type *int8Type = llvm::IntegerType::getInt8Ty(m_llvmctx);
     return llvm::PointerType::getUnqual(int8Type);
 }
 
