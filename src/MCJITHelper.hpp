@@ -7,9 +7,10 @@
 #include <vector>
 #include <memory>
 
-#if LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR >= 8
+#if LLVM_VERSION_MAJOR >= 4 || (LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR >= 8)
 #include <llvm/Analysis/BasicAliasAnalysis.h>
-#endif // LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR >= 8
+#endif
+
 #include <llvm/Analysis/Passes.h>
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Module.h>

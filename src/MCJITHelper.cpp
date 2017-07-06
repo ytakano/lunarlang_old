@@ -1,7 +1,8 @@
 #include "MCJITHelper.hpp"
 
-#include <llvm/Analysis/BasicAliasAnalysis.h>
+#if LLVM_VERSION_MAJOR >= 4 || (LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR >= 9)
 #include <llvm/Transforms/Scalar/GVN.h>
+#endif
 
 void *HelpingMemoryManager::getPointerToNamedFunction(const std::string &Name,
                                                       bool AbortOnFailure)
