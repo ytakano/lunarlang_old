@@ -1,6 +1,6 @@
 # Project TSUKUYOMI (月読)
 
-![うちはイタチ](https://dl.dropboxusercontent.com/u/74342673/itachi.jpg "うちはイタチ")
+![うちはイタチ](https://photos-4.dropbox.com/t/2/AAC-0bnQ0wQl_IR-iCnh1j7qZodlJmnVqb0D3tZBQM2Ojw/12/74342673/jpeg/32x32/1/_/1/2/itachi.jpg/ENu82DkYpgkgBygH/3XmwzazQoSZZMq69rj_82pNvOcfnmJRw_GZp0M4jrz0?size=1280x960&size_mode=3 "うちはイタチ")
 
 ## Lunar Language
 
