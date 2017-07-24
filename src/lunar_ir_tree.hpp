@@ -33,8 +33,7 @@
  *
  * OWNERSHIP := unique | shared | ref
  *
- * SCALAR     := SCALARTYPE INITSCALAR | SCALARTYPE
- * SCALARTYPE := bool | u64 | s64 | u32 | s32 | u16 | s16 | u8 | s8 | double | float | char | atom
+ * SCALAR := bool | u64 | s64 | u32 | s32 | u16 | s16 | u8 | s8 | double | float | char | atom
  *
  * ARRAY := ( array TYPE SIZE ) | ( array TYPE )
  * SIZE  := INT | HEX | OCT | BIN

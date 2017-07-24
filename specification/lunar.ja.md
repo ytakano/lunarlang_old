@@ -1,5 +1,166 @@
 # Lunar Language
 
+# 構文
+
+- LUNAR      := DEFUN
+- STATEMENTS := (STATEMENT \n)* STATEMENT | e
+- STATEMENT  := LET | ASSIGN
+- EXPRIDLIT  := IDENTIFIER | LITERAL | EXPR
+- EXPR       := CALLFUNC | OP
+- LITERAL    := STR32 | STR8 | CHAR32 | CHAR8 | INT | FLOAT | HEX | OCT | BIN | ATOM | TRUE | FALSE
+
+# IDENTIFIER
+
+IDENTIFIERとは空白文字以外からなる、1文字以上の文字かつ、先頭が数字ではない文字列かつ、
+予約文字（列）以外の文字列である。
+
+# 所有権
+
+所有権の概念があり、変数を利用する際には、その変数がどのような所有権で扱われるかを指定する。
+
+構文：
+- OWNERSHIP := uniq | shared | ref | immove
+
+セマンティクス：
+- unique
+  - ただ唯一のオーナーのみから保持される変数である。所有権の移動はmoveにて行われる。
+- shared
+  - 複数のオーナーから保持される変数である。内部的には参照カウントを保持している。
+- reference
+  - unique、shared、immovalbe変数の所有権に影響を及ばさずに参照するための変数である。
+- immovable
+  - 所有権の変更が許されない変数である。
+
+# 型指定
+
+- TYPE  := OWNERSHIP? VARTYPE | OWNERSHIP? TYPE0
+- TYPE0 := SCALAR
+
+# 型変数
+
+- VARTYPE := `IDENTIFIER
+
+# 第一級オブジェクト
+
+## スカラ
+
+- bool
+- u64
+- s64
+- u32
+- s32
+- u16
+- s16
+- u8
+- s8
+- double
+- float
+- char (u32の別名、UTF-32）
+- atom
+
+構文：
+- SCALAR := bool | u64 | s64 | u32 | s32 | u16 | s16 | u8 | s8 | double | float | char | atom
+
+# 関数
+
+## 関数定義
+
+構文：
+- DEFUN := fun TYPE? IDENTIFIER \\(ARGS\\) { STATEMENTS }
+- ARGS  := (TYPE? IDENTIFIER,)* TYPE? IDENTIFIER | e
+
+```
+fun uniq int funcname (int a, int b) {}
+```
+
+# 構文
+
+## 変数定義・変数束縛
+
+構文：
+- LET  := let VARS BINDINGS?
+- VARS := TYPE? IDENTIFIER | TYPE? \\(IDENTIFIERS\\), VARS | e
+- IDENTIFIERS := (IDENTIFIER,)* IDENTIFIER
+- BINDINGS    := = EXPRIDLITS
+- EXPRIDLITS  := (EXPRIDLIT,)* EXPRIDLITS
+
+```
+let int a
+let int a = 100
+let int a, bool b = 100, true
+let int (a, b), bool c = (100, 200), false
+```
+
+## 代入文
+
+- ASSIGN := IDENTIFIERS = EXPRIDLITS
+
+```
+a = 100
+a, b = 100, 200
+```
+
+# 演算
+
+- OP := EXPRIDLIT OPERATOR2 EXPRIDLIT | OPERATOR1 EXPRIDLIT
+- OPERATOR1 := not | - | ~
+- OPERATOR2 := + | - | * | / | & | '|' | ^ | and | or | xor | < | >
+
+# リテラル
+
+## atom
+
+- ATOM := \#IDENTIFIER
+
+## 文字列
+
+- STR32  := " CHARS* "
+- STR8   := b " CHARS* "
+- ESCAPE := \a | \b | \f | \r | \n | \t | \v | \\\\ | \? | \' | \" | \0 | \UXXXXXXXX | \uXXXX
+- CHARS  := ESCAPE | ESCAPE以外の文字
+
+## 文字
+
+- CHAR32 := ' CHARS '
+- CHAR8  := b ' CHARS '
+
+## 整数
+
+- INT     := -? DIGIT
+- DIGIT   := NUM1to9 NUM0to9* | 0
+- NUM1to9 := 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
+- NUM0to9 := 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
+
+## 浮動小数
+
+- FLOAT := INT . NUM0to9+ EXP? f?
+- EXP   := EE SIGN NUM+
+- EE    := e | E
+- SIGN  := - | +
+
+最後にfがついた場合は単精度で、つかない場合は倍精度となる。
+
+## 16進数
+
+- HEX     := 0x HEXNUM2\* | 0X HEXNUM2\*
+- HEXNUM2 := HEXNUM HEXNUM
+- HEXNUM  := 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | a | A | b | B | c | C | d | D | f | F
+
+## 8進数
+
+- OCT    := 0 OCTNUM*
+- OCTNUM := 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7
+
+## 2進数
+
+- BIN    := 0b BINNUM\* | 0B BINNUM\*
+- BINNUM := 0 | 1
+
+## 真偽値
+
+- TRUE  := ture
+- FALSE := false
+
 ## 見た目はJavaScriptっぽく
 
 ```

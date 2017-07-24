@@ -75,8 +75,7 @@ Lunar IRにはオーナーという概念があり、変数を利用する際に
 - atom
 
 構文：
-- SCALAR := SCALARTYPE LITERAL | SCALARTYPE
-- SCALARTYPE := bool | u64 | s64 | u32 | s32 | u16 | s16 | u8 | s8 | double | float | char | atom
+- SCALAR := bool | u64 | s64 | u32 | s32 | u16 | s16 | u8 | s8 | double | float | char | atom
 
 ## 関数型
 
