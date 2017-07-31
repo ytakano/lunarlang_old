@@ -1,7 +1,7 @@
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
-module AtomicExpr(Term(..), AtomicExpr(..), parseExpr) where
+module AtomicExpr(Term(..), AtomicExpr(..), parseExpr, expr2str) where
 
 {-
 ATOMIC_EXPR := ID \( (TERM,)* TERM \)
@@ -24,7 +24,7 @@ data Term = TermBool  Bool   |
             TermVar   String |
             TermFunc  String [Term] deriving (Show)
 
-data AtomicExpr = AtomicExpr String [Term] deriving (Show)
+data AtomicExpr = AtomicExpr {id :: String, term :: [Term]} deriving (Show)
 
 parseTerm = do
     term <- (Parsec.try parseFalse) <|>
@@ -103,6 +103,24 @@ parseAtom = do
     Parsec.char ')'
     Parsec.spaces
     return $ AtomicExpr id terms
+
+terms2str str [] =
+    str
+terms2str "" (h:t) =
+    terms2str (term2str h) t
+terms2str str (h:t) =
+    terms2str (str ++ ", " ++ (term2str h)) t
+
+expr2str expr = (AtomicExpr.id expr) ++ "(" ++ (terms2str "" $ term expr) ++ ")"
+
+term2str (TermBool x) =
+    case x of
+        True  -> "true"
+        False -> "false"
+term2str (TermInt x)    = show x
+term2str (TermConst x)  = "`" ++ x
+term2str (TermVar x)    = x
+term2str (TermFunc x y) = x ++ "(" ++ (terms2str "" y) ++ ")"
 
 parse :: Parsec.Stream s Identity t => Parsec.Parsec s () a -> s -> Either Parsec.ParseError a
 parse rule text = Parsec.parse rule "(stdin)" text
