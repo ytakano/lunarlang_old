@@ -1,10 +1,9 @@
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
-module AtomicExpr(Term(..), AtomicExpr(..), parseExpr, expr2str) where
+module AtomicExpr(Term(..), parse, term2str, sameTerms) where
 
 {-
-ATOMIC_EXPR := ID \( (TERM,)* TERM \)
 TERM        := BOOL | INT | FUNC | CONST | VAR
 BOOL        := true | false
 FUNC        := ID \( (TERM,)* TERM \)
@@ -22,22 +21,38 @@ data Term = TermBool  Bool   |
             TermInt   Int    |
             TermConst String |
             TermVar   String |
-            TermFunc  String [Term] deriving (Show)
+            TermFunc  String [Term] deriving (Show, Eq)
 
-data AtomicExpr = AtomicExpr {id :: String, term :: [Term]} deriving (Show)
+sameTerms :: Term -> Term -> Bool
+sameTerms (TermBool x)    (TermBool y)     = x == y
+sameTerms (TermInt x)     (TermInt y)      = x == y
+sameTerms (TermConst x)   (TermConst y)    = x == y
+sameTerms (TermVar x)     (TermVar y)      = x == y
+sameTerms (TermFunc id _) (TermFunc id' _) = id == id'
+sameTerms _ _ = False
+
+parserTop = do
+    Parsec.spaces
+    term <- parseTerm
+    Parsec.spaces
+    Parsec.eof
+    return term
 
 parseTerm = do
     term <- (Parsec.try parseFalse) <|>
             (Parsec.try parseTrue)  <|>
             (Parsec.try parseInt)   <|>
             (Parsec.try parseConst) <|>
-            (Parsec.try parseFunc)  <|>
-            parseVar
+            Parsec.try parseVarFunc
     return term
 
-parseVar = do
+parseVarFunc = do
     id <- parseID
-    return $ TermVar id
+    Parsec.spaces
+    c <- (Parsec.try $ Parsec.char '(') <|> return ' '
+    if c == '('
+        then parseFunc id
+        else return $ TermVar id
 
 parseTrue = do
     Parsec.string "true"
@@ -82,27 +97,12 @@ parseTerms terms = do
         then parseTerms $ term:terms
         else return $ reverse $ term:terms
 
-parseFunc = do
-    id <- parseID
-    Parsec.spaces
-    Parsec.char '('
+parseFunc id = do
     Parsec.spaces
     terms <- parseTerms []
     Parsec.spaces
     Parsec.char ')'
     return $ TermFunc id terms
-
-parseAtom = do
-    Parsec.spaces
-    id <- parseID
-    Parsec.spaces
-    Parsec.char '('
-    Parsec.spaces
-    terms <- parseTerms []
-    Parsec.spaces
-    Parsec.char ')'
-    Parsec.spaces
-    return $ AtomicExpr id terms
 
 terms2str str [] =
     str
@@ -110,8 +110,6 @@ terms2str "" (h:t) =
     terms2str (term2str h) t
 terms2str str (h:t) =
     terms2str (str ++ ", " ++ (term2str h)) t
-
-expr2str expr = (AtomicExpr.id expr) ++ "(" ++ (terms2str "" $ term expr) ++ ")"
 
 term2str (TermBool x) =
     case x of
@@ -122,8 +120,8 @@ term2str (TermConst x)  = "`" ++ x
 term2str (TermVar x)    = x
 term2str (TermFunc x y) = x ++ "(" ++ (terms2str "" y) ++ ")"
 
-parse :: Parsec.Stream s Identity t => Parsec.Parsec s () a -> s -> Either Parsec.ParseError a
-parse rule text = Parsec.parse rule "(stdin)" text
+parseHelper :: Parsec.Stream s Identity t => Parsec.Parsec s () a -> s -> Either Parsec.ParseError a
+parseHelper rule text = Parsec.parse rule "(stdin)" text
 
-parseExpr :: String -> Either Parsec.ParseError AtomicExpr
-parseExpr expr = parse parseAtom expr
+parse :: String -> Either Parsec.ParseError Term
+parse term = parseHelper parserTop term
