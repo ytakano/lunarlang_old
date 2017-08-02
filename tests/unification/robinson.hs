@@ -70,25 +70,20 @@ getDisagreementSet terms =
                 _ -> Right Nothing
         else Right $ Just (unique terms)
 
+compose1 :: [(AE.Term, AE.Term)] -> (AE.Term, AE.Term) -> (AE.Term, AE.Term)
+compose1 y (id, term) = (id, head $ substitute [term] y)
 
-composition1 [] x = x
-composition1 ((a, b):t) (c, d) =
-    if d == a
-        then (c, b)
-        else composition1 t (c, d)
-
-composition3 [] _ = True
-composition3 ((a, _):t) (b, c) =
+compose3 [] _ = True
+compose3 ((a, _):t) (b, c) =
     if a == b
         then False
-        else composition3 t (b, c)
+        else compose3 t (b, c)
 
-getComposition :: [(AE.Term, AE.Term)] -> [(AE.Term, AE.Term)] -> [(AE.Term, AE.Term)]
-getComposition x y =
-    let s1 = map (composition1 y) x
-        s2 = [(a, b) | (a, b) <-s1, a /= b]
-        s3 = [z | z <- y, composition3 x z] in
-            s2 ++ s3
+compose :: [(AE.Term, AE.Term)] -> [(AE.Term, AE.Term)] -> [(AE.Term, AE.Term)]
+compose x y = s2 ++ s3 where
+    s1 = map (compose1 y) x
+    s2 = [(a, b) | (a, b) <-s1, a /= b]
+    s3 = [z | z <- y, compose3 x z]
 
 printTerms [] = do
     return ()
@@ -97,25 +92,59 @@ printTerms (h:t) = do
     putStrLn $ AE.term2str h
     printTerms t
 
-unify terms = do
-    putStrLn "disagreement set:"
-    putStr "  "
-    ds <- return $ getDisagreementSet terms
-    print ds
-    putStrLn "new substituion:"
-    putStr "  "
-    ss <- return $ case ds of
-        Left  str -> Left str
-        Right Nothing -> Left "empty disagreement set"
-        Right (Just x) -> Right $ getNewSubstituion x
-    print ss
-    putStrLn "composition:"
-    putStr "  "
-    cp <- return $ case ss of
-        Right (Just x) -> Just $ getComposition [] [x]
-        _ -> Nothing
-    print cp
+substitute = substitute1 []
 
+substitute1 :: [AE.Term] -> [AE.Term] -> [(AE.Term, AE.Term)] -> [AE.Term]
+substitute1 result [] sub = reverse result
+substitute1 result (h:t) sub =
+    substitute1 (term:result) t sub where
+        term = substitute2 h sub
+
+substitute2 :: AE.Term -> [(AE.Term, AE.Term)] -> AE.Term
+substitute2 term [] = term
+substitute2 (AE.TermVar id) sub =
+        getTerm (AE.TermVar id) sub
+    where
+        getTerm term [] = term
+        getTerm (AE.TermVar id) ((AE.TermVar id', term):t)
+            | id == id' = term
+            | otherwise = getTerm (AE.TermVar id) t
+substitute2 (AE.TermFunc id terms) sub =
+    let terms' = substitute1 [] terms sub in
+        AE.TermFunc id terms'
+substitute2 term _ = term
+
+unify2 :: [AE.Term] -> [(AE.Term, AE.Term)] -> Either String (AE.Term, [(AE.Term, AE.Term)])
+unify2 terms sub =
+    let t1 = unique $ substitute terms sub in
+        if length t1 == 1
+            then Right (head t1, sub)
+            else unify3 terms sub t1
+
+unify3 :: [AE.Term] -> [(AE.Term, AE.Term)] -> [AE.Term] -> Either String (AE.Term, [(AE.Term, AE.Term)])
+unify3 terms sub t1 =
+    case getDisagreementSet t1 of
+        Left str       -> Left str
+        Right Nothing  -> Left "error: could not find a disagreement set"
+        Right (Just d) ->
+            case getNewSubstituion d of
+                Nothing -> Left "error: could not find a new substitution"
+                Just s  -> unify2 terms (compose sub [s])
+
+unify terms = unify2 terms []
+
+printResult (Left str) = do
+    putStrLn str
+printResult (Right (term, c)) = do
+    putStrLn "unified term:"
+    printTerms [term]
+    putStrLn "substitution:"
+    printSubstitution c
+
+printSubstitution [] = return ()
+printSubstitution ((AE.TermVar id, term):t) = do
+    putStrLn $ "  " ++ id ++ " -> " ++ (AE.term2str term)
+    printSubstitution t
 
 parseLine line exprs =
     printErr $ AE.parse line
@@ -132,12 +161,12 @@ getUserLines terms = do
     putStr "> "
     IO.hFlush IO.stdout
     line <- getLine
-    if line == ""
+    if line == "" && length terms /= 0
         then do
             putStrLn "terms:"
             t <- return $ reverse $ unique terms
             printTerms t
-            unify t
+            printResult $ unify t
             getUserLines []
         else do
             e <- parseLine line terms
