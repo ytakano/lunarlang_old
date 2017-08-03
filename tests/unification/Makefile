@@ -1,6 +1,6 @@
 all: robinson
 
-robinson: atomicexpr.hs robinson.hs
+robinson: AtomicExpr.hs robinson.hs
 	ghc --make robinson.hs
 
 clean:

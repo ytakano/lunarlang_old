@@ -138,7 +138,7 @@ printResult (Left str) = do
 printResult (Right (term, c)) = do
     putStrLn "unified term:"
     printTerms [term]
-    putStrLn "substitution:"
+    putStrLn "unifier:"
     printSubstitution c
 
 printSubstitution [] = return ()

@@ -11,7 +11,7 @@ main(int argc, char *argv[])
 {
     lunar::init_green_thread(0, 1, 1);
 
-    for (int i = 0; i < 100000; i++) {
+    for (int i = 0; i < 10000; i++) {
         lunar::spawn_green_thread(func);
     }
 
