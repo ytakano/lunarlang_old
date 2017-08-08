@@ -4,11 +4,11 @@
 module AtomicExpr(Term(..), parse, term2str, sameTerms) where
 
 {-
-TERM        := BOOL | INT | FUNC | CONST | VAR
-BOOL        := true | false
-FUNC        := ID \( (TERM,)* TERM \)
-CONST       := `ID
-VAR         := ID
+TERM  := BOOL | INT | FUNC | CONST | VAR
+BOOL  := true | false
+FUNC  := ID \( (TERM,)* TERM \)
+CONST := `ID
+VAR   := ID
 -}
 
 import           Control.Applicative
