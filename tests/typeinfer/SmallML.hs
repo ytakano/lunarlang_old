@@ -10,9 +10,9 @@ NUM  := number
 BOOL := true | false
 FUN  := fun VAR = EXPR .
 CALL := EXPR EXPR
-LET  := let VAR = EXPR in EXPR
+LET  := let VAR = EXPR in EXPR .
 FIX  := fix VAR = EXPR .
-IF   := if EXPR then EXPR else EXPR
+IF   := if EXPR then EXPR else EXPR .
 -}
 
 import           Control.Applicative
@@ -111,6 +111,9 @@ parseIf = do
 
     expr3 <- parseExpr
 
+    Parsec.spaces
+    Parsec.char '.'
+
     return $ ExprIf expr1 expr2 expr3
 
 parseLet = do
@@ -134,6 +137,9 @@ parseLet = do
     Parsec.spaces
 
     expr2 <- parseExpr
+
+    Parsec.spaces
+    Parsec.char '.'
 
     return $ ExprLet id expr1 expr2
 
