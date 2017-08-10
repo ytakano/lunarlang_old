@@ -1,14 +1,26 @@
 {-# LANGUAGE FlexibleContexts #-}
 
-module MLType(MLType(..), unify, typing) where
+module MLType(MLType(..), unify, typing, type2str, substituteTerm) where
 
 import qualified Control.Monad.State as S
 import qualified SmallML             as ML
+import Debug.Trace
 
 data MLType = TBool       |
               TInt        |
               TVar String |
               TFun MLType MLType deriving (Show, Eq)
+
+type2str TBool = "`bool"
+type2str TInt  = "`int"
+type2str (TVar s) = s
+type2str (TFun t1 t2) = "fun(" ++ (type2str t1) ++ ", " ++ (type2str t2) ++ ")"
+
+deleteN :: Int -> [a] -> [a]
+deleteN _ []     = []
+deleteN i (a:as)
+  | i == 0    = as
+  | otherwise = a : deleteN (i-1) as
 
 unify a = unify2 a a
 
@@ -17,7 +29,9 @@ unify2 [] v = Right v
 unify2 (h:t) v =
     case martelliMontanari h of
         Nothing        -> Left $ "cannot unify " ++ (show h)
-        Just (Right x) -> unify2 x x
+        Just (Right x) -> unify2 v' v' where
+            idx = (length v) - ((length t) + 1)
+            v' = x ++ (deleteN idx v)
         Just (Left x)  ->
             if s
                 then unify2 ret ret
@@ -25,6 +39,10 @@ unify2 (h:t) v =
             where
                 idx = (length v) - ((length t) + 1)
                 (s, ret) = substitute idx 0 x v [] False
+
+substituteTerm [] x = x
+substituteTerm (h:t) x = substituteTerm t term where
+    (_, term) = substitute2 h x
 
 substitute :: Int -> Int -> (MLType, MLType) -> [(MLType, MLType)] -> [(MLType, MLType)] -> Bool -> (Bool, [(MLType, MLType)])
 substitute idx1 idx2 _ [] ret s = (s, ret)
@@ -50,7 +68,7 @@ martelliMontanari ((TFun a1 a2), (TFun b1 b2)) = Just $ Right [(a1, b1), (a2, b2
 martelliMontanari ((TVar a), (TVar b))
     | a == b    = Just $ Right []
     | otherwise = Just $ Left ((TVar a), (TVar b)) -- substitute
-martelliMontanari (a, (TVar b)) = Just $ Left ((TVar b), a) -- substitute
+martelliMontanari (a, (TVar b)) = Just $ Right [((TVar b), a)]
 martelliMontanari ((TVar a), b) =
     if findVar a b
         then Nothing
