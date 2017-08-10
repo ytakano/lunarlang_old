@@ -1,6 +1,6 @@
-all: robinson
+all: typeinfer
 
-robinson: SmallML.hs typeinfer.hs
+typeinfer: SmallML.hs typeinfer.hs
 	ghc --make typeinfer.hs
 
 clean:

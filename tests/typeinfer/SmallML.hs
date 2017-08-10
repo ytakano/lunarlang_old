@@ -1,7 +1,7 @@
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
-module SmallML(Expr(..), MLType(..), parse) where
+module SmallML(Expr(..), parse) where
 
 {-
 EXPR := VAR | NUM | BOOL | FUN | CALL | LET | FIX | IF
@@ -30,11 +30,6 @@ data Expr = ExprVar  String           |
             ExprFix  String Expr      |
             ExprIf   Expr Expr Expr   |
             ExprNone deriving (Show, Eq)
-
-data MLType = TBool |
-              TInt  |
-              TVar  |
-              TFun MLType MLType deriving (Show, Eq)
 
 parserTop = do
     Parsec.spaces
