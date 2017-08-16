@@ -1,7 +1,7 @@
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
-module SmallML(Expr(..), parse) where
+module SmallML(Expr(..), parse, expr2str) where
 
 {-
 EXPR := VAR | NUM | BOOL | FUN | CALL | LET | FIX | IF
@@ -30,6 +30,18 @@ data Expr = ExprVar  String           |
             ExprFix  String Expr      |
             ExprIf   Expr Expr Expr   |
             ExprNone deriving (Show, Eq)
+
+expr2str (ExprVar s) = s
+expr2str (ExprNum n) = show n
+expr2str (ExprBool n)
+    | n == True  = "true"
+    | n == False = "false"
+expr2str (ExprFun s e)     = "fun " ++ s ++ " = " ++ (expr2str e) ++ "."
+expr2str (ExprCall e1 e2)  = (expr2str e1) ++ " " ++ (expr2str e2)
+expr2str (ExprLet s e1 e2) = "let " ++ s ++ " = " ++ (expr2str e1) ++ " in " ++ (expr2str e2) ++ "."
+expr2str (ExprFix s e)     = "fix " ++ s ++ " = " ++ (expr2str e) ++ "."
+expr2str (ExprIf e1 e2 e3) = "if " ++ (expr2str e1) ++ " then " ++ (expr2str e2) ++ " else " ++ (expr2str e3) ++ "."
+expr2str (ExprNone)        = "None"
 
 parserTop = do
     Parsec.spaces

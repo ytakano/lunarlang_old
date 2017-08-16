@@ -88,6 +88,32 @@ findVar a (TFun b c) =
         x = findVar a b
         y = findVar a c
 
+isRecursive k t = False
+
+compose a b = compose2 a b []
+
+compose2 :: [(MLType, MLType)] -> [(MLType, MLType)] -> [(MLType, MLType)] -> Either String [(MLType, MLType)]
+compose2 [] _ ret = Right $ reverse ret
+compose2 ((TVar k, a):t) s ret =
+    case isRecursive k a' of
+        True  -> Left $ "error: " ++ k ++ " is defined recursively"
+        False -> compose2 t s ((TVar k, a'):ret)
+    where
+        a' = compose3 a s
+
+compose3 :: MLType -> [(MLType, MLType)] -> MLType
+compose3 TBool _ = TBool
+compose3 TInt _  = TInt
+compose3 x@(TVar a) s =
+    case findType a s of
+        Nothing -> x
+        Just x' -> x'
+compose3 (TFun t1 t2) s = TFun t1' t2' where
+    t1' = compose3 t1 s
+    t2' = compose3 t2 s
+
+failTyping str = S.StateT $ \_ -> Left str
+
 typing :: ML.Expr -> S.StateT ([(String, String)], [(MLType, MLType)]) (Either String) MLType
 typing (ML.ExprBool _) = S.StateT $ \x -> Right (TBool, x)
 typing (ML.ExprNum  _) = S.StateT $ \x -> Right (TInt, x)
@@ -98,11 +124,40 @@ typing _ = S.StateT $ \x -> Left "under construction"
 --    | (ExprVar  _) = state $ \x -> ((Right TVar), x)
 --    | (ExprIf e1 e2 e3) = typingIf expr
 
+composeState s = do
+    (v, s0) <- S.get
+    case compose s0 s of
+        Left err -> failTyping err
+        Right s1 -> do
+            S.put (v, s1)
+
+addState s = do
+    (v, s0) <- S.get
+    S.put (v, addState2 s0 s)
+
+addState2 :: [(MLType, MLType)] -> [(MLType, MLType)] -> [(MLType, MLType)]
+addState2 s [] = s
+addState2 s (h@(TVar k, _):t) =
+    if existTVar k s
+        then addState2 s t
+        else addState2 (h:s) t
+
 typingIf e1 e2 e3 = do
     t1 <- typing e1
+    case unify [(t1, TBool)] of
+        Left  err -> failTyping $ err ++ "\n  \"" ++ (ML.expr2str e1) ++ "\" is not boolean"
+        Right ret -> do
+            composeState ret
+            addState ret
+            return TBool
     t2 <- typing e2
     t3 <- typing e3
-    return t3
+    case unify [(t2, t3)] of
+        Left  err -> failTyping $ err ++ "\n  \"" ++ (ML.expr2str e2) ++ "\" and\n  \"" ++ (ML.expr2str e3) ++ "\" are different type"
+        Right ret -> do
+            composeState ret
+            addState ret
+            return $ compose3 t3 ret
 
 typingVar :: String -> S.StateT ([(String, String)], [(MLType, MLType)]) (Either String) MLType
 typingVar var = do

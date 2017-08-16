@@ -13,7 +13,9 @@ parseSmallML = do
     result <- return $ ML.parse line
     case result of
         Right expr -> do
-            print $ S.runStateT (MT.typing expr) ([], [])
+            case S.runStateT (MT.typing expr) ([], []) of
+                Left  err -> putStrLn err
+                Right t   -> print t
         Left err -> do
             print err
 --    printx t
