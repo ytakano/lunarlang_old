@@ -40,12 +40,12 @@ uniqueVar e = e' where (e', _) = uniqueVar2 e (S.fromList []) (M.fromList [])
 
 uniqueVar2 :: Expr -> S.Set String -> M.Map String String -> (Expr, S.Set String)
 uniqueVar2 (ExprLet var e1 e2) vars mapper = (ExprLet var' e1' e2', v2) where
-    (var', vars') =
-        if S.member var vars
-            then makeVar var vars 0
-            else (var, S.insert var vars)
-    (e1', v1) = uniqueVar2 e1 vars' mapper
-    (e2', v2) = uniqueVar2 e2 v1 (M.insert var var' mapper)
+    (e1', v1) = uniqueVar2 e1 vars mapper
+    (var', v1') =
+        if S.member var v1
+            then makeVar var v1 0
+            else (var, S.insert var v1)
+    (e2', v2) = uniqueVar2 e2 v1' (M.insert var var' mapper)
 uniqueVar2 (ExprFun var e) vars mapper = (ExprFun var' e', v1) where
     (var', vars') =
         if S.member var vars
