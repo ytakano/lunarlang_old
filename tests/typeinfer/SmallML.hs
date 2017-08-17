@@ -1,7 +1,8 @@
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE TemplateHaskell       #-}
 
-module SmallML(Expr(..), parse, expr2str) where
+module SmallML(Expr(..), parse, expr2str, uniqueVar) where
 
 {-
 EXPR := VAR | NUM | BOOL | FUN | CALL | LET | FIX | IF
@@ -18,6 +19,10 @@ IF   := if EXPR then EXPR else EXPR .
 import           Control.Applicative
 import           Control.Monad
 import           Control.Monad.Identity (Identity)
+import qualified Data.List              as L
+import qualified Data.Map               as M
+import qualified Data.Set               as S
+import           Debug.Trace
 import           Text.Parsec            ((<?>))
 import qualified Text.Parsec            as Parsec
 
@@ -30,6 +35,55 @@ data Expr = ExprVar  String           |
             ExprFix  String Expr      |
             ExprIf   Expr Expr Expr   |
             ExprNone deriving (Show, Eq)
+
+uniqueVar e = e' where (e', _) = uniqueVar2 e (S.fromList []) (M.fromList [])
+
+uniqueVar2 :: Expr -> S.Set String -> M.Map String String -> (Expr, S.Set String)
+uniqueVar2 (ExprLet var e1 e2) vars mapper = (ExprLet var' e1' e2', v2) where
+    (var', vars') =
+        if S.member var vars
+            then makeVar var vars 0
+            else (var, S.insert var vars)
+    (e1', v1) = uniqueVar2 e1 vars' mapper
+    (e2', v2) = uniqueVar2 e2 v1 (M.insert var var' mapper)
+uniqueVar2 (ExprFun var e) vars mapper = (ExprFun var' e', v1) where
+    (var', vars') =
+        if S.member var vars
+            then makeVar var vars 0
+            else (var, S.insert var vars)
+    (e', v1) = uniqueVar2 e vars' (M.insert var var' mapper)
+uniqueVar2 (ExprFix var e) vars mapper = (ExprFix var' e', v1) where
+    (var', vars') =
+        if S.member var vars
+            then makeVar var vars 0
+            else (var, S.insert var vars)
+    (e', v1) = uniqueVar2 e vars' (M.insert var var' mapper)
+uniqueVar2 (ExprIf e1 e2 e3) vars mapper = (ExprIf e1' e2' e3', v3) where
+    (e1', v1) = uniqueVar2 e1 vars mapper
+    (e2', v2) = uniqueVar2 e2 v1 mapper
+    (e3', v3) = uniqueVar2 e3 v2 mapper
+uniqueVar2 (ExprCall e1 e2) vars mapper = (ExprCall e1' e2', v2) where
+    (e1', v1) = uniqueVar2 e1 vars mapper
+    (e2', v2) = uniqueVar2 e2 v1 mapper
+uniqueVar2 (ExprVar var) vars mapper = (ExprVar var', S.insert var' vars) where
+    var' =
+        case M.lookup var mapper of
+            Nothing -> var
+            Just x  -> x
+uniqueVar2 a vars _ = (a, vars)
+
+makeVar :: String -> S.Set String -> Int -> (String, S.Set String)
+makeVar var vars n
+    | n == 0 =
+        if S.member var vars
+            then makeVar var vars 1
+            else (var, S.insert var vars)
+    | otherwise =
+        if S.member var' vars
+            then makeVar var vars (n + 1)
+            else (var', S.insert var' vars)
+        where
+            var' = var ++ (show n)
 
 expr2str (ExprVar s) = s
 expr2str (ExprNum n) = show n

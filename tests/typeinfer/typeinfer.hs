@@ -1,10 +1,23 @@
 import qualified Control.Monad.State as S
 import qualified Data.List           as L
-import qualified SmallML             as ML
 import qualified MLType              as MT
-import qualified TestUnification     as TU
+import qualified SmallML             as ML
 import           System.Environment  (getArgs)
 import qualified System.IO           as IO
+import qualified TestUnification     as TU
+
+printTypes [] = do
+    return ()
+printTypes (((MT.TVar ('$':_)), _):t) = printTypes t
+printTypes (((MT.TVar k), a):t) = do
+    printType k a
+    printTypes t
+
+printType k a = do
+    putStr "  "
+    putStr k
+    putStr ": "
+    putStrLn $ MT.type2str a
 
 parseSmallML = do
     putStr "> "
@@ -13,15 +26,21 @@ parseSmallML = do
     result <- return $ ML.parse line
     case result of
         Right expr -> do
-            case S.runStateT (MT.typing expr) ([], []) of
-                Left  err -> putStrLn err
-                Right t   -> print t
+            let expr' = ML.uniqueVar expr in
+                do
+                    putStrLn "expression:"
+                    putStr "  "
+                    putStrLn $ ML.expr2str expr'
+                    case S.runStateT (MT.typing expr') ([], []) of
+                        Left  err -> putStrLn err
+                        Right (t, (_, types)) -> do
+                            putStrLn "types:"
+                            printTypes types
+                            putStrLn "result:"
+                            putStr "  "
+                            putStrLn $ MT.type2str t
         Left err -> do
             print err
---    printx t
---    print $ S.execState add1 0
-
---    print $ S.get t
     parseSmallML
 
 printUnifier [] = do

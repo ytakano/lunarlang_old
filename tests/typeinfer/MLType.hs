@@ -4,7 +4,7 @@ module MLType(MLType(..), unify, typing, type2str, substituteTerm) where
 
 import qualified Control.Monad.State as S
 import qualified SmallML             as ML
-import Debug.Trace
+-- import Debug.Trace
 
 data MLType = TBool       |
               TInt        |
@@ -14,10 +14,10 @@ data MLType = TBool       |
 type2str TBool = "`bool"
 type2str TInt  = "`int"
 type2str (TVar s) = s
-type2str (TFun t1 t2) = "fun(" ++ (type2str t1) ++ ", " ++ (type2str t2) ++ ")"
+type2str (TFun t1 t2) = (type2str t1) ++ " -> " ++ (type2str t2)
 
 deleteN :: Int -> [a] -> [a]
-deleteN _ []     = []
+deleteN _ [] = []
 deleteN i (a:as)
   | i == 0    = as
   | otherwise = a : deleteN (i-1) as
@@ -115,14 +115,53 @@ compose3 (TFun t1 t2) s = TFun t1' t2' where
 failTyping str = S.StateT $ \_ -> Left str
 
 typing :: ML.Expr -> S.StateT ([(String, String)], [(MLType, MLType)]) (Either String) MLType
-typing (ML.ExprBool _) = S.StateT $ \x -> Right (TBool, x)
-typing (ML.ExprNum  _) = S.StateT $ \x -> Right (TInt, x)
-typing (ML.ExprVar x)  = typingVar x
-typing (ML.ExprIf e1 e2 e3) = typingIf e1 e2 e3
-typing _ = S.StateT $ \x -> Left "under construction"
---    | (ML.ExprNum  _) = S.state $ \x -> ((Right TInt), x)
---    | (ExprVar  _) = state $ \x -> ((Right TVar), x)
---    | (ExprIf e1 e2 e3) = typingIf expr
+typing (ML.ExprBool _)         = S.StateT $ \x -> Right (TBool, x)
+typing (ML.ExprNum  _)         = S.StateT $ \x -> Right (TInt, x)
+typing (ML.ExprVar x)          = typingVar x
+typing (ML.ExprIf e1 e2 e3)    = typingIf e1 e2 e3
+typing (ML.ExprCall e1 e2)     = typingCall e1 e2
+typing (ML.ExprLet var e1 e2)  = typingLet var e1 e2
+typing (ML.ExprFun var e)      = typingFun var e
+typing (ML.ExprFix var e)      = typingFix var e
+typing _ = failTyping "under construction"
+
+typingFix var e = do
+    t1 <- typing (ML.ExprVar var)
+    t2 <- typing e
+    case unify [(t1, t2)] of
+        Left err  -> failTyping err
+        Right ret -> do
+            composeState ret
+            addState ret
+    return t1
+
+typingFun var e = do
+    t1 <- typing (ML.ExprVar var)
+    t2 <- typing e
+    return $ TFun t1 t2
+
+typingLet var e1 e2 = do
+    t0 <- typing (ML.ExprVar var)
+    t1 <- typing e1
+    case unify [(t0, t1)] of
+        Left  err -> failTyping err
+        Right ret -> do
+            composeState ret
+            addState ret
+    t2 <- typing e2
+    return t2
+
+typingCall e1 e2 = do
+    t1 <- typing e1
+    t2 <- typing e2
+    (_, s) <- S.get
+    t3 <- createTypeVar "$a" s 0
+    case unify [(t1, TFun t2 t3)] of
+        Left  err -> failTyping $ err ++ "\n  the argument of \"" ++ (ML.expr2str e1) ++ "\" and\n  \"" ++ (ML.expr2str e2) ++ " are different type"
+        Right ret -> do
+            composeState ret
+            addState ret
+            return $ compose3 t3 ret
 
 composeState s = do
     (v, s0) <- S.get
@@ -152,6 +191,7 @@ typingIf e1 e2 e3 = do
             return TBool
     t2 <- typing e2
     t3 <- typing e3
+    s <- S.get
     case unify [(t2, t3)] of
         Left  err -> failTyping $ err ++ "\n  \"" ++ (ML.expr2str e2) ++ "\" and\n  \"" ++ (ML.expr2str e3) ++ "\" are different type"
         Right ret -> do
@@ -182,17 +222,17 @@ findType v1 (((TVar v2), ret):t)
 createTypeVar var tvars 0 =
     if existTVar var tvars
         then createTypeVar var tvars 1
-        else addTypeVar var var
+        else addTypeVar var
 createTypeVar var tvars n =
     let t = var ++ (show n) in
         if existTVar t tvars
             then createTypeVar var tvars (n + 1)
-            else addTypeVar var t
+            else addTypeVar t
 
-addTypeVar var tvar = do
+addTypeVar var = do
     (v, t) <- S.get
-    S.put ((var, tvar):v, (TVar var, TVar tvar):t)
-    return $ TVar tvar
+    S.put ((var, var):v, (TVar var, TVar var):t)
+    return $ TVar var
 
 existTVar _ [] = False
 existTVar v1 ((TVar v2, _):t)
