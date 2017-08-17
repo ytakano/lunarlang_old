@@ -87,7 +87,7 @@ main = do
     args <- getArgs
     case L.find (\x -> x == "-u") args of
         Nothing -> do
-            putStrLn "(an empty line unifies the expressions and Ctrl+c terminates this process)"
+            putStrLn "(input line in small ML language or Ctrl+c to terminate this process)"
             parseSmallML
         _ -> do
             putStrLn "entering the test mode of unification"
