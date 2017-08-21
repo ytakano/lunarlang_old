@@ -3,10 +3,11 @@
 # 構文
 
 - LUNAR      := DEFUN
-- STATEMENTS := (STATEMENT \n)* STATEMENT | e
+- STATEMENTS := (STATEMENT EOL)* STATEMENT | e
+- EOL        := \n | ;
 - STATEMENT  := LET | ASSIGN
 - EXPRIDLIT  := IDENTIFIER | LITERAL | EXPR
-- EXPR       := CALLFUNC | OP
+- EXPR       := CALLFUNC | OP | TUPLE
 - LITERAL    := STR32 | STR8 | CHAR32 | CHAR8 | INT | FLOAT | HEX | OCT | BIN | ATOM | TRUE | FALSE
 
 # IDENTIFIER
@@ -14,7 +15,13 @@
 IDENTIFIERとは空白文字以外からなる、1文字以上の文字かつ、先頭が数字ではない文字列かつ、
 予約文字（列）以外の文字列である。
 
-# 所有権
+# 型指定子
+
+- TYPESPEC   := OWNERSHIP | UNSAFE | CONST
+- TYPESPECS  := TYPESPEC*
+- TYPESPECS1 := TYPESPEC+
+
+## 所有権
 
 所有権の概念があり、変数を利用する際には、その変数がどのような所有権で扱われるかを指定する。
 
@@ -31,14 +38,25 @@ IDENTIFIERとは空白文字以外からなる、1文字以上の文字かつ、
 - immovable
   - 所有権の変更が許されない変数である。
 
-# 型指定
+## unsafe指定子
 
-- TYPE  := OWNERSHIP? VARTYPE | OWNERSHIP? TYPE0
-- TYPE0 := SCALAR
+- UNSAFE := unsafe
+
+## const指定子
+
+- CONST := const
 
 # 型変数
 
-- VARTYPE := `IDENTIFIER
+型変数は変数の頭にバッククォートをつけて通常の変数名と区別する。
+
+VARTYPE = `IDENTIFIER
+
+# 型指定
+
+- TYPE  := TYPE1 | \( (TYPE1,)+ TYPE1 \)
+- TYPE1 := TYPESPECS TYPE2 | TYPESPECS VARTYPE | TYPESPECS1
+- TYPE2 := SCALAR
 
 # 第一級オブジェクト
 
@@ -66,11 +84,16 @@ IDENTIFIERとは空白文字以外からなる、1文字以上の文字かつ、
 ## 関数定義
 
 構文：
-- DEFUN := fun TYPE? IDENTIFIER \\(ARGS\\) { STATEMENTS }
-- ARGS  := (TYPE? IDENTIFIER,)* TYPE? IDENTIFIER | e
+- DEFUN    := fun IDENTIFIER \<TYPEARGS\>? \\( ARGS \\) { STATEMENTS }
+- ARGS     := (TYPE? IDENTIFIER,)* TYPE? IDENTIFIER | e
+- TYPEARGS := (VARTYPE (=TYPE)? ,)* VARTYPE (=TYPE)? | e
 
 ```
-fun uniq int funcname (int a, int b) {}
+fun funcName <`return=int> () { }
+fun funcName <`return=int> (shared `return arg) { }
+fun funcName <`return=int, `a=shared `return> (`a arg) { }
+fun funcName <`return=uniq, `a=(`return, int)> (`a arg) { }
+fun funcName <'return=int, `a=shared, `b=(`return, `a)> (`a arg1, `b arg2) { }
 ```
 
 # 構文
@@ -78,60 +101,77 @@ fun uniq int funcname (int a, int b) {}
 ## 変数定義・変数束縛
 
 構文：
-- LET  := let VARS BINDINGS?
-- VARS := TYPE? IDENTIFIER | TYPE? \\(IDENTIFIERS\\), VARS | e
-- IDENTIFIERS := (IDENTIFIER,)* IDENTIFIER
-- BINDINGS    := = EXPRIDLITS
-- EXPRIDLITS  := (EXPRIDLIT,)* EXPRIDLITS
+- LET      := let VARS BINDINGS?
+- VARS     := (VAR,)? VAR
+- VAR      := TYPE? IDENTIFIER | VTUPLE
+- VTUPLE   := \\( (VTVAR,)* VTVAR \\) | \\( \\)
+- VTVAR    := VTUPLE | VAR
+- BINDINGS := = (EXPRIDLIT,)* EXPRIDLIT
 
 ```
 let int a
 let int a = 100
 let int a, bool b = 100, true
-let int (a, b), bool c = (100, 200), false
+let (int a, int b) = (100, 200)
 ```
 
 ## 代入文
 
-- ASSIGN := IDENTIFIERS = EXPRIDLITS
+- ASSIGN := AVARS = AEXPRS
+- AVARS  := (AVAR,)? AVAR
+- AVAR   := IDENTIFIER | ATUPLE
+- ATUPLE := \\( (ATVAR,)* ATVAR \\) | \\( \\)
+- VTVAR  := ATUPLE | AVAR
 
 ```
 a = 100
 a, b = 100, 200
+(a, (b, c)) = (100, (200, true))
 ```
 
-# 演算
+# 式
+
+## タプル、名前無し構造体
+
+- TUPLE := \\( (TEXPR,)* TEXPR \\) | \\( \\)
+- TEXPR := TUPLE | EXPR
+
+```
+(int, bool)
+```
+
+## 演算
 
 - OP := EXPRIDLIT OPERATOR2 EXPRIDLIT | OPERATOR1 EXPRIDLIT
 - OPERATOR1 := not | - | ~
 - OPERATOR2 := + | - | * | / | & | '|' | ^ | and | or | xor | < | >
 
-# リテラル
+## リテラル
 
-## atom
+### atom
 
 - ATOM := \#IDENTIFIER
 
-## 文字列
+### 文字列
 
 - STR32  := " CHARS* "
 - STR8   := b " CHARS* "
 - ESCAPE := \a | \b | \f | \r | \n | \t | \v | \\\\ | \? | \' | \" | \0 | \UXXXXXXXX | \uXXXX
 - CHARS  := ESCAPE | ESCAPE以外の文字
 
-## 文字
+### 文字
 
 - CHAR32 := ' CHARS '
 - CHAR8  := b ' CHARS '
 
-## 整数
+### 整数
 
 - INT     := -? DIGIT
 - DIGIT   := NUM1to9 NUM0to9* | 0
 - NUM1to9 := 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
 - NUM0to9 := 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
 
-## 浮動小数
+### 浮動小数
 
 - FLOAT := INT . NUM0to9+ EXP? f?
 - EXP   := EE SIGN NUM+
@@ -140,26 +180,28 @@ a, b = 100, 200
 
 最後にfがついた場合は単精度で、つかない場合は倍精度となる。
 
-## 16進数
+### 16進数
 
 - HEX     := 0x HEXNUM2\* | 0X HEXNUM2\*
 - HEXNUM2 := HEXNUM HEXNUM
 - HEXNUM  := 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | a | A | b | B | c | C | d | D | f | F
 
-## 8進数
+### 8進数
 
 - OCT    := 0 OCTNUM*
 - OCTNUM := 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7
 
-## 2進数
+### 2進数
 
 - BIN    := 0b BINNUM\* | 0B BINNUM\*
 - BINNUM := 0 | 1
 
-## 真偽値
+### 真偽値
 
 - TRUE  := ture
 - FALSE := false
+
+# メモ
 
 ## 見た目はJavaScriptっぽく
 
