@@ -9,7 +9,7 @@
 
 namespace lunar {
 
-std::unordered_set<char32_t> idh_set;
+std::unordered_set<char32_t> idh_set; // identifiers must not include these characters
 std::unordered_set<char32_t> idt_set;
 std::unordered_map<std::u32string, LANG_SCALAR> scalar_set;
 std::unordered_map<char32_t, char32_t> esc_set;
@@ -84,6 +84,7 @@ lunar_ir::lunar_ir() :m_llvmjit(new MCJITHelper(m_llvmctx))
     idt_set.insert(U'.');
     idt_set.insert(U'?');
     idt_set.insert(U'/');
+    idt_set.insert(U'`');
     idt_set.insert(U'\u0009');
     idt_set.insert(U'\u000A');
     idt_set.insert(U'\u000B');

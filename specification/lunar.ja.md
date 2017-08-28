@@ -2,10 +2,10 @@
 
 # 構文
 
-- LUNAR      := DEFUN
+- LUNAR      := DEFUN*
 - STATEMENTS := (STATEMENT EOL)* STATEMENT | e
 - EOL        := \n | ;
-- STATEMENT  := LET | ASSIGN
+- STATEMENT  := LET | ASSIGN | WHILE | IF
 - EXPRIDLIT  := IDENTIFIER | LITERAL | EXPR
 - EXPR       := CALLFUNC | OP | TUPLE
 - LITERAL    := STR32 | STR8 | CHAR32 | CHAR8 | INT | FLOAT | HEX | OCT | BIN | ATOM | TRUE | FALSE
@@ -17,7 +17,7 @@ IDENTIFIERとは空白文字以外からなる、1文字以上の文字かつ、
 
 # 型指定子
 
-- TYPESPEC   := OWNERSHIP | UNSAFE | CONST
+- TYPESPEC   := OWNERSHIP | UNSAFE | CONST | ONCE
 - TYPESPECS  := TYPESPEC*
 - TYPESPECS1 := TYPESPEC+
 
@@ -40,11 +40,21 @@ IDENTIFIERとは空白文字以外からなる、1文字以上の文字かつ、
 
 ## unsafe指定子
 
+referenceのみに指定可能。
+
 - UNSAFE := unsafe
 
 ## const指定子
 
+値の変更が出来ないオブジェクトに指定。
+
 - CONST := const
+
+## once指定子
+
+一度しか束縛出来なくなる。unique, ref, sharedのみに指定可能。
+
+- ONCE := once
 
 # 型変数
 
@@ -129,6 +139,14 @@ a, b = 100, 200
 (a, (b, c)) = (100, (200, true))
 ```
 
+## while文
+
+- WHILE := while EXPR { STATEMENTS }
+
+## if文
+
+- IF := if EXPR { STATEMENTS }
+
 # 式
 
 ## タプル、名前無し構造体
@@ -145,6 +163,12 @@ a, b = 100, 200
 - OP := EXPRIDLIT OPERATOR2 EXPRIDLIT | OPERATOR1 EXPRIDLIT
 - OPERATOR1 := not | - | ~
 - OPERATOR2 := + | - | * | / | & | '|' | ^ | and | or | xor | < | >
+
+## 関数呼び出し
+
+- CALLFUNC := IDENTIFIER (<TARGS>)? \\( FARGS? \\)
+- TARGS    := (TYPE,)* TYPE | (TYPE,)* (IDENTIFIER=TYPE,)* IDENTIFIER=TYPE
+- FARGS    := (EXPR,)* EXPR | (EXPR,)* (IDENTIFIER=EXPR,)* IDENTIFIER=EXPR
 
 ## リテラル
 
