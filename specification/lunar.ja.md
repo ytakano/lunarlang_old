@@ -2,10 +2,10 @@
 
 # 構文
 
-- LUNAR      := DEFUN*
+- LUNAR      := (DEFUN | STRUCT | UNION)*
 - STATEMENTS := (STATEMENT EOL)* STATEMENT | e
 - EOL        := \n | ;
-- STATEMENT  := LET | ASSIGN | WHILE | IF
+- STATEMENT  := LET | ASSIGN | WHILE | IF | STRUCT | UNION
 - EXPRIDLIT  := IDENTIFIER | LITERAL | EXPR
 - EXPR       := CALLFUNC | OP | TUPLE
 - LITERAL    := STR32 | STR8 | CHAR32 | CHAR8 | INT | FLOAT | HEX | OCT | BIN | ATOM | TRUE | FALSE
@@ -17,7 +17,7 @@ IDENTIFIERとは空白文字以外からなる、1文字以上の文字かつ、
 
 # 型指定子
 
-- TYPESPEC   := OWNERSHIP | UNSAFE | CONST | ONCE
+- TYPESPEC   := OWNERSHIP | UNSAFE | CONST | ONCE | ENDIAN
 - TYPESPECS  := TYPESPEC*
 - TYPESPECS1 := TYPESPEC+
 
@@ -55,6 +55,12 @@ referenceのみに指定可能。
 一度しか束縛出来なくなる。unique, ref, sharedのみに指定可能。
 
 - ONCE := once
+
+## エンディアン指定子
+
+u64など、特定の型にのみに有効。
+
+- ENDIAN := big | little | native
 
 # 型変数
 
@@ -106,6 +112,20 @@ fun funcName <`return=uniq, `a=(`return, int)> (`a arg) { }
 fun funcName <'return=int, `a=shared, `b=(`return, `a)> (`a arg1, `b arg2) { }
 ```
 
+# 型定義
+
+## 構造体
+
+- STRUCT  := struct \<TYPEARGS\>? name { MEMBERS }
+- MEMBERS := (MEMBER,)* MEMBER ,?
+- MEMBER  := TYPE: IDENTIFIER | STRUCT | UNION
+
+## 多相型
+
+- UNION    := union \<TYPEARGS\>? name { UMEMBERS }
+- UMEMBERS := (UMEMBER,)* UMEMBER ,?
+- UMEMBER  := (TYPE:)? IDENTIFIER | STRUCT | UNION
+
 # 構文
 
 ## 変数定義・変数束縛
@@ -119,10 +139,11 @@ fun funcName <'return=int, `a=shared, `b=(`return, `a)> (`a arg1, `b arg2) { }
 - BINDINGS := = (EXPRIDLIT,)* EXPRIDLIT
 
 ```
-let int a
-let int a = 100
-let int a, bool b = 100, true
-let (int a, int b) = (100, 200)
+let a = 100
+let int: a
+let int: a = 100
+let int: a, bool: b = 100, true
+let (int: a, int: b) = (100, 200)
 ```
 
 ## 代入文
@@ -226,6 +247,44 @@ a, b = 100, 200
 - FALSE := false
 
 # メモ
+
+## 型システム
+
+Lunarlangの型は、t(a, b, c, d, e, f) と表すことが出来る。
+
+- 変数a
+  - 所有権
+  - a ∈ {unique, shared, ref, immovable}
+- 変数b
+  - unsafe指定子
+  - b ∈ {true, false}
+- 変数c
+  - const指定子
+  - c ∈ {true, false}
+- 変数d
+  - once指定子
+  - d ∈ {true, false}
+- 変数e
+  - エンディアン指定子
+  - e ∈ {big, little, native}
+- 変数f
+  - 実際の型を表す
+  - f ∈ {bool, u64, s64, u32, s32, u16, s16, u8, s8, double, float, char, atom, struct(x, y), union(z, w)}
+  - θ = t(a, b, c, d, e, f)で表される型の集合とする
+  - structは以下のような型となる
+    - struct(x, y)
+    - x ∈ θ
+    - y ∈ θ ∪ ∅
+    - 例
+      - struct(u64, struct(bool, ∅))
+      - これは、{u64, bool} という直積型となる
+  - unionは以下のような型となる
+    - union(z, w)
+    - z ∈ θ
+    - w ∈ θ ∪ ∅
+    - 例
+      - union(u64, union(bool, ∅))
+      - これは, u64 | bool という直和型となる
 
 ## 見た目はJavaScriptっぽく
 
