@@ -4,6 +4,7 @@
 #include "lunar_common.hpp"
 
 #include <deque>
+#include <functional>
 
 namespace lunar {
 

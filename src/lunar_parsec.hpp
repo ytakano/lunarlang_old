@@ -221,7 +221,7 @@ public:
         virtual ~parser_many() { }
 
         std::unique_ptr<std::vector<RT>> operator() () {
-            auto ret = llvm::make_unique(std::vector<RT>());
+            auto ret = std::make_unique(std::vector<RT>());
 
             for (;;) {
                 parser_try ptry(m_parsec);
@@ -253,7 +253,7 @@ public:
         virtual ~parser_many1() { }
 
         std::unique_ptr<std::vector<RT>> operator() () {
-            auto ret = llvm::make_unique(std::vector<RT>());
+            auto ret = std::make_unique(std::vector<RT>());
 
             auto val = m_func();
             if (! m_parsec.m_is_result)

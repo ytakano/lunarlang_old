@@ -32,7 +32,7 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE "release")
 endif()
 
-set(CMAKE_CXX_FLAGS "-Wno-gnu-zero-variadic-macro-arguments -fno-rtti ${LLVM_CXXFLAGS}")
+set(CMAKE_CXX_FLAGS "-Wno-gnu-zero-variadic-macro-arguments -fno-rtti -std=c++14 ${LLVM_CXXFLAGS}")
 set(CMAKE_CXX_FLAGS_DEBUG "-g -O0")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG")
 set(CMAKE_EXE_LINKER_FLAGS ${LLVM_LDFLAGS})
@@ -51,15 +51,15 @@ FILE(GLOB CPPMain lunar_main.cpp)
 
 list(REMOVE_ITEM CPPSources ${CPPMain})
 
-add_library(lunarlang_static STATIC ${CPPSources})
+add_library(lunarlang SHARED ${CPPSources})
 add_executable(lunar ${CPPMain} ${CPPSources})
 
 if(CMAKE_THREAD_LIBS_INIT)
-    set(LIBS ${LLVM_AVAILABLE_LIBS} ${CMAKE_THREAD_LIBS_INIT})
+    set(LIBS ${CMAKE_THREAD_LIBS_INIT} LLVM)
 else()
-    set(LIBS ${LLVM_AVAILABLE_LIBS})
+    set(LIBS LLVM)
 endif()
 
 
-target_link_libraries(lunarlang_static ${LIBS})
+target_link_libraries(lunarlang ${LIBS})
 target_link_libraries(lunar ${LIBS})

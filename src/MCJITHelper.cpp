@@ -1,8 +1,6 @@
 #include "MCJITHelper.hpp"
 
-#if LLVM_VERSION_MAJOR >= 4 || (LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR >= 9)
 #include <llvm/Transforms/Scalar/GVN.h>
-#endif
 
 void *HelpingMemoryManager::getPointerToNamedFunction(const std::string &Name,
                                                       bool AbortOnFailure)
@@ -148,11 +146,7 @@ MCJITHelper::compileModule(llvm::Module *M)
 
     //FPM->add(new llvm::DataLayout(*NewEngine->getDataLayout()));
     // Provide basic AliasAnalysis support for GVN.
-#if LLVM_VERSION_MAJOR >= 4 || (LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR >= 8)
     FPM->add(llvm::createBasicAAWrapperPass());
-#else
-    FPM->add(llvm::createBasicAliasAnalysisPass());
-#endif
     // Promote allocas to registers.
     FPM->add(llvm::createPromoteMemoryToRegisterPass());
     // Do simple "peephole" optimizations and bit-twiddling optzns.
@@ -215,6 +209,6 @@ MCJITHelper::dump()
     ModuleVector::iterator begin = Modules.begin();
     ModuleVector::iterator end   = Modules.end();
     ModuleVector::iterator it;
-    for (it = begin; it != end; ++it)
-        (*it)->dump();
+//    for (it = begin; it != end; ++it)
+//        (*it)->dump();
 }
