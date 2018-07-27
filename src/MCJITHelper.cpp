@@ -209,6 +209,6 @@ MCJITHelper::dump()
     ModuleVector::iterator begin = Modules.begin();
     ModuleVector::iterator end   = Modules.end();
     ModuleVector::iterator it;
-//    for (it = begin; it != end; ++it)
-//        (*it)->dump();
+    for (it = begin; it != end; ++it)
+        (*it)->print(llvm::errs(), nullptr);
 }

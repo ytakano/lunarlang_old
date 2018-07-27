@@ -253,7 +253,7 @@ void slab_free(struct slab_chain *const sch, const void *const addr)
         ((uintptr_t) addr & sch->alignment_mask);
 
 #ifdef __cplusplus
-    const int slot = ((char *) addr - (char *) slab -
+    const int slot = ((const char *) addr - (const char *) slab -
         offsetof(struct slab_header, data)) / sch->itemsize;
 #else
     register const int slot = ((char *) addr - (char *) slab -
