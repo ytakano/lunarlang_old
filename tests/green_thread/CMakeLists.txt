@@ -34,7 +34,7 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 
 set(LIBS ${LLVM_AVAILABLE_LIBS})
-set(CMAKE_CXX_FLAGS "-Wno-gnu-zero-variadic-macro-arguments -fno-rtti ${LLVM_CXXFLAGS} -mlzcnt -I../../src -std=c++14")
+set(CMAKE_CXX_FLAGS "-Wno-gnu-zero-variadic-macro-arguments -fno-rtti ${LLVM_CXXFLAGS} -mlzcnt -I../../src -std=c++11")
 set(CMAKE_CXX_FLAGS_DEBUG "-g -O0")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 set(CMAKE_EXE_LINKER_FLAGS ${LLVM_LDFLAGS})
@@ -57,7 +57,7 @@ add_executable(green_thread_cpp_all green_thread_cpp_all.cpp)
 
 if(CMAKE_THREAD_LIBS_INIT)
     set(LIBS ${LLVM_AVAILABLE_LIBS}
-             ${CMAKE_CURRENT_LIST_DIR}/../../src/liblunarlang${CMAKE_SHARED_LIBRARY_SUFFIX}
+             ${CMAKE_CURRENT_LIST_DIR}/../../src/liblunarlang_static.a
              ${CMAKE_THREAD_LIBS_INIT})
 else()
     set(LIBS ${LLVM_AVAILABLE_LIBS} ${CMAKE_CURRENT_LIST_DIR}/../../src/liblunarlang${CMAKE_SHARED_LIBRARY_SUFFIX})

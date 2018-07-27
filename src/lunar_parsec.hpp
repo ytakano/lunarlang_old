@@ -10,6 +10,7 @@
 #include <string>
 #include <unordered_set>
 #include <vector>
+#include <memory>
 
 namespace lunar {
 
@@ -221,7 +222,7 @@ public:
         virtual ~parser_many() { }
 
         std::unique_ptr<std::vector<RT>> operator() () {
-            auto ret = std::make_unique(std::vector<RT>());
+            auto ret = std::unique_ptr<std::vector<RT>>(new std::vector<RT>);
 
             for (;;) {
                 parser_try ptry(m_parsec);
@@ -253,7 +254,7 @@ public:
         virtual ~parser_many1() { }
 
         std::unique_ptr<std::vector<RT>> operator() () {
-            auto ret = std::make_unique(std::vector<RT>());
+            auto ret = std::unique_ptr<std::vector<RT>>(new std::vector<RT>);
 
             auto val = m_func();
             if (! m_parsec.m_is_result)

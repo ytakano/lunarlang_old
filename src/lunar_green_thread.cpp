@@ -657,7 +657,7 @@ green_thread::select_fd(bool is_block)
 int
 green_thread::spawn(void (*func)(void*), void *arg, int stack_size)
 {
-    auto ctx = std::make_unique<context>();
+    auto ctx = std::unique_ptr<context>(new context);
 
     for (;;) {
         ++m_count;
